@@ -1,0 +1,45 @@
+@font-face {
+  font-family: "local_oswald";
+  src: url("../fonts/Oswald-Regular.ttf");
+}
+
+* { font-family: 'local_oswald';
+}
+
+body {
+  background-color: #e8e8e0
+}
+
+a { text-decoration:none; }
+a:link { color:#7a7a7a; }
+a:visited { color:#7a7a7a; }
+
+@media only screen {
+    
+  .fine_print {
+    font-size: 10pt;
+  }
+
+  .main_section { 
+    margin:0px;
+    display: flex;
+    flex-direction: column;
+    _width: 800px;
+    padding: 0px;
+  }
+
+  .waveform {
+    display: block;
+    border:1px solid #282828;
+    background-color: #282828;
+    width: 100%;
+    height: 240px;
+    }
+ 
+  .numeric {
+    width:48px;
+    border:none;
+    background-color: #e8e8e0;
+  }
+
+}

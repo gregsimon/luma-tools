@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/luma.css">
+    <script src="js/webmidi.min.js"></script>
+    <script src="js/WavAudioEncoder.min.js"></script>
+    <script src="js/codecs.mjs"></script>
+    <script src="js/luma.js"></script>
+    <title>Luma-1 Tools</title>
+  </head>
+  <body onload='luma1_init()'>
+    
+    <div class = 'main_section'>
+      Drag a .bin (sample ROM) or wav file into the box. [Spacebar] previews audio.
+      
+      <div class = 'waveform' 
+            ondragover="dragOverHandler(event);"
+            ondrop='dropHandler(event);'>
+            <canvas id="waveform_canvas" width="700px" height="240px"></canvas>
+      </div>
+
+      <div id="status">
+        &nbsp;
+      </div>
+
+      <div style="flex-direction: row;">
+        <div>
+          <select id='midiOut' onchange='changeMidiOut();'>
+              <option value="">No MIDI connection</option>
+          </select>
+          <select id='binaryFormat' onchange='changeBinFormat();'>
+            <option value="ulaw_u8">UInt8 uLaw</option>
+            <option value="pcm_u8">UInt8 PCM</option>
+        </select>
+          <input class='numeric' style="text-align:right" type='text' value="0" id='in_point'/>
+          &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
+          <input type='button' value="Select All" onclick="resetRange()"/>
+          <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
+          <input type='button' value="Preview" onclick="playAudio()"/>
+          <input type='button' value="Export WAV..." onclick="exportSample()"/>
+          <input type='text' value="untitled" id='sample_name'/>
+          <input type='button' value="Send Sample to Luma-1" onclick='sendToLuma()' />
+        </div>
+      </div>
+
+      <br>
+
+      <div style="flex-direction: row;">
+        <div>
+          <input type='button' value="Read Sample:" onclick="requestDeviceSample()"/>
+          <select id='drumType'>
+            <option>BASS</option>
+            <option>SNARE</option>
+            <option>HIHAT</option>
+            <option>CLAPS</option>
+            <option>CABASA</option>
+            <option>TAMB</option>
+            <option>TOM</option>
+            <option>CONGA</option>
+            <option>COWBELL</option>
+            <option>CLAVE</option>
+          </select>
+         
+          |
+          <input type='button' value="Read Pattern" onclick="requestReadPattern()"/>
+          <input type='button' disabled value="Write Pattern" onclick="writePattern()"/>
+        </div>
+      </div>
+      
+    </div>
+
+  </body>
+</html>
+
