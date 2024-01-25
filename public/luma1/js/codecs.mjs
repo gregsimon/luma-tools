@@ -1,6 +1,30 @@
 "Copyright 2023-2024 The Luma-1 Project Authors"
 
-function ulaw_to_linear(ulaw) { // from WebRTC
+// ulaw/pcm and SysEx codecs.
+
+// The ulaw routines were taken from G711.c/h WebRTC codebase:
+// https://chromium.googlesource.com/external/webrtc/stable/webrtc/+/dccd94bfcccfc8ece3e1d62cf4d195835b79e4a5/modules/audio_coding/codecs/g711/g711.h
+/*
+ * g711.h - In line A-law and u-law conversion routines
+ *
+ * Written by Steve Underwood <steveu@coppice.org>
+ *
+ * Copyright (C) 2001 Steve Underwood
+ *
+ *  Despite my general liking of the GPL, I place this code in the
+ *  public domain for the benefit of all mankind - even the slimy
+ *  ones who might try to proprietize my work and use it to my
+ *  detriment.
+ *
+ * $Id: g711.h,v 1.1 2006/06/07 15:46:39 steveu Exp $
+ *
+ * Modifications for WebRtc, 2011/04/28, by tlegrand:
+ * -Changed to use WebRtc types
+ * -Changed __inline__ to __inline
+ * -Two changes to make implementation bitexact with ITU-T reference implementation
+ */
+
+function ulaw_to_linear(ulaw) {
   const  ULAW_BIAS = 0x84;
   ulaw = ~ulaw;
   t = (((ulaw & 0x0F) << 3) + ULAW_BIAS) 
@@ -9,7 +33,7 @@ function ulaw_to_linear(ulaw) { // from WebRTC
   return ((ulaw & 0x80) ? (ULAW_BIAS - t) : (t - ULAW_BIAS));
 }
 
-function linear_to_ulaw(linear) { // from WebRTC
+function linear_to_ulaw(linear) {
   const  ULAW_BIAS = 0x84;
   var u_val;
   var mask;
@@ -35,7 +59,7 @@ function linear_to_ulaw(linear) { // from WebRTC
   return u_val;
 }
 
-function top_bit(bits) { // from WebRTC
+function top_bit(bits) {
   var i;
   if (bits == 0) {
     return -1;
@@ -64,7 +88,7 @@ function top_bit(bits) { // from WebRTC
   return i;
 }
 
-
+// Converts an 8-bit ArrayBuffer into a 7-bit SysEx array.
 function pack_sysex(src) {
   var in_idx = 0;
   var out_idx = 0;
@@ -99,6 +123,7 @@ function pack_sysex(src) {
   return dst;
 }
 
+// Converts a 7-bit SysEx Array into an 8-bit binary array.
 function unpack_sysex(src) {
   out_block = new Array(src.length*2); // larger than we need
 
@@ -136,7 +161,6 @@ function unpack_sysex(src) {
 
   }
 
-  console.log("unpacked sysex " + src.length + " -> " + out_idx);
   return out_block.slice(0, out_idx);
 }
 

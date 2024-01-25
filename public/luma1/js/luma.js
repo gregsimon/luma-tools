@@ -1,6 +1,6 @@
 "Copyright 2023-2024 The Luma-1 Project Authors"
 
-/// globals
+// globals
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 var actx; // AudioContext
 var sourceAudioBuffer; // AudioBuffer (active sample)
@@ -10,13 +10,13 @@ var midiIn = null;
 var fileReader;
 var in_point = 0;
 var out_point = 0;
-var sampleRate = 24000;
+var sampleRate = 24000; // Hz
 var sampleName = "untitled";
 var shiftDown = false;
 var binaryFileOriginal = null; // Original raw bytes of loaded sample
 var binaryFormat = "ulaw_u8";
 
-// settings vars that are persisted locally
+// settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
 
 // send/receive device command IDs
@@ -39,7 +39,7 @@ const DRUM_CONGA = 7;
 const DRUM_COWBELL = 8;
 const DRUM_CLAVE = 9
 
-
+// Initialize the application.
 function luma1_init() {
   loadSettings();
 
@@ -75,8 +75,8 @@ function audio_init() {
 
 // -- Loading handlers
 
-// File data is in binaryFileOriginal - interpret it
-// based on 'binaryFormat'
+// File data is loaded/cached in binaryFileOriginal - 
+// interpret it based on 'binaryFormat'
 function interpretBinaryFile() {
 
   if (binaryFormat === "ulaw_u8")
@@ -93,15 +93,14 @@ function interpretBinaryFile() {
   document.getElementById('sample_name').value = sampleName;
 }
 
+// Binary stream - could be any number of formats.
 function droppedFileLoadedBIN(event) { 
-  // save original so we can re-interpret it.
-  binaryFileOriginal = fileReader.result;
-  
+  binaryFileOriginal = fileReader.result; // save original so we can re-interpret it.
   document.getElementById('binaryFormat').removeAttribute('disabled');
-
   interpretBinaryFile();
 }
 
+// Decode a Windows WAV file
 function droppedFileLoadedWav(event) {
   document.getElementById('binaryFormat').setAttribute('disabled', true);
 
@@ -189,6 +188,7 @@ function updateStatusBar() {
     sourceAudioBuffer.length+" samples total, "+(out_point-in_point)+" samples selected";
 }
 
+// Render the audio waveform and endpoint UI into the canvas
 function drawWaveformCanvas() {
   var canvas = document.getElementById('waveform_canvas');
   const w = canvas.width;
@@ -333,7 +333,8 @@ function sendToLuma() {
 }
 
 function playAudio() {
-  // disable focus since screws things up
+  // disable focus since it may double-trigger if "Preview" is selected and
+  // the spacebar is pressed.
   document.activeElement.blur();
 
   let	theSound = actx.createBufferSource();
@@ -397,7 +398,7 @@ function changeBinFormat(event) {
   interpretBinaryFile();
 }
 
-// Download this arraybuffer as a binary file
+// Download this arraybuffer to the local computer as a binary file
 function saveLocalByteAray(name, buffer) {
   var blob = new Blob([buffer], {type: "application/octet-stream"});
   console.log("blob size is "+ blob.size);
@@ -436,7 +437,8 @@ function requestReadPattern() {
 }
 
 // ----------------------------------------------------------------------------
-// WebMIDI
+// WebMIDI routines
+
 function onMidiFailCallback(err) {
   console.log("WebMIDI failed to initialize: " + err.code);
   document.getElementById('midiFailed').style.display='block';
@@ -486,7 +488,7 @@ function onMidiMessageReceived(event) {
 
 }
 
-// UI picker changed MIDI device
+// User changed MIDI device
 function changeMIDIOutCallback(event) {
     let
         outputs = midiAccess.outputs, 
