@@ -18,6 +18,16 @@ Luma tools uses [WebMIDI](https://developer.mozilla.org/en-US/docs/Web/API/Web_M
 
 Now you can drag samples in from the desktop (Wav, PCM) into the editing area. Select a slot (e.g. BASS, SNARE, ...) and click "Send to Luma" to load it into the machine.
 
+## How it works
+The project is a client-side-only web application. It uses WebMIDI to communicate with the 
+Luma1 hardware and uses WebAudio to do processing and playback. See luma.js for the details. It
+is currently hosted on firebase, but can be hosted anywhere since there are no server-side 
+dependencies.
+
+##FAQ
+- **Will it run in Safari?** No, as Safari does not support WebMIDI.
+- **Will it run offline?** It was designed to do this and will support this mode in an upcoming release!
+
 ## Roadmap
 - Bank loading/saving
 - Bank building
