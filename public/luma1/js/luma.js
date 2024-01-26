@@ -457,7 +457,7 @@ function onMidiMessageReceived(event) {
     // skip first two and last bytes
 
     const decoder = new TextDecoder();
-    var data = Uint8Array.from(unpack_sysex(event.data.slice(2, event.data.length-2)));
+    var data = Uint8Array.from(unpack_sysex(event.data.slice(2, event.data.length-1)));
     var type = data[0];
     if (type == 0x01 || type == 0x09) { // 0x01 or 0x09 for samples
       // header 32 bytes

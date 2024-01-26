@@ -125,7 +125,10 @@ function pack_sysex(src) {
 
 // Converts a 7-bit SysEx Array into an 8-bit binary array.
 function unpack_sysex(src) {
+  var debug=false;
   out_block = new Array(src.length*2); // larger than we need
+
+  if (debug) console.log("unpack_sysex: IN= "+src.length);
 
   var in_size = src.length;
   var in_idx = 0;
@@ -134,11 +137,17 @@ function unpack_sysex(src) {
 
   // [ <sign byte> <7 data bytes> ]
   while (in_size > 0) {
+    var str ="";
+
     var signbyte = src[in_idx]; in_idx++;
-    for (var i=0; i<7; i++) {
+    var bytes_to_count = Math.min(7, in_size-1);
+    for (var i=0; i<bytes_to_count; i++) {
       buffer[i] = src[in_idx];
+      if (debug) str += `0x${buffer[i].toString(16)} `;
       in_idx++;
     }
+    if (debug) console.log(str);
+    
 
     for (var i=6; i>=0; --i) {
       if ((1 << i) & signbyte) {
@@ -161,6 +170,7 @@ function unpack_sysex(src) {
 
   }
 
+  if (debug) console.log("unpack_sysex: OUT="+out_idx+"   -header="+(out_idx-32));
   return out_block.slice(0, out_idx);
 }
 
