@@ -84,8 +84,9 @@ function interpretBinaryFile() {
   else if (binaryFormat === "pcm_u8")
     loadBIN_u8b_pcm(binaryFileOriginal);
 
+  // These are indexes into the 
   in_point = 0;
-  out_point = sourceAudioBuffer.length;
+  out_point = sourceAudioBuffer.length-1;
 
   resizeCanvasToParent();
   drawWaveformCanvas();
@@ -108,7 +109,7 @@ function droppedFileLoadedWav(event) {
   actx.decodeAudioData(fileReader.result, function(buf) {
     sourceAudioBuffer = buf;
     in_point = 0;
-    out_point = sourceAudioBuffer.length;
+    out_point = sourceAudioBuffer.length-1;
 
     resizeCanvasToParent();
     drawWaveformCanvas();
@@ -185,7 +186,7 @@ function updateStatusBar() {
   document.getElementById('in_point').value = in_point;
   document.getElementById('out_point').value = out_point;
   document.getElementById('status').innerText = 
-    sourceAudioBuffer.length+" samples total, "+(out_point-in_point)+" samples selected";
+    sourceAudioBuffer.length+" samples total, "+(out_point-in_point+1)+" samples selected";
 }
 
 // Render the audio waveform and endpoint UI into the canvas
@@ -528,6 +529,7 @@ function onMidiSuccessCallback(inMidiAccess) {
       selectMidiOut.options.add(new Option(port.name, port.fingerprint, false, false));
   });
   selectMidiOut.onchange = changeMIDIOutCallback;
+  selectMidiOut.selectedIndex = 0;
 
   // Load the last used MIDI port, if one was set.
   if (selectMidiOut.value != undefined) {
