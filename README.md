@@ -1,7 +1,7 @@
 # Luma-Tools
 ## For the Luma-1 Drum Computer
 
-**luma-tools** is a web application that can be used as a companion to the Luma-1 Drum computer. It enables:
+**luma-tools** is a web application that can be used as a companion to the [Luma-1 Drum computer](https://github.com/joebritt/luma1). It enables:
 - drag and drop sample conversion and loading
 - device memory memory backup
 - sample bank manipulation (coming soon!)
