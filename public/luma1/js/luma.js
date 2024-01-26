@@ -1,4 +1,4 @@
-"Copyright 2023-2024 The Luma-1 Project Authors"
+"Copyright 2023-2024 Greg Simon"
 
 // globals
 const AudioContext = window.AudioContext || window.webkitAudioContext;

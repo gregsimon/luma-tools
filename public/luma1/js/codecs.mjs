@@ -1,9 +1,11 @@
-"Copyright 2023-2024 The Luma-1 Project Authors"
-
 // ulaw/pcm and SysEx codecs.
 
 // The ulaw routines were taken from G711.c/h WebRTC codebase:
 // https://chromium.googlesource.com/external/webrtc/stable/webrtc/+/dccd94bfcccfc8ece3e1d62cf4d195835b79e4a5/modules/audio_coding/codecs/g711/g711.h
+
+// sysex routines were inspired from the luma1 project firmware:
+// https://github.com/joebritt/luma1
+
 /*
  * g711.h - In line A-law and u-law conversion routines
  *
