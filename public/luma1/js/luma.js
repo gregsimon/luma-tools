@@ -1,7 +1,7 @@
 "Copyright 2023-2024 Greg Simon"
 
 // globals
-const AudioContext = window.AudioContext || window.webkitAudioContext;
+const classAudioContext = window.AudioContext || window.webkitAudioContext;
 var actx; // AudioContext
 var sourceAudioBuffer; // AudioBuffer (active sample)
 var midiAccess = null;
@@ -70,7 +70,7 @@ function luma1_init() {
 // This can only be done after a user gesture on the page.
 function audio_init() {
   if (actx == undefined)
-    actx = new AudioContext;
+    actx = new classAudioContext;
 }
 
 // -- Loading handlers
