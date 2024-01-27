@@ -15,6 +15,7 @@ var sampleName = "untitled";
 var shiftDown = false;
 var binaryFileOriginal = null; // Original raw bytes of loaded sample
 var binaryFormat = "ulaw_u8";
+var kMaxSampleSize = 32768;
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -88,9 +89,7 @@ function interpretBinaryFile() {
   in_point = 0;
   out_point = sourceAudioBuffer.length-1;
 
-  resizeCanvasToParent();
-  drawWaveformCanvas();
-  updateStatusBar();
+  trimBufferToFitLuma();
   document.getElementById('sample_name').value = sampleName;
 }
 
@@ -101,19 +100,43 @@ function droppedFileLoadedBIN(event) {
   interpretBinaryFile();
 }
 
+function trimBufferToFitLuma() {
+  // limit sourceAudioBuffer to kMaxSampleSize samples
+  if (sourceAudioBuffer.length >= kMaxSampleSize) {
+    console.log("trim buffer to kMaxSampleSize, original_size="+sourceAudioBuffer.length+" sampleRate="+
+    sourceAudioBuffer.sampleRate);
+
+    // TODO : resample buffer!
+    var newSampleRate = 24000;
+
+    var newArrayBuffer = actx.createBuffer(1, kMaxSampleSize, newSampleRate);
+    var anotherArray = new Float32Array(kMaxSampleSize);
+    var offset = 0;
+
+    sourceAudioBuffer.copyFromChannel(anotherArray, 0, 0);
+    newArrayBuffer.copyToChannel(anotherArray, 0, 0);
+    
+    sourceAudioBuffer = newArrayBuffer;
+    in_point = 0;
+    out_point = sourceAudioBuffer.length-1;
+  }
+
+  resizeCanvasToParent();
+  drawWaveformCanvas();
+  updateStatusBar();
+  console.log("trimmed - new len is "+sourceAudioBuffer.length);
+}
+
 // Decode a Windows WAV file
 function droppedFileLoadedWav(event) {
   document.getElementById('binaryFormat').setAttribute('disabled', true);
 
-  console.log("droppedFileLoadedWav " + fileReader.result);
   actx.decodeAudioData(fileReader.result, function(buf) {
     sourceAudioBuffer = buf;
     in_point = 0;
     out_point = sourceAudioBuffer.length-1;
 
-    resizeCanvasToParent();
-    drawWaveformCanvas();
-    updateStatusBar();
+    trimBufferToFitLuma();
     document.getElementById('sample_name').value = sampleName;
   });
 }
@@ -259,7 +282,7 @@ function dropHandler(ev) {
     var name = `${file.name}`;
     sampleName = name.slice(0, name.length-4);
     name = name.toLowerCase();
-    console.log(`… file2[${i}].name = ${file.name}`);
+    //console.log(`… file2[${i}].name = ${file.name}`);
     
     fileReader = new FileReader();
     if (name.slice(-4) === '.bin')
