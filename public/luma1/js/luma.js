@@ -131,7 +131,7 @@ function trimBufferToFitLuma() {
     console.log("sample is "+sourceAudioBuffer.length+"/"+kMaxSampleSize);
 
     in_point = 0;
-    out_point = sourceAudioBuffer.length-1;
+    out_point = sourceAudioBuffer.length-2;
   }
 
   resizeCanvasToParent();
