@@ -70,8 +70,11 @@ function luma1_init() {
 
 // This can only be done after a user gesture on the page.
 function audio_init() {
+  // We are selecting 12000 Hz here in order estimate the
+  // Luma-1's pitch knob position at 12-o-clock. This matters because 
+  // when we drag import wav files WebAudio matches them to this audiocontext.
   if (actx == undefined)
-    actx = new classAudioContext;
+    actx = new classAudioContext({sampleRate:12000});
 }
 
 // -- Loading handlers
@@ -102,6 +105,7 @@ function droppedFileLoadedBIN(event) {
 
 function trimBufferToFitLuma() {
   // limit sourceAudioBuffer to kMaxSampleSize samples
+  console.log("imported sample len is "+sourceAudioBuffer.length);
   if (sourceAudioBuffer.length >= kMaxSampleSize) {
     console.log("trim buffer to kMaxSampleSize, original_size="+sourceAudioBuffer.length+" sampleRate="+
     sourceAudioBuffer.sampleRate);
@@ -119,12 +123,21 @@ function trimBufferToFitLuma() {
     sourceAudioBuffer = newArrayBuffer;
     in_point = 0;
     out_point = sourceAudioBuffer.length-1;
+    console.log("trimmed - new len is "+sourceAudioBuffer.length);
+  }
+  else {
+    // sample is <= to the full sample size.
+    // let's try padding with zeros on the end and see what that does.
+    console.log("sample is "+sourceAudioBuffer.length+"/"+kMaxSampleSize);
+
+    in_point = 0;
+    out_point = sourceAudioBuffer.length-1;
   }
 
   resizeCanvasToParent();
   drawWaveformCanvas();
   updateStatusBar();
-  console.log("trimmed - new len is "+sourceAudioBuffer.length);
+  
 }
 
 // Decode a Windows WAV file
@@ -132,6 +145,7 @@ function droppedFileLoadedWav(event) {
   document.getElementById('binaryFormat').setAttribute('disabled', true);
 
   actx.decodeAudioData(fileReader.result, function(buf) {
+    console.log("decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
     sourceAudioBuffer = buf;
     in_point = 0;
     out_point = sourceAudioBuffer.length-1;
