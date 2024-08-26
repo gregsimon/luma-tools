@@ -40,6 +40,9 @@ const DRUM_CONGA = 7;
 const DRUM_COWBELL = 8;
 const DRUM_CLAVE = 9
 
+Number.padLeft = (nr, len = 2, padChr = `0`) => 
+  `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
+
 // Initialize the application.
 function luma1_init() {
   loadSettings();
@@ -51,6 +54,19 @@ function luma1_init() {
   canvas.onmousemove = onCanvasMouseMove;
   canvas.onmouseup = onCanvasMouseUp;
   canvas.onmouseleave = onCanvasMouseUp;
+
+  // populate the bankid field
+  var bankid = document.getElementById('bankId');
+  var opt = document.createElement('option');
+  opt.value = 255;
+  opt.innerHTML = "STAGING";
+  bankid.appendChild(opt);
+  for (i=0; i<=99; i++) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.innerHTML = Number.padLeft(i);
+    bankid.appendChild(opt);
+  }
 
   window.addEventListener( "resize",  function(event) {
       resizeCanvasToParent();
@@ -420,12 +436,15 @@ function requestDeviceSample() {
   audio_init(); // may not have been called
 
   var drumType = document.getElementById('drumType').selectedIndex;
-  console.log(drumType);
+  var bankId = document.getElementById('bankId').value;
+  console.log("bankid = " + bankId)
 
   var buf = new ArrayBuffer(32);
   dv = new DataView(buf);
 
+  // struct from LM_MIDI.ino
   buf[0] = CMD_SAMPLE | 0x08;
+  buf[25] = bankId;
   buf[26] = drumType;
 
   sendSysexToLuma(buf);

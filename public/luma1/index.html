@@ -63,9 +63,13 @@
             <option>COWBELL</option>
             <option>CLAVE</option>
           </select>
+          from bank
+          <select id='bankId'>
+
+          </select>
          
           |
-          <input type='button' value="Read Pattern" onclick="requestReadPattern()"/>
+          <input type='button' disabled value="Read Pattern" onclick="requestReadPattern()"/>
           <input type='button' disabled value="Write Pattern" onclick="writePattern()"/>
         </div>
       </div>
@@ -81,6 +85,7 @@
           <br>Set "out" endpoint by click/dragging on lower half of waveform. 
           <br>Press "Spacebar" to playback sample in browser
           <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples) 
+          <br>The "STAGING" bank represents the samples currently loaded into the cards.
         </div>
         <hr>
         <div>
