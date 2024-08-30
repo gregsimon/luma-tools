@@ -44,6 +44,12 @@ const DRUM_CLAVE = 9
 const slot_names = ["BASS", "SNARE", "HIHAT", "CLAPS",
   "CABASA", "TAMB", "TOM", "CONGA", "COWBELL", "RIMSHOT"];
 
+// State during read banks. We need to chain together a number
+// of sample request callbacks.
+var reading_banks = false;            // are we reading banks?
+var reading_banks_id;                 // 255, 0-99
+var reading_banks_current_slot = 0;   // what slot to drop the sample in when it arrives
+
 
 Number.padLeft = (nr, len = 2, padChr = `0`) => 
   `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
@@ -280,6 +286,11 @@ function droppedFileLoadedWav(event) {
     document.getElementById('sample_name').value = sampleName;
   });
 }
+
+function dragOverHandler(ev) {
+  ev.preventDefault();
+}
+
 
 function resizeCanvasToParent() {
   var canvas = document.getElementById('waveform_canvas');
@@ -540,6 +551,29 @@ function loadBIN_u8b_pcm(arraybuf) {
   }
 }
 
+
+// reads all samples from the bank in the 'bankid2' field.
+function readBank() {
+  audio_init(); // may not have been called
+
+  reading_banks = true;
+  reading_banks_id = document.getElementById('bankId2').value;
+  reading_banks_current_slot = 0; // start with slot 0
+  
+  readNextSampleInBank();
+}
+
+function readNextSampleInBank() {
+  var buf = new ArrayBuffer(32);
+  dv = new DataView(buf);
+
+  // struct from LM_MIDI.ino
+  buf[0] = CMD_SAMPLE | 0x08;
+  buf[25] = bankId;
+  buf[26] = reading_banks_current_slot;
+  sendSysexToLuma(buf);
+}
+
 // Ask Luma to send the sample buffer
 function requestDeviceSample() {
   audio_init(); // may not have been called
@@ -646,6 +680,16 @@ function onMidiMessageReceived(event) {
       resizeCanvasToParent();
       drawWaveformCanvas();
       updateStatusBar();
+
+      if (reading_banks) {
+        // copy the sample to the appropriate slot.        
+        copyWaveFormBetweenSlots(255, reading_banks_current_slot);
+        reading_banks_current_slot++;
+        if (reading_banks_current_slot < slot_names.length)
+          readNextSampleInBank();
+        else
+          reading_banks = false;
+      }
     }
     else  {
       console.log("unsupported Luma packet type=" + type);
