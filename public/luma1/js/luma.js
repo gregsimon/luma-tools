@@ -57,6 +57,7 @@ Number.padLeft = (nr, len = 2, padChr = `0`) =>
 // Initialize the application.
 function luma1_init() {
 
+  // wire up the slot waveforms
   for (i=0; i<10; i++) {
     (function(i) {
       bank.push({
@@ -70,6 +71,7 @@ function luma1_init() {
         ev.preventDefault();
         console.log(ev);
       }; 
+      el.ondblclick = (ev) => {copyWaveFormBetweenSlots(i, 255)};
       el.onmousedown = (ev) => {playSlotAudio(i);}   
       el.ondragover = (ev) => {ev.preventDefault();};
       el.ondragstart = (ev) => {ev.dataTransfer.setData("text/plain", i);};
@@ -82,6 +84,33 @@ function luma1_init() {
   }
   document.getElementById("dragsrc").ondragstart = 
       (ev) => {ev.dataTransfer.setData("text/plain", 255);};
+
+  // populate the bank select fields
+  let populate_bank_select = function(el) {
+    var opt = document.createElement('option');
+    opt.value = 255;
+    opt.innerHTML = "STAGING";
+    el.appendChild(opt);  
+    for (i=0; i<=99; i++) {
+      opt = document.createElement('option');
+      opt.value = i;
+      opt.innerHTML = Number.padLeft(i);
+      el.appendChild(opt);
+    }
+  };
+  populate_bank_select(document.getElementById('bankId'));
+  populate_bank_select(document.getElementById('bankId2'));
+
+  // populate the slot field
+  let populate_slot_select = function(el) {
+    for (i=0; i<=slot_names.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.innerHTML = slot_names[i];
+      el.appendChild(opt);
+    }
+  };
+  populate_slot_select(document.getElementById('slotId'));
 
   loadSettings();
 
@@ -99,22 +128,6 @@ function luma1_init() {
     copyWaveFormBetweenSlots(srcId, 255);
   };
   
-
-  // populate the bank select fields
-  let populate_bank_selects = function(el) {
-    var opt = document.createElement('option');
-    opt.value = 255;
-    opt.innerHTML = "STAGING";
-    el.appendChild(opt);  
-    for (i=0; i<=99; i++) {
-      opt = document.createElement('option');
-      opt.value = i;
-      opt.innerHTML = Number.padLeft(i);
-      el.appendChild(opt);
-    }
-  };
-  populate_bank_selects(document.getElementById('bankId'));
-  populate_bank_selects(document.getElementById('bankId2'));
 
   window.addEventListener( "resize",  function(event) {
       resizeCanvasToParent();
@@ -153,8 +166,6 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
   if (srcId == dstId)
     return;
 
-  console.log("copy "+srcId+" to "+dstId);
-
   if (srcId == 255) {
     // copying from editing waveform to a slot
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer);
@@ -170,7 +181,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
 }
 
 function playSlotAudio(id) {
-  console.log("play "+id);
+  console.log("TODO : playSlotAudio "+id);
 }
 
 function drawMiniCanvases() {
@@ -226,6 +237,12 @@ function interpretBinaryFile() {
 
   trimBufferToFitLuma();
   document.getElementById('sample_name').value = sampleName;
+}
+
+// A zip file was dropped, presumably holding individual .wav files
+// for each of the slots.
+function droppedFileLoadedZip(event) {
+
 }
 
 // Binary stream - could be any number of formats.
@@ -439,6 +456,8 @@ function dropHandler(ev) {
       fileReader.onload = droppedFileLoadedBIN;
     else if (name.slice(-4) === '.wav')
       fileReader.onload = droppedFileLoadedWav;
+    else if (name.slice(-4) === '.zip')
+      fileReaderonload = droppedFileLoadedZip;
 
     fileReader.readAsArrayBuffer(file);
   }
@@ -466,7 +485,7 @@ function sendSysexToLuma(header) {
 
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
-function sendToLuma() {
+function sendEditorSampleToLuma() {
   var numSamples = out_point - in_point;
   var channels = sourceAudioBuffer.getChannelData(0);
   var ulaw_buffer = [];
@@ -485,9 +504,21 @@ function sendToLuma() {
   for (i=0; i<32; i++)
     binaryStream.push(0x00); // 32b header
 
+  // Offset into header
+  // ----------------------
+  // 0      cmd
+  // 1-24   24 bytes of name
+  // 25     bank Id
+  // 26     slot Id
+  // 27-31  padding
+  binaryStream[0]  = 0x01; // write to specific slot
+  binaryStream[25] = 255;  // staging bank
+  binaryStream[26] = document.getElementById('slotId').value;
+
   // pack name into offset [1]
-  const kMaxChars = 16;
+  const kMaxChars = 24;
   sampleName = document.getElementById('sample_name').value.slice(0, kMaxChars);
+  console.log("writing "+sampleName.length+ " chars to slot "+document.getElementById('slotId').value);
   for (i=0; i<sampleName.length; i++)
     binaryStream[i+1] = sampleName.charAt(i).charCodeAt();
 
@@ -578,7 +609,7 @@ function readNextSampleInBank() {
 function requestDeviceSample() {
   audio_init(); // may not have been called
 
-  var drumType = document.getElementById('drumType').selectedIndex;
+  var slotId = document.getElementById('slotId').selectedIndex;
   var bankId = document.getElementById('bankId').value;
   console.log("bankid = " + bankId)
 
@@ -588,7 +619,7 @@ function requestDeviceSample() {
   // struct from LM_MIDI.ino
   buf[0] = CMD_SAMPLE | 0x08;
   buf[25] = bankId;
-  buf[26] = drumType;
+  buf[26] = slotId;
 
   sendSysexToLuma(buf);
 }
@@ -663,6 +694,7 @@ function onMidiMessageReceived(event) {
       // [0] cmd
       // [1-23] name
       // [25] bank
+      // [26] slot
       var name = data.slice(1, 24);
       var name_len = 0;
       for (var i=0; i<name.length; i++) {

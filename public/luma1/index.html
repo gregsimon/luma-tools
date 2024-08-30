@@ -8,6 +8,7 @@
     <script src="js/webmidi.min.js"></script>
     <script src="js/WavAudioEncoder.min.js"></script>
     <script src="js/codecs.mjs"></script>
+    <script src="js/jszip.min.js"></script>
     <script src="js/luma.js"></script>
     <title>Luma-1 Tools</title>
   </head>
@@ -43,7 +44,7 @@
           <input type='button' value="Preview" onclick="playAudio()"/>
           <input type='button' value="Export WAV..." onclick="exportSample()"/>
           <input type='text' value="untitled" id='sample_name'/>
-          <input type='button' value="Send Sample to Luma-1" onclick='sendToLuma()' />
+          <input type='button' value="Send Sample to Luma-1" onclick='sendEditorSampleToLuma()' />
         </div>
       </div>
 
@@ -52,19 +53,9 @@
       <div style="flex-direction: row;">
         <div>
           <input type='button' value="Read Sample:" onclick="requestDeviceSample()"/>
-          <select id='drumType'>
-            <option>BASS</option>
-            <option>SNARE</option>
-            <option>HIHAT</option>
-            <option>CLAPS</option>
-            <option>CABASA</option>
-            <option>TAMB</option>
-            <option>TOM</option>
-            <option>CONGA</option>
-            <option>COWBELL</option>
-            <option>RIMSHOT</option>
+          <select id='slotId'>
           </select>
-          from bank
+          from bank:
           <select id='bankId'></select>         
           |
           <input type='button' disabled value="Read Pattern" onclick="requestReadPattern()"/>
@@ -89,7 +80,7 @@
           <li><canvas id="canvas_slot_9" class="mini_waveform_canvas"></canvas></li>
         </ul>
         <input type='button' value="Read Bank From Device" onclick="readBank()"/>
-         Bank Id: <select id='bankId2'></select>
+         from bank: <select id='bankId2'></select>
         <input type='button' disabled value="Export Bank ..." onclick="DownloadBank()"/>
         <input type='button' disabled value="Write Bank To Device" onclick="writeBank()"/>
           
@@ -105,7 +96,8 @@
           <br>Set "out" endpoint by click/dragging on lower half of waveform. 
           <br>Press "Spacebar" to playback sample in browser
           <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples) 
-          <br>The "STAGING" bank represents the samples currently loaded into the cards.
+          <br>Drag waveforms between slots in the staging area, they can also be dragged to and from the editor
+          <br>The "STAGING" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.
         </div>
         <hr>
         <div>
