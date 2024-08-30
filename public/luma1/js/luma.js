@@ -16,6 +16,7 @@ var shiftDown = false;
 var binaryFileOriginal = null; // Original raw bytes of loaded sample
 var binaryFormat = "ulaw_u8";
 var kMaxSampleSize = 32768;
+var bank = []; // Hold the state of each slot
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -40,11 +41,42 @@ const DRUM_CONGA = 7;
 const DRUM_COWBELL = 8;
 const DRUM_CLAVE = 9
 
+const slot_names = ["BASS", "SNARE", "HIHAT", "CLAPS",
+  "CABASA", "TAMB", "TOM", "CONGA", "COWBELL", "RIMSHOT"];
+
+
 Number.padLeft = (nr, len = 2, padChr = `0`) => 
   `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
 
 // Initialize the application.
 function luma1_init() {
+
+  for (i=0; i<10; i++) {
+    (function(i) {
+      bank.push({
+        id: i,
+        name: slot_names[i],
+        audioBuffer: null
+      });
+      var el = document.getElementById("canvas_slot_"+i);
+      el.draggable = true;
+      el.ondrop = (ev) => {
+        ev.preventDefault();
+        console.log(ev);
+      }; 
+      el.onmousedown = (ev) => {playSlotAudio(i);}   
+      el.ondragover = (ev) => {ev.preventDefault();};
+      el.ondragstart = (ev) => {ev.dataTransfer.setData("text/plain", i);};
+      el.ondrop = (ev) => {
+        ev.preventDefault();
+        const srcId = ev.dataTransfer.getData("text/plain");
+        copyWaveFormBetweenSlots(srcId, i);
+      };
+      })(i);
+  }
+  document.getElementById("dragsrc").ondragstart = 
+      (ev) => {ev.dataTransfer.setData("text/plain", 255);};
+
   loadSettings();
 
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
@@ -53,35 +85,113 @@ function luma1_init() {
   canvas.onmousedown = onCanvasMouseDown;
   canvas.onmousemove = onCanvasMouseMove;
   canvas.onmouseup = onCanvasMouseUp;
-  canvas.onmouseleave = onCanvasMouseUp;
+  canvas.onmouseleave = onCanvasMouseUp;  
+  canvas.ondragover = (ev) => {ev.preventDefault();};
+  canvas.ondrop = (ev) => {
+    ev.preventDefault();
+    const srcId = ev.dataTransfer.getData("text/plain");
+    copyWaveFormBetweenSlots(srcId, 255);
+  };
+  
 
-  // populate the bankid field
-  var bankid = document.getElementById('bankId');
-  var opt = document.createElement('option');
-  opt.value = 255;
-  opt.innerHTML = "STAGING";
-  bankid.appendChild(opt);
-  for (i=0; i<=99; i++) {
+  // populate the bank select fields
+  let populate_bank_selects = function(el) {
     var opt = document.createElement('option');
-    opt.value = i;
-    opt.innerHTML = Number.padLeft(i);
-    bankid.appendChild(opt);
-  }
+    opt.value = 255;
+    opt.innerHTML = "STAGING";
+    el.appendChild(opt);  
+    for (i=0; i<=99; i++) {
+      opt = document.createElement('option');
+      opt.value = i;
+      opt.innerHTML = Number.padLeft(i);
+      el.appendChild(opt);
+    }
+  };
+  populate_bank_selects(document.getElementById('bankId'));
+  populate_bank_selects(document.getElementById('bankId2'));
 
   window.addEventListener( "resize",  function(event) {
       resizeCanvasToParent();
       drawWaveformCanvas();
     });
-  window.addEventListener( "keydown", function(theKey) {
-      if ( theKey.key === " " )
+  window.addEventListener( "keydown", function(e) {
+      if ( e.key === " " ) {
+        e.preventDefault(); // TODO this prevents space in the text edit field
         playAudio();
-      else if ( theKey.shiftKey == true)
+      } else if ( e.shiftKey == true)
         shiftDown = true;
     });
-  window.addEventListener( "keyup", function(theKey) {
-      if ( theKey.key.charCodeAt() == 83 )
+  window.addEventListener( "keyup", function(e) {
+      if ( e.key.charCodeAt() == 83 )
       shiftDown = false;
     });
+
+    drawMiniCanvases();
+}
+
+function cloneAudioBuffer(fromAudioBuffer) {
+  const audioBuffer = new AudioBuffer({
+    length:fromAudioBuffer.length, 
+    numberOfChannels:fromAudioBuffer.numberOfChannels, 
+    sampleRate:fromAudioBuffer.sampleRate
+  });
+  for(let channelI = 0; channelI < audioBuffer.numberOfChannels; ++channelI) {
+    const samples = fromAudioBuffer.getChannelData(channelI);
+    audioBuffer.copyToChannel(samples, channelI);
+  }
+  return audioBuffer;
+}
+
+
+function copyWaveFormBetweenSlots(srcId, dstId) {
+  if (srcId == dstId)
+    return;
+
+  console.log("copy "+srcId+" to "+dstId);
+
+  if (srcId == 255) {
+    // copying from editing waveform to a slot
+    bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer);
+  } else if (dstId == 255) {
+    // copy from slot to editing waveform.
+    sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
+  } else {
+    // copy slot to slot
+    bank[dstId].audioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
+  }
+
+  drawWaveformCanvas();
+}
+
+function playSlotAudio(id) {
+  console.log("play "+id);
+}
+
+function drawMiniCanvases() {
+  for (i=0; i<10; i++) {
+    var c = document.getElementById("canvas_slot_"+i);
+    drawWaveformOnCanvas(c, bank[i].audioBuffer, bank[i].name);
+    }
+}
+
+function drawWaveformOnCanvas(canvas, audioBuffer, title) {
+  const w = canvas.width;
+  const h = canvas.height;
+  var ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = "rgb(40, 40, 40)"
+  ctx.fillRect(0, 0, w, h);
+  
+  if (audioBuffer && audioBuffer.length > 0) {
+    ctx.strokeStyle = "rgb(46, 155, 214)"
+    drawWaveform(w, h, ctx, audioBuffer);
+    const tab_side = 15;
+  }
+
+  ctx.fillStyle = "rgb(46, 155, 214)";
+  ctx.textAlign = "right";
+  ctx.font = "24px local_oswald";
+  ctx.fillText(title, w, 24);
 }
 
 // This can only be done after a user gesture on the page.
@@ -171,10 +281,6 @@ function droppedFileLoadedWav(event) {
   });
 }
 
-function dragOverHandler(ev) {
-  ev.preventDefault();
-}
-
 function resizeCanvasToParent() {
   var canvas = document.getElementById('waveform_canvas');
   canvas.width = canvas.parentElement.offsetWidth;
@@ -244,6 +350,9 @@ function updateStatusBar() {
 
 // Render the audio waveform and endpoint UI into the canvas
 function drawWaveformCanvas() {
+  // HACK
+  drawMiniCanvases();
+  
   var canvas = document.getElementById('waveform_canvas');
   const w = canvas.width;
   const h = canvas.height;

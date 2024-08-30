@@ -37,6 +37,7 @@
         </select>
           Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'/>
           &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
+          <span id='dragsrc' draggable="true">&gt;&gt; Drag &lt;&lt;</span>
           <input type='button' value="Select All" onclick="resetRange()"/>
           <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
           <input type='button' value="Preview" onclick="playAudio()"/>
@@ -61,19 +62,38 @@
             <option>TOM</option>
             <option>CONGA</option>
             <option>COWBELL</option>
-            <option>CLAVE</option>
+            <option>RIMSHOT</option>
           </select>
           from bank
-          <select id='bankId'>
-
-          </select>
-         
+          <select id='bankId'></select>         
           |
           <input type='button' disabled value="Read Pattern" onclick="requestReadPattern()"/>
           <input type='button' disabled value="Write Pattern" onclick="writePattern()"/>
         </div>
       </div>
 
+
+      <div class="waveform_slots">
+        <hr>
+        <ul>
+          <li><canvas id="canvas_slot_0" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_1" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_2" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_3" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_4" class="mini_waveform_canvas"></canvas></li>
+
+          <li><canvas id="canvas_slot_5" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_6" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_7" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_8" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_9" class="mini_waveform_canvas"></canvas></li>
+        </ul>
+        <input type='button' value="Read Bank From Device" onclick="ReadBank()"/>
+         Bank Id: <select id='bankId2'></select>
+        <input type='button' value="Export Bank ..." onclick="DownloadBank()"/>
+        <input type='button' value="Write Bank To Device" onclick="WriteBank()"/>
+          
+      </div>
       
 
       <div style="flex-direction: row;">
