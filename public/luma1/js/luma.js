@@ -133,7 +133,7 @@ function luma1_init() {
 
   window.addEventListener( "resize",  function(event) {
       resizeCanvasToParent();
-      drawWaveformCanvas();
+      drawAllWaveforms();
     });
   window.addEventListener( "keydown", function(e) {
       if ( e.key === " " ) {
@@ -179,25 +179,26 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     return;
 
   if (srcId == 255) {
-    // copying from editing waveform to a slot, use the end points
+    // Editor --> slot (with endpointing)
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
                                                 in_point, out_point);
     bank[dstId].name = document.getElementById('sample_name').value;
     bank[dstId].original_binary = binaryFileOriginal;
   } else if (dstId == 255) {
-    // copy from slot to editing waveform.
+    // Slot --> editor
     sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     sampleName = bank[srcId].name;
     document.getElementById('sample_name').value = sampleName;
     binaryFileOriginal = bank[srcId].original_binary;
+    resetRange();
   } else {
-    // copy slot to slot
+    // Slot --> Slot
     bank[dstId].audioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     bank[dstId].name = bank[srcId].name;
     bank[dstId].original_binary = bank[srcId].original_binary;
   }
 
-  drawWaveformCanvas();
+  drawAllWaveforms();
 }
 
 function playSlotAudio(id) {
@@ -421,14 +422,14 @@ function reverseSampleBuffer() {
     data[i] = data[len-1-i];
     data[len-1-i] = sample;
   }
-  drawWaveformCanvas();
+  drawAllWaveforms();
 }
 
 function resetRange() {
   in_point = 0;
   out_point = sourceAudioBuffer.length-1;
   updateStatusBar();
-  drawWaveformCanvas();
+  drawAllWaveforms();
 }
 
 function updateStatusBar() {
@@ -438,10 +439,13 @@ function updateStatusBar() {
     sourceAudioBuffer.length+" samples total, "+(out_point-in_point+1)+" samples selected";
 }
 
+function drawAllWaveforms() {
+  drawMiniCanvases();
+  drawWaveformCanvas();
+}
+
 // Render the audio waveform and endpoint UI into the canvas
 function drawWaveformCanvas() {
-  // HACK
-  drawMiniCanvases();
   
   var canvas = document.getElementById('waveform_canvas');
   const w = canvas.width;
@@ -772,7 +776,7 @@ function onMidiMessageReceived(event) {
       var ulaw_data_ab = arrayToArrayBuffer(ulaw_data);
       loadBIN_8b_ulaw(ulaw_data_ab);
       resizeCanvasToParent();
-      drawWaveformCanvas();
+      drawAllWaveforms();
       updateStatusBar();
 
       if (reading_banks) {
