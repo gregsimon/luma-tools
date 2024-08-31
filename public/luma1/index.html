@@ -17,7 +17,7 @@
     <div class = 'main_section'>
       Drag a .bin (sample ROM) or wav file into the box. [Spacebar] previews audio.
       
-      <div class = 'waveform' 
+      <div class='editor_waveform' 
             ondragover="dragOverHandler(event);"
             ondrop='dropHandler(event);'>
             <canvas id="editor_canvas" width="700px" height="240px"></canvas>
@@ -40,7 +40,8 @@
           &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
           <input type='button' value="Select All" onclick="resetRange()"/>
           <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
-          <input type='button' value="Preview" onclick="playAudio()"/>          
+          <input type='button' value="Preview" onclick="playAudio()"/>
+          
         </div>
       </div>
 
@@ -48,38 +49,38 @@
 
       <div style="flex-direction: row;">
         <div>
-          <input type='button' value="Read Sample from Device" onclick="requestDeviceSample()"/>
+          <input type='button' value="Read Sample from Device" onclick="readSampleFromDevice()"/>
           Which slot: <select id='slotId'>
           </select>
           Which bank:
           <select id='bankId'></select>
           Sample name:<input type='text' value="untitled" id='sample_name'/>
           <input type='button' value="Export WAV..." onclick="exportSample()"/>
-          <input type='button' value="Send Sample to Device" onclick='sendEditorSampleToLuma()' />          
+          <input type='button' value="Write Sample to Device" class="red_button" onclick='writeSampleToDevice()' />          
         </div>
       </div>
 
-
       <div class="waveform_slots">
         <hr>
+        Voice Bank Manager
         <ul>
-          <li><canvas id="canvas_slot_0" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_1" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_2" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_3" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_4" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_0" ></canvas></li>
+          <li><canvas id="canvas_slot_1" ></canvas></li>
+          <li><canvas id="canvas_slot_2" ></canvas></li>
+          <li><canvas id="canvas_slot_3" ></canvas></li>
+          <li><canvas id="canvas_slot_4" ></canvas></li>
 
-          <li><canvas id="canvas_slot_5" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_6" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_7" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_8" class="mini_waveform_canvas"></canvas></li>
-          <li><canvas id="canvas_slot_9" class="mini_waveform_canvas"></canvas></li>
+          <li><canvas id="canvas_slot_5" ></canvas></li>
+          <li><canvas id="canvas_slot_6" ></canvas></li>
+          <li><canvas id="canvas_slot_7" ></canvas></li>
+          <li><canvas id="canvas_slot_8" ></canvas></li>
+          <li><canvas id="canvas_slot_9" ></canvas></li>
         </ul>
         <input type='button' value="Read Bank From Device" onclick="readBankfromDevice()"/>
         Which bank: <select id='bankId2'></select>
         Bank name: <input type='text' value='Untitled' id='bank_name'/>
         <input type='button' value="Export Bank..." onclick="exportBankAsZip()"/>
-        <input type='button' disabled value="Write Bank To Device" onclick="writeBank()"/>
+        <input type='button' disabled class="red_button" value="Write Bank To Device" onclick="writeBank()"/>
           
       </div>
 

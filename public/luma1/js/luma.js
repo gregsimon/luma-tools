@@ -46,6 +46,11 @@ const DRUM_CLAVE = 9
 const slot_names = ["BASS", "SNARE", "HIHAT", "CLAPS",
   "CABASA", "TAMB", "TOM", "CONGA", "COWBELL", "RIMSHOT"];
 
+const slot_waveform_fg = "rgb(214,214,214)";
+const slot_waveform_bg = "rgb(41,41,41)";
+const editor_waveform_fg = "rgb(214,214,214)";  //"rgb(46, 155, 214)";
+const editor_waveform_bg = "rgb(41,41,41)"; 
+
 // State during read banks. We need to chain together a number
 // of sample request callbacks.
 var reading_banks = false;            // are we reading banks?
@@ -134,7 +139,8 @@ function luma1_init() {
   canvas.ondrop = (ev) => {
     ev.preventDefault();
     const srcId = ev.dataTransfer.getData("text/plain");
-    copyWaveFormBetweenSlots(srcId, 255);
+    if (srcId != "")
+      copyWaveFormBetweenSlots(srcId, 255);
   };
   
   // general window events
@@ -168,7 +174,7 @@ function luma1_init() {
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
 
   resizeCanvasToParent();
-  drawSlotCanvases();
+  drawSlotWaveforms();
 }
 
 // This can only be done after a user gesture on the page.
@@ -261,7 +267,7 @@ function loadBIN_8b_ulaw(arraybuf) {
   }
 }
 
-function drawSlotCanvases() {
+function drawSlotWaveforms() {
   for (i=0; i<10; i++) {
     var c = document.getElementById("canvas_slot_"+i);
     drawSlotWaveformOnCanvas(c, bank[i].audioBuffer, 
@@ -279,16 +285,16 @@ function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled")
   canvas.width = canvas.height * 
       (canvas.clientWidth / canvas.clientHeight);
 
-  ctx.fillStyle = "rgb(40, 40, 40)"
+  ctx.fillStyle = slot_waveform_bg;
   ctx.fillRect(0, 0, w, h);
   
   if (audioBuffer && audioBuffer.length > 0) {
-    ctx.strokeStyle = "rgb(46, 155, 214)"
+    ctx.strokeStyle = slot_waveform_fg;
     drawWaveform(w, h, ctx, audioBuffer);
     const tab_side = 15;
   }
 
-  ctx.fillStyle = "rgb(46, 155, 214)";
+  ctx.fillStyle = slot_waveform_fg;
   ctx.textAlign = "right";
   ctx.font = "24px custom_face";
   ctx.fillText(name + " : " + title + " ", w, 24);
@@ -331,6 +337,7 @@ function droppedFileLoadedZip(event) {
     for (const [key, value] of Object.entries(zip.files)) {
       if (!value.dir) {
         // split name into slot_id
+        console.log("here "+value.name);
         var tokens = value.name.split("/");
         var bankId = bankIdForName(tokens[0]);
         if (bankId >= 0) {
@@ -338,8 +345,8 @@ function droppedFileLoadedZip(event) {
           (function (bankId, filename) {
             console.log("full: " + value.name);
             droppedZip.file(value.name).async("ArrayBuffer").then(function(data) {
-              //console.log("filename: "+filename);
-              //console.log(data.byteLength);
+              console.log("filename: "+filename);
+              console.log(data.byteLength);
 
               bank[bankId].name = filename;
               bank[bankId].original_binary = data;
@@ -513,7 +520,7 @@ function updateStatusBar() {
 
 function redrawAllWaveforms() {
   drawEditorCanvas();
-  drawSlotCanvases();  
+  drawSlotWaveforms();  
 }
 
 // Render the audio waveform and endpoint UI into the canvas
@@ -524,11 +531,11 @@ function drawEditorCanvas() {
   const h = canvas.height;
   var ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = "rgb(40, 40, 40)"
+  ctx.fillStyle = editor_waveform_bg;
   ctx.fillRect(0, 0, w, h);
   
   if (sourceAudioBuffer && sourceAudioBuffer.length > 0) {
-    ctx.strokeStyle = "rgb(46, 155, 214)"
+    ctx.strokeStyle = editor_waveform_fg;
     drawWaveform(w, h, ctx, sourceAudioBuffer);
     const tab_side = 15;
 
@@ -623,7 +630,7 @@ function sendSysexToLuma(header) {
 
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
-function sendEditorSampleToLuma() {
+function writeSampleToDevice() {
   var numSamples = editor_out_point - editor_in_point;
   var channels = sourceAudioBuffer.getChannelData(0);
   var ulaw_buffer = [];
@@ -744,7 +751,7 @@ function readNextSampleInBank() {
 }
 
 // Ask Luma to send the sample buffer
-function requestDeviceSample() {
+function readSampleFromDevice() {
   audio_init(); // may not have been called
 
   var slotId = document.getElementById('slotId').selectedIndex;

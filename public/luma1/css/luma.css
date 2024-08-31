@@ -1,5 +1,5 @@
 @font-face {
-  font-family: "custom_face2";
+  font-family: "oswald_face";
   src: url("../fonts/Oswald-Regular.ttf");
 }
 
@@ -13,65 +13,76 @@
 }
 
 body {
-  background-color: #e8e8e0
+  background-color: rgb(24,24,24);
+  color:rgb(200,200,200);
 }
 
 a { text-decoration:none; }
 a:link { color:#7a7a7a; }
 a:visited { color:#7a7a7a; }
 
-@media only screen {
-
-  #dragsrc {
-    border:none;
-    background-color:#9a9a9a;
-  }
-
-  .waveform_slots ul {
-    display: flex;
-    flex-wrap: wrap;
-    list-style: none;
-    padding-left: 0;
-    gap: 8px;
-  }
-  .waveform_slots li {
-    flex: 0 0 49%;
-    outline: 1px solid;
-    display:flex;
-    height:100px;
-  }
-  .mini_waveform_canvas {
-    
-    border:1px solid #282828;
-    background-color: #282828;
-    height:100%;
-    width:100%;
-  }
-    
-  .fine_print {
-    font-size: 10pt;
-  }
-
-  .main_section { 
-    margin:0px;
-    display: flex;
-    flex-direction: column;
-    _width: 800px;
-    padding: 0px;
-  }
-
-  .waveform {
-    display: block;
-    border:1px solid #282828;
-    background-color: #282828;
-    width: 100%;
-    height: 240px;
-    }
- 
-  .numeric {
-    width:48px;
-    border:none;
-    background-color: #e8e8e0;
-  }
-
+input {
+  background-color:rgb(15,15,15);
+  color:rgb(236,221,223);
+  border: 1px solid rgb(138,138,138);
 }
+
+select {
+  background-color:rgb(15,15,15);
+  color:rgb(236,221,223);
+}
+
+.red_button {
+  background-color: rgb(146,5,24);
+  color: rgb(236,221,223);
+}
+
+#dragsrc {
+  border:none;
+  background-color:#9a9a9a;
+}
+
+.waveform_slots ul {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  padding-left: 0;
+  gap: 8px;
+}
+.waveform_slots li {
+  flex: 0 0 49%;
+  outline: 1px solid;
+  display:flex;
+  height:100px;
+}
+.waveform_slots canvas {  
+  height:100%;
+  width:100%;
+}
+
+.fine_print {
+  font-size: 10pt;
+}
+
+.main_section { 
+  margin:0px;
+  display: flex;
+  flex-direction: column;
+  padding: 0px;
+}
+
+.editor_waveform {
+  display: block;
+  border:1px solid rgb(150,150,150);
+  background-color: rgb(41,41,41);
+  width: 100%;
+  height: 240px;
+  }
+
+.numeric {
+  width:48px;
+  border:none;
+  background-color: rgb(24,24,24);
+  color:rgb(236,221,223);
+}
+
