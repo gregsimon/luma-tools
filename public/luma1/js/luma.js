@@ -17,6 +17,7 @@ var binaryFileOriginal = null; // Original raw bytes of loaded sample
 var binaryFormat = "ulaw_u8";
 var kMaxSampleSize = 32768;
 var bank = []; // Hold the state of each slot
+var bank_name = "Untitled";
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -63,6 +64,7 @@ function luma1_init() {
       bank.push({
         id: i,
         name: slot_names[i],
+        original: [],
         audioBuffer: null
       });
       var el = document.getElementById("canvas_slot_"+i);
@@ -148,27 +150,37 @@ function luma1_init() {
     drawMiniCanvases();
 }
 
-function cloneAudioBuffer(fromAudioBuffer) {
+function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
+  if (end_index == -1)
+    end_index = fromAudioBuffer.length
+
+  num_samples_to_copy = end_index - start_index;
+  console.log("num_samples_to_copy="+num_samples_to_copy)
+
   const audioBuffer = new AudioBuffer({
-    length:fromAudioBuffer.length, 
+    length:num_samples_to_copy, 
     numberOfChannels:fromAudioBuffer.numberOfChannels, 
     sampleRate:fromAudioBuffer.sampleRate
   });
   for(let channelI = 0; channelI < audioBuffer.numberOfChannels; ++channelI) {
-    const samples = fromAudioBuffer.getChannelData(channelI);
+    var samples = fromAudioBuffer.getChannelData(channelI);
+    samples = samples.subarray(start_index, start_index + num_samples_to_copy);
+
     audioBuffer.copyToChannel(samples, channelI);
   }
   return audioBuffer;
 }
 
-
+// Copy the audio buffer between slots. If the src is the editor window
+// we want to only copy the part of the sample that is selected.
 function copyWaveFormBetweenSlots(srcId, dstId) {
   if (srcId == dstId)
     return;
 
   if (srcId == 255) {
-    // copying from editing waveform to a slot
-    bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer);
+    // copying from editing waveform to a slot, use the end points
+    bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
+                                                in_point, out_point);
   } else if (dstId == 255) {
     // copy from slot to editing waveform.
     sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);

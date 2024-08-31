@@ -38,13 +38,10 @@
         </select>
           Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'/>
           &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
-          <span id='dragsrc' draggable="true">&gt;&gt; Drag &lt;&lt;</span>
+          <span id='dragsrc' draggable="true">&gt;&gt; Drag Source &lt;&lt;</span>
           <input type='button' value="Select All" onclick="resetRange()"/>
           <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
-          <input type='button' value="Preview" onclick="playAudio()"/>
-          <input type='button' value="Export WAV..." onclick="exportSample()"/>
-          <input type='text' value="untitled" id='sample_name'/>
-          <input type='button' value="Send Sample to Luma-1" onclick='sendEditorSampleToLuma()' />
+          <input type='button' value="Preview" onclick="playAudio()"/>          
         </div>
       </div>
 
@@ -52,14 +49,14 @@
 
       <div style="flex-direction: row;">
         <div>
-          <input type='button' value="Read Sample:" onclick="requestDeviceSample()"/>
-          <select id='slotId'>
+          <input type='button' value="Read Sample from Device" onclick="requestDeviceSample()"/>
+          Which slot: <select id='slotId'>
           </select>
-          from bank:
-          <select id='bankId'></select>         
-          |
-          <input type='button' disabled value="Read Pattern" onclick="requestReadPattern()"/>
-          <input type='button' disabled value="Write Pattern" onclick="writePattern()"/>
+          Which bank:
+          <select id='bankId'></select>
+          Sample name:<input type='text' value="untitled" id='sample_name'/>
+          <input type='button' value="Export WAV..." onclick="exportSample()"/>
+          <input type='button' value="Send Sample to Device" onclick='sendEditorSampleToLuma()' />          
         </div>
       </div>
 
@@ -80,12 +77,12 @@
           <li><canvas id="canvas_slot_9" class="mini_waveform_canvas"></canvas></li>
         </ul>
         <input type='button' value="Read Bank From Device" onclick="readBank()"/>
-         from bank: <select id='bankId2'></select>
-        <input type='button' disabled value="Export Bank ..." onclick="DownloadBank()"/>
+        Which bank: <select id='bankId2'></select>
+        Bank name: <input type='text' value='Untitled' id='bank_name'/>
+        <input type='button' disabled value="Export Bank..." onclick="DownloadBank()"/>
         <input type='button' disabled value="Write Bank To Device" onclick="writeBank()"/>
           
       </div>
-      
 
       <div style="flex-direction: row;">
         <hr>
