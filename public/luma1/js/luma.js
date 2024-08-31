@@ -234,7 +234,7 @@ function drawWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled") {
   ctx.fillStyle = "rgb(46, 155, 214)";
   ctx.textAlign = "right";
   ctx.font = "24px local_oswald";
-  ctx.fillText(name + " : " + title, w, 24);
+  ctx.fillText(name + " : " + title + " ", w, 24);
 }
 
 // This can only be done after a user gesture on the page.
