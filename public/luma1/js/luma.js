@@ -118,11 +118,11 @@ function luma1_init() {
 
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
 
-  var canvas = document.getElementById('waveform_canvas');
-  canvas.onmousedown = onCanvasMouseDown;
-  canvas.onmousemove = onCanvasMouseMove;
-  canvas.onmouseup = onCanvasMouseUp;
-  canvas.onmouseleave = onCanvasMouseUp;  
+  var canvas = document.getElementById('editor_canvas');
+  canvas.onmousedown = onEditorCanvasMouseDown;
+  canvas.onmousemove = onEditorCanvasMouseMove;
+  canvas.onmouseup = onEditorCanvasMouseUp;
+  canvas.onmouseleave = onEditorCanvasMouseUp;  
   canvas.ondragover = (ev) => {ev.preventDefault();};
   canvas.ondrop = (ev) => {
     ev.preventDefault();
@@ -365,7 +365,7 @@ function dragOverHandler(ev) {
 
 function resizeCanvasToParent() {
   // editor canvas
-  var canvas = document.getElementById('waveform_canvas');
+  var canvas = document.getElementById('editor_canvas');
   canvas.width = canvas.parentElement.offsetWidth;
 
   // slot canvases
@@ -377,41 +377,44 @@ function resizeCanvasToParent() {
   }
 }
 
-var canvasMouseIsDown = false;
-function onCanvasMouseDown(event) {
-  canvasMouseIsDown = true;
+var editorCanvasMouseIsDown = false;
+function onEditorCanvasMouseDown(event) {
+  editorCanvasMouseIsDown = true;
 }
 
-function onCanvasMouseMove(event) {
-  if (canvasMouseIsDown) {
-    var x = event.offsetX;
-    var y = event.offsetY;
-    var canvas = document.getElementById('waveform_canvas');
-    var h = canvas.height;
-    var w = canvas.width;
+function onEditorCanvasMouseMove(event) {
+  if (editorCanvasMouseIsDown) {
+    const x = event.offsetX;
+    const y = event.offsetY;
+    var canvas = document.getElementById('editor_canvas');
+    const h = canvas.height;
+    const w = canvas.width;
+    var drag_gutter_size = h * 0.10;
 
     var new_pt = (sourceAudioBuffer.length * x) / w;
     if (shiftDown)
       new_pt = Math.round(new_pt / 1024) * 1024;
 
-    if (y > (h/2)) {
+    if (y >= (h-drag_gutter_size)) {
       // adjust endpoint
       if (new_pt > in_point)
         out_point = Math.floor(new_pt);
       out_point = Math.min(sourceAudioBuffer.length-1, out_point);
-    } else {
+    } else if (y < drag_gutter_size) {
       // adjust inpoint
       if (new_pt < out_point)
         in_point = Math.floor(new_pt);
       in_point = Math.max(0, in_point);
+    } else {
+      // TODO : initiate a drag
     }
     updateStatusBar();
     drawWaveformCanvas();
   }
 }
 
-function onCanvasMouseUp(event) {
-  canvasMouseIsDown = false;
+function onEditorCanvasMouseUp(event) {
+  editorCanvasMouseIsDown = false;
 }
 
 function reverseSampleBuffer() {
@@ -447,7 +450,7 @@ function drawAllWaveforms() {
 // Render the audio waveform and endpoint UI into the canvas
 function drawWaveformCanvas() {
   
-  var canvas = document.getElementById('waveform_canvas');
+  var canvas = document.getElementById('editor_canvas');
   const w = canvas.width;
   const h = canvas.height;
   var ctx = canvas.getContext('2d');
