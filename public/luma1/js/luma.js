@@ -282,7 +282,7 @@ function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled")
 
   ctx.fillStyle = "rgb(46, 155, 214)";
   ctx.textAlign = "right";
-  ctx.font = "24px local_oswald";
+  ctx.font = "24px custom_face";
   ctx.fillText(name + " : " + title + " ", w, 24);
 }
 

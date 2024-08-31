@@ -1,9 +1,15 @@
 @font-face {
-  font-family: "local_oswald";
+  font-family: "custom_face2";
   src: url("../fonts/Oswald-Regular.ttf");
 }
 
-* { font-family: 'local_oswald';
+@font-face {
+  font-family: "custom_face";
+  src: url("../fonts/InterstateRegularCondense.otf");
+}
+
+* { 
+  font-family: 'custom_face';
 }
 
 body {
