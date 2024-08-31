@@ -399,7 +399,7 @@ function trimBufferToFitLuma() {
   }
 
   resizeCanvasToParent();
-  drawWaveformCanvas();
+  redrawAllWaveforms();
   updateStatusBar();
   
 }
@@ -470,7 +470,7 @@ function onEditorCanvasMouseMove(event) {
       // TODO : initiate a drag
     }
     updateStatusBar();
-    drawWaveformCanvas();
+    drawEditorCanvas();
   }
 }
 
@@ -504,12 +504,12 @@ function updateStatusBar() {
 }
 
 function redrawAllWaveforms() {
-  drawSlotCanvases();
-  drawWaveformCanvas();
+  drawEditorCanvas();
+  drawSlotCanvases();  
 }
 
 // Render the audio waveform and endpoint UI into the canvas
-function drawWaveformCanvas() {
+function drawEditorCanvas() {
   
   var canvas = document.getElementById('editor_canvas');
   const w = canvas.width;
