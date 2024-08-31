@@ -305,10 +305,59 @@ function interpretBinaryFile() {
   document.getElementById('sample_name').value = sampleName;
 }
 
+
+function bankIdForName(name) {
+  for (i=0; i<slot_names.length; i++) {
+    if (name === slot_names[i])
+      return i;
+  }
+  return -1;
+}
+
 // A zip file was dropped, presumably holding individual .wav files
 // for each of the slots.
 function droppedFileLoadedZip(event) {
+  var droppedZip = new JSZip();
+  droppedZip.loadAsync(fileReader.result).then(function(zip) {
+    
+    for (const [key, value] of Object.entries(zip.files)) {
+      if (!value.dir) {
+        // split name into slot_id
+        var tokens = value.name.split("/");
+        var bankId = bankIdForName(tokens[0]);
+        if (bankId >= 0) {
+          // uncompress the data.
+          (function (bankId, filename) {
+            console.log("full: " + value.name);
+            droppedZip.file(value.name).async("ArrayBuffer").then(function(data) {
+              //console.log("filename: "+filename);
+              //console.log(data.byteLength);
 
+              bank[bankId].name = filename;
+              bank[bankId].original_binary = data;
+
+              const fileext = filename.slice(-4);
+              if (fileext === ".wav") {
+                actx.decodeAudioData(data, function(buf) {
+                    console.log("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
+                    bank[bankId].audioBuffer = buf;
+                    redrawAllWaveforms();
+                
+                    // TODO trimBufferToFitLuma();
+                  });
+              } else if (fileext === ".bin") {
+                  // this is the orignal binary stream
+                  bank[bankId].original_binary = data;
+              }
+
+            });
+          })(bankId, tokens[1]);          
+
+        }
+      }
+    }
+   
+  });
 }
 
 // Binary stream - could be any number of formats.
@@ -538,7 +587,7 @@ function dropHandler(ev) {
     else if (name.slice(-4) === '.wav')
       fileReader.onload = droppedFileLoadedWav;
     else if (name.slice(-4) === '.zip')
-      fileReaderonload = droppedFileLoadedZip;
+      fileReader.onload = droppedFileLoadedZip;
 
     fileReader.readAsArrayBuffer(file);
   }
