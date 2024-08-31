@@ -722,7 +722,7 @@ function loadBIN_u8b_pcm(arraybuf) {
 
 
 // reads all samples from the bank in the 'bankid2' field.
-function readBank() {
+function readBankfromDevice() {
   audio_init(); // may not have been called
 
   reading_banks = true;
@@ -738,7 +738,7 @@ function readNextSampleInBank() {
 
   // struct from LM_MIDI.ino
   buf[0] = CMD_SAMPLE | 0x08;
-  buf[25] = bankId;
+  buf[25] = reading_banks_id;
   buf[26] = reading_banks_current_slot;
   sendSysexToLuma(buf);
 }
