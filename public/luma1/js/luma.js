@@ -157,6 +157,14 @@ function luma1_init() {
 
   loadSettings();
 
+  // get the build #
+  fetch("deploy_date.txt").then(function(response){
+    response.text().then(function(text){ 
+      document.getElementById('deployed_date').innerText = text;
+    });
+  });
+
+
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
 
   resizeCanvasToParent();
