@@ -147,6 +147,7 @@ function luma1_init() {
       shiftDown = false;
     });
 
+    resizeCanvasToParent();
     drawMiniCanvases();
 }
 
@@ -207,6 +208,11 @@ function drawWaveformOnCanvas(canvas, audioBuffer, title) {
   const w = canvas.width;
   const h = canvas.height;
   var ctx = canvas.getContext('2d');
+
+  // Scale the inner drawling surface to the same
+  // aspect ratio as the canvas element
+  canvas.width = canvas.height * 
+      (canvas.clientWidth / canvas.clientHeight);
 
   ctx.fillStyle = "rgb(40, 40, 40)"
   ctx.fillRect(0, 0, w, h);
@@ -322,8 +328,17 @@ function dragOverHandler(ev) {
 
 
 function resizeCanvasToParent() {
+  // editor canvas
   var canvas = document.getElementById('waveform_canvas');
   canvas.width = canvas.parentElement.offsetWidth;
+
+  // slot canvases
+  for (i=0; i<10; i++) {
+    canvas = document.getElementById("canvas_slot_"+i);
+    canvas.width = canvas.height * 
+                      (canvas.clientWidth / canvas.clientHeight);
+
+  }
 }
 
 var canvasMouseIsDown = false;
