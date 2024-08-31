@@ -74,7 +74,7 @@ function luma1_init() {
         console.log(ev);
       }; 
       el.ondblclick = (ev) => {copyWaveFormBetweenSlots(i, 255)};
-      el.onmousedown = (ev) => {playSlotAudio(i);}   
+      el.onmouseup = (ev) => {playSlotAudio(i);}   
       el.ondragover = (ev) => {ev.preventDefault();};
       el.ondragstart = (ev) => {ev.dataTransfer.setData("text/plain", i);};
       el.ondrop = (ev) => {
@@ -201,7 +201,34 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
 }
 
 function playSlotAudio(id) {
-  console.log("TODO : playSlotAudio "+id);
+ // disable focus since it may double-trigger if "Preview" is selected and
+  // the spacebar is pressed.
+  document.activeElement.blur();
+
+  let	theSound = actx.createBufferSource();
+  theSound.buffer = bank[id].audioBuffer;
+  theSound.connect(actx.destination); // connect to the output
+
+  // convert end points into seconds for playback.
+  // TODO make sample rate adjustable
+  theSound.start(0, 0, (theSound.buffer.length)/sampleRate);
+}
+
+// convert an arraybuffer into an AudioBuffer source ready for playback.
+function loadBIN_8b_ulaw(arraybuf) {
+  dv = new DataView(arraybuf);
+
+  // convert ulaw into linear in the sourceAudioBuffer.
+  sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
+  out_point = dv.byteLength;
+  channelData = sourceAudioBuffer.getChannelData(0);
+  for (i=0; i<dv.byteLength; i++) {
+    var ulaw = dv.getUint8(i);
+    ulaw = ~ulaw;
+    var sample = ulaw_to_linear(ulaw);
+    sample = sample / 32768.0;
+    channelData[i] = sample;
+  }
 }
 
 function drawMiniCanvases() {
