@@ -63,8 +63,8 @@ function luma1_init() {
     (function(i) {
       bank.push({
         id: i,
-        name: slot_names[i],
-        original: [],
+        title: "untitled",
+        original_binary: null,
         audioBuffer: null
       });
       var el = document.getElementById("canvas_slot_"+i);
@@ -182,12 +182,19 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     // copying from editing waveform to a slot, use the end points
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
                                                 in_point, out_point);
+    bank[dstId].name = document.getElementById('sample_name').value;
+    bank[dstId].original_binary = binaryFileOriginal;
   } else if (dstId == 255) {
     // copy from slot to editing waveform.
     sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
+    sampleName = bank[srcId].name;
+    document.getElementById('sample_name').value = sampleName;
+    binaryFileOriginal = bank[srcId].original_binary;
   } else {
     // copy slot to slot
     bank[dstId].audioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
+    bank[dstId].name = bank[srcId].name;
+    bank[dstId].original_binary = bank[srcId].original_binary;
   }
 
   drawWaveformCanvas();
@@ -200,11 +207,12 @@ function playSlotAudio(id) {
 function drawMiniCanvases() {
   for (i=0; i<10; i++) {
     var c = document.getElementById("canvas_slot_"+i);
-    drawWaveformOnCanvas(c, bank[i].audioBuffer, bank[i].name);
+    drawWaveformOnCanvas(c, bank[i].audioBuffer, 
+          slot_names[i], bank[i].name);
     }
 }
 
-function drawWaveformOnCanvas(canvas, audioBuffer, title) {
+function drawWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled") {
   const w = canvas.width;
   const h = canvas.height;
   var ctx = canvas.getContext('2d');
@@ -226,7 +234,7 @@ function drawWaveformOnCanvas(canvas, audioBuffer, title) {
   ctx.fillStyle = "rgb(46, 155, 214)";
   ctx.textAlign = "right";
   ctx.font = "24px local_oswald";
-  ctx.fillText(title, w, 24);
+  ctx.fillText(name + " : " + title, w, 24);
 }
 
 // This can only be done after a user gesture on the page.
