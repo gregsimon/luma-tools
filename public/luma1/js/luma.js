@@ -18,6 +18,7 @@ var binaryFormat = "ulaw_u8";
 var kMaxSampleSize = 32768;
 var bank = []; // Hold the state of each slot
 var bank_name = "Untitled";
+const drag_gutter_pct = 0.10;
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -73,7 +74,7 @@ function luma1_init() {
         ev.preventDefault();
         console.log(ev);
       }; 
-      el.ondblclick = (ev) => {copyWaveFormBetweenSlots(i, 255)};
+      //el.ondblclick = (ev) => {copyWaveFormBetweenSlots(i, 255)};
       el.onmouseup = (ev) => {playSlotAudio(i);}   
       el.ondragover = (ev) => {ev.preventDefault();};
       el.ondragstart = (ev) => {ev.dataTransfer.setData("text/plain", i);};
@@ -84,8 +85,6 @@ function luma1_init() {
       };
       })(i);
   }
-  document.getElementById("dragsrc").ondragstart = 
-      (ev) => {ev.dataTransfer.setData("text/plain", 255);};
 
   // populate the bank select fields
   let populate_bank_select = function(el) {
@@ -116,10 +115,21 @@ function luma1_init() {
 
   // setup main waveform editor
   var canvas = document.getElementById('editor_canvas');
+  canvas.draggable = true;
   canvas.onmousedown = onEditorCanvasMouseDown;
   canvas.onmousemove = onEditorCanvasMouseMove;
   canvas.onmouseup = onEditorCanvasMouseUp;
-  canvas.onmouseleave = onEditorCanvasMouseUp;  
+  canvas.onmouseleave = onEditorCanvasMouseUp;
+  canvas.ondragstart = (ev) => {
+      const y = ev.offsetY;
+      const h = document.getElementById('editor_canvas').height;
+      const edge = h * drag_gutter_pct;
+      if (y > edge && y < (h-edge)) {        
+        ev.dataTransfer.setData("text/plain", 255); // start drag
+      } else {        
+        ev.preventDefault(); // do endpoint adjustment
+      }
+    };
   canvas.ondragover = (ev) => {ev.preventDefault();};
   canvas.ondrop = (ev) => {
     ev.preventDefault();
@@ -392,7 +402,7 @@ function onEditorCanvasMouseMove(event) {
     var canvas = document.getElementById('editor_canvas');
     const h = canvas.height;
     const w = canvas.width;
-    var drag_gutter_size = h * 0.10;
+    var drag_gutter_size = h * drag_gutter_pct;
 
     var new_pt = (sourceAudioBuffer.length * x) / w;
     if (shiftDown)
