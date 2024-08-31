@@ -64,7 +64,7 @@ function luma1_init() {
     (function(i) {
       bank.push({
         id: i,
-        title: "untitled",
+        name: "untitled",
         original_binary: null,
         audioBuffer: null
       });
@@ -178,7 +178,6 @@ function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
     end_index = fromAudioBuffer.length
 
   num_samples_to_copy = end_index - start_index;
-  console.log("num_samples_to_copy="+num_samples_to_copy)
 
   const audioBuffer = new AudioBuffer({
     length:num_samples_to_copy, 
@@ -790,6 +789,7 @@ function onMidiMessageReceived(event) {
       document.getElementById('sample_name').value = sampleName;
       var ulaw_data = data.slice(32);
       var ulaw_data_ab = arrayToArrayBuffer(ulaw_data);
+      binaryFileOriginal = ulaw_data_ab; // save the binary stream 
       loadBIN_8b_ulaw(ulaw_data_ab);
       resizeCanvasToParent();
       redrawAllWaveforms();
@@ -871,6 +871,40 @@ function onMidiSuccessCallback(inMidiAccess) {
       }
     });
   }
+}
+
+function trim_filename_ext(filename) {
+  return filename.split('.').slice(0, -1).join('.')
+}
+
+// Add all the waveforms from the slots into a zip file and 
+// download it.
+function exportBankAsZip() {
+  var bank_name = document.getElementById('bank_name').value;
+
+  var zip = new JSZip();
+  for (i=0; i<slot_names.length; i++) {
+    const slot_name = slot_names[i];
+    const sample_name_base = trim_filename_ext(bank[i].name);
+    if (bank[i].original_binary != null) {
+      // export original binary
+      zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);  
+    }
+
+    // export WAV
+    var channelData = bank[i].audioBuffer.getChannelData(0);
+    var encoder = new WavAudioEncoder(sampleRate, 1);
+    encoder.encode([channelData]);
+    var blob = encoder.finish();
+    zip.folder(slot_name).file(sample_name_base + ".wav", blob);
+  }
+
+  zip.generateAsync({type: "blob"}).then(function (blob) {
+    var link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = bank_name + ".zip";
+    link.click();
+  });
 }
 
 function loadSettings() {
