@@ -8,8 +8,8 @@ var midiAccess = null;
 var midiOut = null;
 var midiIn = null;
 var fileReader;
-var in_point = 0;
-var out_point = 0;
+var editor_in_point = 0;
+var editor_out_point = 0;
 var sampleRate = 24000; // Hz
 var sampleName = "untitled";
 var shiftDown = false;
@@ -51,7 +51,7 @@ var reading_banks = false;            // are we reading banks?
 var reading_banks_id;                 // 255, 0-99
 var reading_banks_current_slot = 0;   // what slot to drop the sample in when it arrives
 
-
+// Used to pad number strings with 0s
 Number.padLeft = (nr, len = 2, padChr = `0`) => 
   `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
 
@@ -59,7 +59,7 @@ Number.padLeft = (nr, len = 2, padChr = `0`) =>
 function luma1_init() {
 
   // wire up the slot waveforms
-  for (i=0; i<10; i++) {
+  for (i=0; i<slot_names.length; i++) {
     (function(i) {
       bank.push({
         id: i,
@@ -114,10 +114,7 @@ function luma1_init() {
   };
   populate_slot_select(document.getElementById('slotId'));
 
-  loadSettings();
-
-  navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
-
+  // setup main waveform editor
   var canvas = document.getElementById('editor_canvas');
   canvas.onmousedown = onEditorCanvasMouseDown;
   canvas.onmousemove = onEditorCanvasMouseMove;
@@ -130,10 +127,10 @@ function luma1_init() {
     copyWaveFormBetweenSlots(srcId, 255);
   };
   
-
+  // general window events
   window.addEventListener( "resize",  function(event) {
       resizeCanvasToParent();
-      drawAllWaveforms();
+      redrawAllWaveforms();
     });
   window.addEventListener( "keydown", function(e) {
       if ( e.key === " " ) {
@@ -147,10 +144,25 @@ function luma1_init() {
       shiftDown = false;
     });
 
-    resizeCanvasToParent();
-    drawMiniCanvases();
+
+  loadSettings();
+
+  navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
+
+  resizeCanvasToParent();
+  drawSlotCanvases();
 }
 
+// This can only be done after a user gesture on the page.
+function audio_init() {
+  // We are selecting 12000 Hz here in order estimate the
+  // Luma-1's pitch knob position at 12-o-clock. This matters because 
+  // when we drag import wav files WebAudio matches them to this audiocontext.
+  if (actx == undefined)
+    actx = new classAudioContext({sampleRate:12000});
+}
+
+// Copy a webAudio buffer object, optionally endpointing the source.
 function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
   if (end_index == -1)
     end_index = fromAudioBuffer.length
@@ -181,7 +193,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
   if (srcId == 255) {
     // Editor --> slot (with endpointing)
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
-                                                in_point, out_point);
+                                                editor_in_point, editor_out_point);
     bank[dstId].name = document.getElementById('sample_name').value;
     bank[dstId].original_binary = binaryFileOriginal;
   } else if (dstId == 255) {
@@ -198,7 +210,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     bank[dstId].original_binary = bank[srcId].original_binary;
   }
 
-  drawAllWaveforms();
+  redrawAllWaveforms();
 }
 
 function playSlotAudio(id) {
@@ -221,7 +233,7 @@ function loadBIN_8b_ulaw(arraybuf) {
 
   // convert ulaw into linear in the sourceAudioBuffer.
   sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
-  out_point = dv.byteLength;
+  editor_out_point = dv.byteLength;
   channelData = sourceAudioBuffer.getChannelData(0);
   for (i=0; i<dv.byteLength; i++) {
     var ulaw = dv.getUint8(i);
@@ -232,15 +244,15 @@ function loadBIN_8b_ulaw(arraybuf) {
   }
 }
 
-function drawMiniCanvases() {
+function drawSlotCanvases() {
   for (i=0; i<10; i++) {
     var c = document.getElementById("canvas_slot_"+i);
-    drawWaveformOnCanvas(c, bank[i].audioBuffer, 
+    drawSlotWaveformOnCanvas(c, bank[i].audioBuffer, 
           slot_names[i], bank[i].name);
     }
 }
 
-function drawWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled") {
+function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled") {
   const w = canvas.width;
   const h = canvas.height;
   var ctx = canvas.getContext('2d');
@@ -265,15 +277,6 @@ function drawWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled") {
   ctx.fillText(name + " : " + title + " ", w, 24);
 }
 
-// This can only be done after a user gesture on the page.
-function audio_init() {
-  // We are selecting 12000 Hz here in order estimate the
-  // Luma-1's pitch knob position at 12-o-clock. This matters because 
-  // when we drag import wav files WebAudio matches them to this audiocontext.
-  if (actx == undefined)
-    actx = new classAudioContext({sampleRate:12000});
-}
-
 // -- Loading handlers
 
 // File data is loaded/cached in binaryFileOriginal - 
@@ -286,8 +289,8 @@ function interpretBinaryFile() {
     loadBIN_u8b_pcm(binaryFileOriginal);
 
   // These are indexes into the 
-  in_point = 0;
-  out_point = sourceAudioBuffer.length-1;
+  editor_in_point = 0;
+  editor_out_point = sourceAudioBuffer.length-1;
 
   trimBufferToFitLuma();
   document.getElementById('sample_name').value = sampleName;
@@ -324,8 +327,8 @@ function trimBufferToFitLuma() {
     newArrayBuffer.copyToChannel(anotherArray, 0, 0);
     
     sourceAudioBuffer = newArrayBuffer;
-    in_point = 0;
-    out_point = sourceAudioBuffer.length-1;
+    editor_in_point = 0;
+    editor_out_point = sourceAudioBuffer.length-1;
     console.log("trimmed - new len is "+sourceAudioBuffer.length);
   }
   else {
@@ -333,8 +336,8 @@ function trimBufferToFitLuma() {
     // let's try padding with zeros on the end and see what that does.
     console.log("sample is "+sourceAudioBuffer.length+"/"+kMaxSampleSize);
 
-    in_point = 0;
-    out_point = sourceAudioBuffer.length-2;
+    editor_in_point = 0;
+    editor_out_point = sourceAudioBuffer.length-2;
   }
 
   resizeCanvasToParent();
@@ -350,8 +353,8 @@ function droppedFileLoadedWav(event) {
   actx.decodeAudioData(fileReader.result, function(buf) {
     console.log("decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
     sourceAudioBuffer = buf;
-    in_point = 0;
-    out_point = sourceAudioBuffer.length-1;
+    editor_in_point = 0;
+    editor_out_point = sourceAudioBuffer.length-1;
 
     trimBufferToFitLuma();
     document.getElementById('sample_name').value = sampleName;
@@ -397,14 +400,14 @@ function onEditorCanvasMouseMove(event) {
 
     if (y >= (h-drag_gutter_size)) {
       // adjust endpoint
-      if (new_pt > in_point)
-        out_point = Math.floor(new_pt);
-      out_point = Math.min(sourceAudioBuffer.length-1, out_point);
+      if (new_pt > editor_in_point)
+        editor_out_point = Math.floor(new_pt);
+      editor_out_point = Math.min(sourceAudioBuffer.length-1, editor_out_point);
     } else if (y < drag_gutter_size) {
       // adjust inpoint
-      if (new_pt < out_point)
-        in_point = Math.floor(new_pt);
-      in_point = Math.max(0, in_point);
+      if (new_pt < editor_out_point)
+        editor_in_point = Math.floor(new_pt);
+      editor_in_point = Math.max(0, editor_in_point);
     } else {
       // TODO : initiate a drag
     }
@@ -425,25 +428,25 @@ function reverseSampleBuffer() {
     data[i] = data[len-1-i];
     data[len-1-i] = sample;
   }
-  drawAllWaveforms();
+  redrawAllWaveforms();
 }
 
 function resetRange() {
-  in_point = 0;
-  out_point = sourceAudioBuffer.length-1;
+  editor_in_point = 0;
+  editor_out_point = sourceAudioBuffer.length-1;
   updateStatusBar();
-  drawAllWaveforms();
+  redrawAllWaveforms();
 }
 
 function updateStatusBar() {
-  document.getElementById('in_point').value = in_point;
-  document.getElementById('out_point').value = out_point;
+  document.getElementById('in_point').value = editor_in_point;
+  document.getElementById('out_point').value = editor_out_point;
   document.getElementById('status').innerText = 
-    sourceAudioBuffer.length+" samples total, "+(out_point-in_point+1)+" samples selected";
+    sourceAudioBuffer.length+" samples total, "+(editor_out_point-editor_in_point+1)+" samples selected";
 }
 
-function drawAllWaveforms() {
-  drawMiniCanvases();
+function redrawAllWaveforms() {
+  drawSlotCanvases();
   drawWaveformCanvas();
 }
 
@@ -464,7 +467,7 @@ function drawWaveformCanvas() {
     const tab_side = 15;
 
     ctx.fillStyle = "rgb(200,200,200)";
-    var offset = (w * in_point)/sourceAudioBuffer.length;
+    var offset = (w * editor_in_point)/sourceAudioBuffer.length;
     ctx.fillRect(offset, 0, 1, h);
     ctx.beginPath();
     ctx.moveTo(offset-tab_side, 0);
@@ -475,7 +478,7 @@ function drawWaveformCanvas() {
     ctx.fill();
     
     ctx.fillStyle = "rgb(200,200,200)";
-    offset = (w * (out_point))/sourceAudioBuffer.length;
+    offset = (w * (editor_out_point))/sourceAudioBuffer.length;
     ctx.fillRect(offset-1, 0, 1, h);
     ctx.beginPath();
     ctx.moveTo(offset-1-tab_side, h);
@@ -555,13 +558,13 @@ function sendSysexToLuma(header) {
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
 function sendEditorSampleToLuma() {
-  var numSamples = out_point - in_point;
+  var numSamples = editor_out_point - editor_in_point;
   var channels = sourceAudioBuffer.getChannelData(0);
   var ulaw_buffer = [];
 
   // Convert from float<> to g711 uLaw buffer
   for (i=0; i<numSamples; i++ ) {
-    var sample = channels[in_point+i] * 32768.0;
+    var sample = channels[editor_in_point+i] * 32768.0;
     var ulaw = linear_to_ulaw(sample);
     ulaw = ~ulaw;
     ulaw_buffer.push(ulaw);
@@ -617,7 +620,7 @@ function playAudio() {
 
   // convert end points into seconds for playback.
   // TODO make sample rate adjustable
-  theSound.start(0, in_point / sampleRate, (out_point-in_point)/sampleRate);
+  theSound.start(0, editor_in_point / sampleRate, (editor_out_point-editor_in_point)/sampleRate);
 }
 
 // convert an arraybuffer into an AudioBuffer source ready for playback.
@@ -626,7 +629,7 @@ function loadBIN_8b_ulaw(arraybuf) {
 
   // convert ulaw into linear in the sourceAudioBuffer.
   sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
-  out_point = dv.byteLength;
+  editor_out_point = dv.byteLength;
   channelData = sourceAudioBuffer.getChannelData(0);
   for (i=0; i<dv.byteLength; i++) {
     var ulaw = dv.getUint8(i);
@@ -641,7 +644,7 @@ function loadBIN_8b_ulaw(arraybuf) {
 function loadBIN_u8b_pcm(arraybuf) {
   dv = new DataView(arraybuf);
   sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
-  out_point = dv.byteLength;
+  editor_out_point = dv.byteLength;
   channelData = sourceAudioBuffer.getChannelData(0);
   for (i=0; i<dv.byteLength; i++) {
     var sample = dv.getUint8(i); // unsigned 8bit
@@ -779,7 +782,7 @@ function onMidiMessageReceived(event) {
       var ulaw_data_ab = arrayToArrayBuffer(ulaw_data);
       loadBIN_8b_ulaw(ulaw_data_ab);
       resizeCanvasToParent();
-      drawAllWaveforms();
+      redrawAllWaveforms();
       updateStatusBar();
 
       if (reading_banks) {
