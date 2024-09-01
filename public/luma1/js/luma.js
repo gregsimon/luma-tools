@@ -10,7 +10,7 @@ var midiIn = null;
 var fileReader;
 var editor_in_point = 0;
 var editor_out_point = 0;
-var sampleRate = 24000; // Hz
+var sampleRate = 12000; // Hz
 var sampleName = "untitled";
 var shiftDown = false;
 var binaryFileOriginal = null; // Original raw bytes of loaded sample
@@ -477,7 +477,7 @@ function droppedFileLoadedWav(event) {
     sourceAudioBuffer = buf;
     editor_in_point = 0;
     editor_out_point = sourceAudioBuffer.length-1;
-
+16866326 
     trimBufferToFitLuma();
     document.getElementById('sample_name').value = sampleName;
   });
