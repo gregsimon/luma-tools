@@ -55,8 +55,9 @@ const slot_names = ["BASS", "SNARE", "HIHAT", "CLAPS",
 
 const slot_waveform_fg = "rgb(214,214,214)";
 const slot_waveform_bg = "rgb(41,41,41)";
-const editor_waveform_fg = "rgb(214,214,214)";  //"rgb(46, 155, 214)";
+const editor_waveform_fg = "rgb(214,214,214)";
 const editor_waveform_bg = "rgb(41,41,41)"; 
+const drag_handle_color = "rgb(46, 155, 214)";
 
 // State during read banks. We need to chain together a number
 // of sample request callbacks.
@@ -575,8 +576,7 @@ function redrawAllWaveforms() {
 }
 
 // Render the audio waveform and endpoint UI into the canvas
-function drawEditorCanvas() {
-  
+function drawEditorCanvas() {  
   var canvas = document.getElementById('editor_canvas');
   const w = canvas.width;
   const h = canvas.height;
@@ -584,33 +584,44 @@ function drawEditorCanvas() {
 
   ctx.fillStyle = editor_waveform_bg;
   ctx.fillRect(0, 0, w, h);
-  
+ 
   if (sourceAudioBuffer && sourceAudioBuffer.length > 0) {
     ctx.strokeStyle = editor_waveform_fg;
     drawWaveform(w, h, ctx, sourceAudioBuffer);
     const tab_side = 15;
 
-    ctx.fillStyle = "rgb(200,200,200)";
+    ctx.fillStyle = drag_handle_color;
     var offset = (w * editor_in_point)/sourceAudioBuffer.length;
     ctx.fillRect(offset, 0, 1, h);
     ctx.beginPath();
-    ctx.moveTo(offset-tab_side, 0);
+    ctx.moveTo(offset, 0);
     ctx.lineTo(offset+tab_side, 0);
-    ctx.lineTo(offset, tab_side);
-    ctx.lineTo(offset-tab_side, 0);
+    ctx.lineTo(offset,tab_side);
+    ctx.lineTo(offset, 0);
     ctx.closePath();
     ctx.fill();
+
+    //draw gray on first part of sample
+    ctx.globalAlpha = .3;
+    ctx.fillStyle = "rgb(0,0,0)";
+    ctx.fillRect(0,0, offset, h);
+    ctx.globalAlpha = 1;
     
-    ctx.fillStyle = "rgb(200,200,200)";
+    
+    ctx.fillStyle = drag_handle_color;
     offset = (w * (editor_out_point))/sourceAudioBuffer.length;
     ctx.fillRect(offset-1, 0, 1, h);
     ctx.beginPath();
     ctx.moveTo(offset-1-tab_side, h);
     ctx.lineTo(offset, h-tab_side);
-    ctx.lineTo(offset+tab_side, h);
-    ctx.lineTo(offset-1-tab_side, h);
+    ctx.lineTo(offset, h);
     ctx.closePath();
     ctx.fill();
+
+    ctx.globalAlpha = .3;
+    ctx.fillStyle = "rgb(0,0,0)";
+    ctx.fillRect(offset, 0, w, h);
+    ctx.globalAlpha = 1;    
   }
 }
 
