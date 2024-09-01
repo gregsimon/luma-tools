@@ -978,7 +978,10 @@ function onMidiSuccessCallback(inMidiAccess) {
 }
 
 function trim_filename_ext(filename) {
-  return filename.split('.').slice(0, -1).join('.')
+  if (filename.indexOf('.') >= 0)
+    return filename.split('.').slice(0, -1).join('.')
+
+  return filename;
 }
 
 // Add all the waveforms from the slots into a zip file and 
