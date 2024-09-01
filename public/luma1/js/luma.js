@@ -19,6 +19,8 @@ var kMaxSampleSize = 32768;
 var bank = []; // Hold the state of each slot
 var bank_name = "Untitled";
 const drag_gutter_pct = 0.10;
+var luma_firmware_version = "";
+var luma_serial_number = "";
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -30,6 +32,11 @@ const CMD_RAM_BANK = 0x02;
 const CMD_PARAM = 0x04;
 const CMD_UTIL = 0x05;
 const CMD_REQUEST = 0x08;
+
+const SX_VOICE_BANK_NAME = 0x00;
+const SX_RAM_BANK_NAME = 0x01;
+const SX_TEENSY_VERSION = 0x02;
+const SX_SERIAL_NUMBER = 0x03;
 
 // Drum slot IDs
 const DRUM_BASS = 0;
@@ -914,8 +921,40 @@ function onMidiMessageReceived(event) {
       updateStatusBar();
 
     }
+    else if (type == CMD_UTIL) {
+      p("CMD_UTIL");
+      var data = Uint8Array.from(unpack_sysex(event.data.slice(2, event.data.length-1)));
+      p(data);
+      var enc = new TextDecoder("utf-8");
+
+      switch (data[26]) {
+        case SX_TEENSY_VERSION:
+          {
+            luma_firmware_version = enc.decode(data.slice(1, 25));
+            document.getElementById('firmware_version').innerHTML = luma_firmware_version;
+            //var el = document.getElementById('midiOut');
+            //el.selectedIndex
+          }
+          break;
+
+        case SX_SERIAL_NUMBER:
+          luma_serial_number = enc.decode(data.slice(1, 25));
+          document.getElementById('serial_number').innerHTML = luma_serial_number;
+          break;
+
+        case SX_RAM_BANK_NAME:
+          console.log(("SX_RAM_BANK_NAME received"))
+          break;
+
+        case SX_VOICE_BANK_NAME:
+          console.log(("SX_VOICE_BANK_NAME received"))
+          bank_name = enc.decode(data.slice(1, 25));
+          document.getElementById('bank_name').value = bank_name;
+          break;
+      }
+    }
     else  {
-      console.log("unsupported Luma packet type=" + type);
+      p("unsupported Luma packet type=" + type);
     }
   }
 
@@ -979,6 +1018,18 @@ function onMidiSuccessCallback(inMidiAccess) {
         midiIn.onmidimessage  = onMidiMessageReceived;
       }
     });
+  }
+
+  if (midiIn != null && midiOut != null) {
+    p("Connected to Luma");
+    var buf = new ArrayBuffer(32);
+    dv = new DataView(buf);
+    buf[0] = CMD_UTIL | 0x08;
+    buf[26] = SX_TEENSY_VERSION;
+    sendSysexToLuma(buf); // ask for firmware version
+
+    buf[26] = SX_SERIAL_NUMBER;
+    sendSysexToLuma(buf); // ask for serial #
   }
 }
 
