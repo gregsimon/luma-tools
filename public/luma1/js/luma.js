@@ -306,7 +306,7 @@ function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled")
 
   ctx.fillStyle = slot_waveform_fg;
   ctx.textAlign = "right";
-  ctx.font = "24px custom_face";
+  ctx.font = "24px condensed";
   ctx.fillText(name + " : " + title + " ", w, 24);
 }
 
