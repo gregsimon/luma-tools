@@ -61,6 +61,8 @@ var reading_banks_current_slot = 0;   // what slot to drop the sample in when it
 Number.padLeft = (nr, len = 2, padChr = `0`) => 
   `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
 
+function p(s) { console.log(s); }
+
 // Initialize the application.
 function luma1_init() {
 
@@ -207,6 +209,13 @@ function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
   return audioBuffer;
 }
 
+function copyArrayBuffer(src)  {
+  var dst = new ArrayBuffer(src.byteLength);
+  new Uint8Array(dst).set(new Uint8Array(src));
+  return dst;
+}
+
+
 // Copy the audio buffer between slots. If the src is the editor window
 // we want to only copy the part of the sample that is selected.
 function copyWaveFormBetweenSlots(srcId, dstId) {
@@ -218,19 +227,19 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
                                                 editor_in_point, editor_out_point);
     bank[dstId].name = document.getElementById('sample_name').value;
-    bank[dstId].original_binary = binaryFileOriginal;
+    bank[dstId].original_binary = copyArrayBuffer(binaryFileOriginal);
   } else if (dstId == 255) {
     // Slot --> editor
     sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     sampleName = bank[srcId].name;
     document.getElementById('sample_name').value = sampleName;
-    binaryFileOriginal = bank[srcId].original_binary;
+    binaryFileOriginal = copyArrayBuffer(bank[srcId].original_binary);
     resetRange();
   } else {
     // Slot --> Slot
     bank[dstId].audioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     bank[dstId].name = bank[srcId].name;
-    bank[dstId].original_binary = bank[srcId].original_binary;
+    bank[dstId].original_binary = copyArrayBuffer(bank[srcId].original_binary);
   }
 
   redrawAllWaveforms();
@@ -251,13 +260,13 @@ function playSlotAudio(id) {
 }
 
 // convert an arraybuffer into an AudioBuffer source ready for playback.
-function loadBIN_8b_ulaw(arraybuf) {
-  dv = new DataView(arraybuf);
-
+function convert_8b_ulaw_to_audioBuffer(arraybuf) {
   // convert ulaw into linear in the sourceAudioBuffer.
-  sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
-  editor_out_point = dv.byteLength;
-  channelData = sourceAudioBuffer.getChannelData(0);
+  var dv = new DataView(arraybuf);
+  var newAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
+  
+  //editor_out_point = dv.byteLength;
+  channelData = newAudioBuffer.getChannelData(0);
   for (i=0; i<dv.byteLength; i++) {
     var ulaw = dv.getUint8(i);
     ulaw = ~ulaw;
@@ -265,6 +274,7 @@ function loadBIN_8b_ulaw(arraybuf) {
     sample = sample / 32768.0;
     channelData[i] = sample;
   }
+  return newAudioBuffer;
 }
 
 function drawSlotWaveforms() {
@@ -307,7 +317,7 @@ function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled")
 function interpretBinaryFile() {
 
   if (binaryFormat === "ulaw_u8")
-    loadBIN_8b_ulaw(binaryFileOriginal);
+    sourceAudioBuffer = convert_8b_ulaw_to_audioBuffer(binaryFileOriginal);
   else if (binaryFormat === "pcm_u8")
     loadBIN_u8b_pcm(binaryFileOriginal);
 
@@ -330,23 +340,49 @@ function bankIdForName(name) {
 
 // A zip file was dropped, presumably holding individual .wav files
 // for each of the slots.
+// the bank may be bured 'n' folders deep in the zip archive. To
+// find it we'll look for the first occurance of BANKNAME.TXT which
+// will be on the same level as the slot folders BASS, CONGA, etc.
 function droppedFileLoadedZip(event) {
   var droppedZip = new JSZip();
   droppedZip.loadAsync(fileReader.result).then(function(zip) {
-    
+
+    // First locate the bank in the zip. We can't assume order here.
+    var bank_path_prefix = "";
+    var found_bank = false;
     for (const [key, value] of Object.entries(zip.files)) {
-      if (!value.dir) {
+      if (!value.dir && value.name[0] != '.') {
+        console.log(value.name.slice(-12));
+        if (value.name.slice(-12).toUpperCase() === "BANKNAME.TXT") {
+          found_bank = true;
+          bank_path_prefix = value.name.slice(0, -12);
+          console.log("found! bank_path_prefix="+bank_path_prefix);
+          break;
+        }
+      }
+    }
+    
+    // Now we can walk through the file again and find the slots which will
+    // be at the same level as 'bank_path_prefix'
+    for (const [key, value] of Object.entries(zip.files)) {     
+
+      if (!value.dir && value.name[0] != '.') {
+        //p("entry "+value.name+"");
+
+        if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix)
+          continue;
+
+        var name = value.name.slice(bank_path_prefix.length);
+
         // split name into slot_id
-        console.log("here "+value.name);
-        var tokens = value.name.split("/");
+        var tokens = name.split("/");
         var bankId = bankIdForName(tokens[0]);
         if (bankId >= 0) {
           // uncompress the data.
           (function (bankId, filename) {
-            console.log("full: " + value.name);
+            //p("full: " + name);
             droppedZip.file(value.name).async("ArrayBuffer").then(function(data) {
-              console.log("filename: "+filename);
-              console.log(data.byteLength);
+              //p(filename+" "+data.byteLength+" bytes");
 
               bank[bankId].name = filename;
               bank[bankId].original_binary = data;
@@ -354,15 +390,16 @@ function droppedFileLoadedZip(event) {
               const fileext = filename.slice(-4);
               if (fileext === ".wav") {
                 actx.decodeAudioData(data, function(buf) {
-                    console.log("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
+                    p("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
                     bank[bankId].audioBuffer = buf;
                     redrawAllWaveforms();
                 
                     // TODO trimBufferToFitLuma();
                   });
               } else if (fileext === ".bin") {
-                  // this is the orignal binary stream
-                  bank[bankId].original_binary = data;
+                  // this is the original binary stream
+                  bank[bankId].original_binary = copyArrayBuffer(data);
+                  //p(bank[bankId].original_binary);
               }
 
             });
@@ -466,6 +503,9 @@ function onEditorCanvasMouseMove(event) {
     const h = canvas.height;
     const w = canvas.width;
     var drag_gutter_size = h * drag_gutter_pct;
+
+    if (sourceAudioBuffer == null)
+      return;
 
     var new_pt = (sourceAudioBuffer.length * x) / w;
     if (shiftDown)
@@ -696,22 +736,6 @@ function playAudio() {
   theSound.start(0, editor_in_point / sampleRate, (editor_out_point-editor_in_point)/sampleRate);
 }
 
-// convert an arraybuffer into an AudioBuffer source ready for playback.
-function loadBIN_8b_ulaw(arraybuf) {
-  dv = new DataView(arraybuf);
-
-  // convert ulaw into linear in the sourceAudioBuffer.
-  sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
-  editor_out_point = dv.byteLength;
-  channelData = sourceAudioBuffer.getChannelData(0);
-  for (i=0; i<dv.byteLength; i++) {
-    var ulaw = dv.getUint8(i);
-    ulaw = ~ulaw;
-    var sample = ulaw_to_linear(ulaw);
-    sample = sample / 32768.0;
-    channelData[i] = sample;
-  }
-}
 
 // convert an arraybuffer into an AudioBuffer source ready for playback.
 function loadBIN_u8b_pcm(arraybuf) {
@@ -825,7 +849,7 @@ function onMidiMessageReceived(event) {
   for (const character of event.data) {
     str += `0x${character.toString(16)} `;
   }
-  console.log(str);
+  //p(str);
 
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.
@@ -853,21 +877,37 @@ function onMidiMessageReceived(event) {
       document.getElementById('sample_name').value = sampleName;
       var ulaw_data = data.slice(32);
       var ulaw_data_ab = arrayToArrayBuffer(ulaw_data);
-      binaryFileOriginal = ulaw_data_ab; // save the binary stream 
-      loadBIN_8b_ulaw(ulaw_data_ab);
-      resizeCanvasToParent();
-      redrawAllWaveforms();
-      updateStatusBar();
+      var newAudioBuffer = convert_8b_ulaw_to_audioBuffer(ulaw_data_ab);
+      
 
       if (reading_banks) {
         // copy the sample to the appropriate slot.        
-        copyWaveFormBetweenSlots(255, reading_banks_current_slot);
+        //copyWaveFormBetweenSlots(255, reading_banks_current_slot);
+
+        bank[reading_banks_current_slot].audioBuffer = 
+              cloneAudioBuffer(newAudioBuffer);
+        bank[reading_banks_current_slot].name = 
+              document.getElementById('sample_name').value;
+        bank[reading_banks_current_slot].original_binary = 
+              copyArrayBuffer(ulaw_data_ab);
+
         reading_banks_current_slot++;
         if (reading_banks_current_slot < slot_names.length)
           readNextSampleInBank();
         else
           reading_banks = false;
+
+      } else {
+        editor_out_point = newAudioBuffer.length;
+
+        sourceAudioBuffer = newAudioBuffer;
+        binaryFileOriginal = ulaw_data_ab; // save the binary stream 
       }
+
+      resizeCanvasToParent();
+      redrawAllWaveforms();
+      updateStatusBar();
+
     }
     else  {
       console.log("unsupported Luma packet type=" + type);
@@ -947,12 +987,20 @@ function exportBankAsZip() {
   var bank_name = document.getElementById('bank_name').value;
 
   var zip = new JSZip();
+
+  zip.file("BANKNAME.TXT", bank_name);
+
   for (i=0; i<slot_names.length; i++) {
+    console.log("slot "+i);
     const slot_name = slot_names[i];
     const sample_name_base = trim_filename_ext(bank[i].name);
     if (bank[i].original_binary != null) {
-      // export original binary
-      zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);  
+      //p(bank[i].original_binary);
+      if ( bank[i].original_binary.byteLength > 0 ) {
+        // export original binary
+        // p(bank[i].original_binary);
+        zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);  
+      }
     }
 
     // export WAV
@@ -962,10 +1010,13 @@ function exportBankAsZip() {
     var blob = encoder.finish();
     zip.folder(slot_name).file(sample_name_base + ".wav", blob);
   }
-
-  zip.generateAsync({type: "blob"}).then(function (blob) {
+  
+  console.log("here");
+  
+  zip.generateAsync({type: "blob"}).then(function (blob_) {
+    console.log("here2");
     var link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
+    link.href = window.URL.createObjectURL(blob_);
     link.download = bank_name + ".zip";
     link.click();
   });
