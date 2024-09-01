@@ -216,7 +216,7 @@ function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
   return audioBuffer;
 }
 
-function copyArrayBuffer(src)  {
+function cloneArrayBuffer(src)  {
   var dst = new ArrayBuffer(src.byteLength);
   new Uint8Array(dst).set(new Uint8Array(src));
   return dst;
@@ -234,19 +234,19 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
                                                 editor_in_point, editor_out_point);
     bank[dstId].name = document.getElementById('sample_name').value;
-    bank[dstId].original_binary = copyArrayBuffer(binaryFileOriginal);
+    bank[dstId].original_binary = cloneArrayBuffer(binaryFileOriginal);
   } else if (dstId == 255) {
     // Slot --> editor
     sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     sampleName = bank[srcId].name;
     document.getElementById('sample_name').value = sampleName;
-    binaryFileOriginal = copyArrayBuffer(bank[srcId].original_binary);
+    binaryFileOriginal = cloneArrayBuffer(bank[srcId].original_binary);
     resetRange();
   } else {
     // Slot --> Slot
     bank[dstId].audioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     bank[dstId].name = bank[srcId].name;
-    bank[dstId].original_binary = copyArrayBuffer(bank[srcId].original_binary);
+    bank[dstId].original_binary = cloneArrayBuffer(bank[srcId].original_binary);
   }
 
   redrawAllWaveforms();
@@ -397,7 +397,6 @@ function droppedFileLoadedZip(event) {
               //p(filename+" "+data.byteLength+" bytes");
 
               bank[bankId].name = filename;
-              bank[bankId].original_binary = data;
 
               const fileext = filename.slice(-4);
               if (fileext === ".wav") {
@@ -410,7 +409,7 @@ function droppedFileLoadedZip(event) {
                   });
               } else if (fileext === ".bin") {
                   // this is the original binary stream
-                  bank[bankId].original_binary = copyArrayBuffer(data);
+                  bank[bankId].original_binary = cloneArrayBuffer(data);
                   //p(bank[bankId].original_binary);
               }
 
@@ -901,7 +900,7 @@ function onMidiMessageReceived(event) {
         bank[reading_banks_current_slot].name = 
               document.getElementById('sample_name').value;
         bank[reading_banks_current_slot].original_binary = 
-              copyArrayBuffer(ulaw_data_ab);
+              cloneArrayBuffer(ulaw_data_ab);
 
         reading_banks_current_slot++;
         if (reading_banks_current_slot < slot_names.length)
@@ -922,9 +921,7 @@ function onMidiMessageReceived(event) {
 
     }
     else if (type == CMD_UTIL) {
-      p("CMD_UTIL");
       var data = Uint8Array.from(unpack_sysex(event.data.slice(2, event.data.length-1)));
-      p(data);
       var enc = new TextDecoder("utf-8");
 
       switch (data[26]) {
