@@ -15,7 +15,7 @@
   <body onload='luma1_init()'>
     
     <div class = 'main_section'>
-      Drag a .bin (sample ROM) or wav file into the box. [Spacebar] previews audio.
+      Drag a .bin (sample ROM), wav, or zip (bank archive) file into the box. [Spacebar] previews audio.
       
       <div class='editor_waveform' 
             ondragover="dragOverHandler(event);"
@@ -88,9 +88,7 @@
         <hr>
         <div>
           Notes:
-          <br>Drag a binary file (8-bit PCM or uLaw) or Wav file into editor area above.
-          <br>Set "in" endpoint by click/draging on upper half of waveform.
-          <br>Set "out" endpoint by click/dragging on lower half of waveform. 
+          <br>Drag a binary file (8-bit PCM or uLaw), Wav file, or a zip archive of a bank onto top editor above.
           <br>Press "Spacebar" to playback sample in browser
           <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples) 
           <br>Drag waveforms between slots in the staging area, they can also be dragged to and from the editor
