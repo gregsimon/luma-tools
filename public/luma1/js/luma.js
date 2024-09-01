@@ -361,6 +361,11 @@ function droppedFileLoadedZip(event) {
         }
       }
     }
+
+    if (found_bank == false) {
+      alert("Zip archive contains no folder with the file BANKNAME.TXT");
+      return;
+    }
     
     // Now we can walk through the file again and find the slots which will
     // be at the same level as 'bank_path_prefix'
