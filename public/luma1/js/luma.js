@@ -880,7 +880,10 @@ function loadBIN_u8b_pcm(arraybuf) {
 // Writes all samples in the bank[] data structure to the device.
 function writeBankToDevice() {
   const bankId = document.getElementById('bankId2').value;
-  for (slotId=0; slotId<slot_names.length; slotId++) {
+  const write_order = [DRUM_CONGA, DRUM_TOM, DRUM_SNARE, DRUM_BASS,
+    DRUM_HIHAT, DRUM_COWBELL, DRUM_CLAPS, DRUM_CLAVE, DRUM_TAMB, DRUM_CABASA];
+  for (idx=0; idx<write_order.length; idx++) {
+    var slotId = write_order[idx];
     console.log(`writing slot ${slotId} in bank ${bankId}`);
     writeSampleToDeviceSlotBank(slotId, bankId);
   }
@@ -971,6 +974,16 @@ function requestReadPattern() {
   sendSysexToLuma(buf);
 }
 
+
+function noteNumberToString(note) {
+  const note_names = [" C", "C#", " D", "D#", " E", " F", "F#", " G", "G#", " A", "A#", " B"];
+  var octave = note / 12;
+  var note_in_octave = note % 12;
+  str = note_names[note_in_octave];
+  str += (octave+1).toFixed(0);
+  return str;
+}
+
 function formatMidiLogString(event) {
   //let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
   if ((event.data[0] == 0xf0) && !settings_midi_monitor_show_sysex)
@@ -980,6 +993,13 @@ function formatMidiLogString(event) {
   for (const character of event.data) {
     str += `${character.toString(16)} `;
   }
+  
+  const d = event.data;
+  // format the message.
+  if ((d[0] & 0xf0) == 0x90)
+    str += " --- Note ON  " + noteNumberToString(d[1]) + " vel="+d[2];
+  else if ((d[0] & 0xf0) == 0x80)
+    str += " --- Note OFF " + noteNumberToString(d[1]) + " vel="+d[2];
   return str;
 }
 
