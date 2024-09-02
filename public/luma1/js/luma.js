@@ -731,7 +731,7 @@ function sendSysexToLuma(header) {
 
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
-function writeSampleToDevice() {
+function writeSampleToDevice(slotId = 255) {
   var numSamples = editor_out_point - editor_in_point;
   var channels = sourceAudioBuffer.getChannelData(0);
   var ulaw_buffer = [];
@@ -783,6 +783,65 @@ function writeSampleToDevice() {
   midiOut.send(sysx2);
 }
 
+
+// only send samples from in in-out points.
+// This result will need to be added to 2k, 4k, 8k, 16k, or 32k
+function writeSampleToDeviceSlotBank(slotId, bankId) {
+  if (bank[slotId].audioBuffer == null)
+    return;
+
+  const fromBank = bank[slotId];
+  var numSamples = fromBank.audioBuffer.length;
+  var channels = fromBank.audioBuffer.getChannelData(0);
+  var ulaw_buffer = [];
+
+  // Convert from float<> to g711 uLaw buffer
+  for (i=0; i<numSamples; i++ ) {
+    var sample = channels[editor_in_point+i] * 32768.0;
+    var ulaw = linear_to_ulaw(sample);
+    ulaw = ~ulaw;
+    ulaw_buffer.push(ulaw);
+  }
+
+  // pack into the MIDI message
+  // [f0] [69] [32 byte header] [ulaw data] ..... [f7]
+  var binaryStream = [];
+  for (i=0; i<32; i++)
+    binaryStream.push(0x00); // 32b header
+
+  // Offset into header
+  // ----------------------
+  // 0      cmd
+  // 1-24   24 bytes of name
+  // 25     bank Id
+  // 26     slot Id
+  // 27-31  padding
+  binaryStream[0]  = 0x01; // write to specific slot
+  binaryStream[25] = bankId;
+  binaryStream[26] = slotId;
+
+  // pack name into offset [1]
+  const kMaxChars = 24;
+  sampleName = fromBank.name.slice(0, kMaxChars);
+  console.log(`writing ${sampleName.length} chars to slot ${slotId} in bank ${bankId}`);
+  for (i=0; i<sampleName.length; i++)
+    binaryStream[i+1] = sampleName.charAt(i).charCodeAt();
+
+  // add in the ulaw data
+  for (i=0; i<ulaw_buffer.length; i++)
+    binaryStream.push(ulaw_buffer[i]);
+
+  // pack msg into 7bits
+  var ulaw_stream_7bits = pack_sysex(binaryStream);
+
+  // now add the sysex around it 0xf0 0x69 ulaw_stream_7bits 0xf7
+  var sysx = [0xf0, 0x69];
+  var sysx2 = sysx.concat(ulaw_stream_7bits);
+  sysx2.push(0xf7);
+
+  midiOut.send(sysx2);
+}
+
 function playAudio() {
   // disable focus since it may double-trigger if "Preview" is selected and
   // the spacebar is pressed.
@@ -809,6 +868,16 @@ function loadBIN_u8b_pcm(arraybuf) {
     sample -= 128;
     sample = sample / 128.0;
     channelData[i] = sample;
+  }
+}
+
+
+// Writes all samples in the bank[] data structure to the device.
+function writeBankToDevice() {
+  const bankId = document.getElementById('bankId2').value;
+  for (slotId=0; slotId<slot_names.length; slotId++) {
+    console.log(`writing slot ${slotId} in bank ${bankId}`);
+    writeSampleToDeviceSlotBank(slotId, bankId);
   }
 }
 
