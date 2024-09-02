@@ -25,6 +25,7 @@ var status_bar_text = "";
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
+var settings_midi_monitor_show_sysex = false;
 
 const TAB_SAMPLE_EDITOR = 0;
 const TAB_MIDI_MONITOR = 1;
@@ -166,6 +167,10 @@ function luma1_init() {
   // MIDI log
   de('midi_log').readonly = true;  
   de('log_clear').onclick = (ev) => { de('midi_log').innerHTML=""; }
+  de('show_sysex').onclick = (ev) => { 
+    settings_midi_monitor_show_sysex = de('show_sysex').checked;
+    saveSettings();
+  }
   
   // general window events
   window.addEventListener( "resize",  function(event) {
@@ -968,7 +973,10 @@ function requestReadPattern() {
 
 function formatMidiLogString(event) {
   //let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
-  let str = `[${event.data.length} bytes]: `;
+  if ((event.data[0] == 0xf0) && !settings_midi_monitor_show_sysex)
+    return "";
+
+  let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
   for (const character of event.data) {
     str += `${character.toString(16)} `;
   }
@@ -986,9 +994,11 @@ function onMidiFailCallback(err) {
 function onMidiMessageReceived(event) {
 
   let str = formatMidiLogString(event);
-  const midi_log = de('midi_log');
-  midi_log.innerHTML += `${str} \n`;
-  midi_log.scrollTop = midi_log.scrollHeight;
+  if (str != "") {
+    const midi_log = de('midi_log');
+    midi_log.innerHTML += `${str} \n`;
+    midi_log.scrollTop = midi_log.scrollHeight;
+  }
 
 
   if (event.data[0] == 0xf0) {
@@ -1058,8 +1068,6 @@ function onMidiMessageReceived(event) {
           {
             luma_firmware_version = enc.decode(data.slice(1, 25));
             document.getElementById('firmware_version').innerHTML = luma_firmware_version;
-            //var el = document.getElementById('midiOut');
-            //el.selectedIndex
           }
           break;
 
@@ -1209,8 +1217,14 @@ function exportBankAsZip() {
 
 function loadSettings() {
   settings_midiDeviceName = localStorage.getItem("midiOutPortName");
+  if (localStorage.getItem("monitorShowSysex") == "true")
+    settings_midi_monitor_show_sysex = true;
+  else
+  settings_midi_monitor_show_sysex = false;
+  de('show_sysex').checked = settings_midi_monitor_show_sysex;
 }
 
 function saveSettings() {
   localStorage.setItem("midiOutPortName", settings_midiDeviceName);
+  localStorage.setItem("monitorShowSysex", settings_midi_monitor_show_sysex);
 }

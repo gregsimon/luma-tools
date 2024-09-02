@@ -19,9 +19,6 @@
       <div style="display:flex; flex-flow: row nowrap;">
         <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
         <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
-        <!--<input type="button" value="Sample Editor" class="tab_button" id="sample_editor_tab_button"/>-->
-        <!--<input type="button" value="MIDI Monitor" class="tab_button" id="midi_monitor_tab_button"/>-->
-        <!--<input type="button" value="Utilities" class="tab_button" id="utilities_tab_button"/>-->
       </div>
       <div style="margin-bottom:4px;">
         MIDI Device: <select id='midiOut' onchange='changeMidiOut();'>
@@ -37,6 +34,10 @@
         
           <div>
             <input type="button" value="Clear" id="log_clear"/>
+            |
+            <input type="checkbox" id="show_sysex"/>Show Sysex
+            |
+
           </div>
           <textarea  id="midi_log"></textarea>        
       </div>
@@ -65,13 +66,9 @@
           <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
           <input type='button' value="Preview" onclick="playAudio()"/>
         </div>
-          <img src="images/lumatools_logo.png"/>
-          
-        
+          <img src="images/lumatools_logo.png"/>        
       </div>
-
       <br>
-
       <div style="flex-direction: row;">
         <div>
           <input type='button' value="Read Sample from Device" onclick="readSampleFromDevice()"/>
@@ -112,29 +109,29 @@
       <div style="flex-direction: row;">
         <hr>
         <div>
-          Notes:
-          <br>Drag a binary file (8-bit PCM or uLaw), Wav file, or a zip archive of a bank onto top editor above.
+              Drag a binary file (8-bit PCM or uLaw), Wav file, or a zip archive of a bank onto top editor above.
           <br>Press "Spacebar" to playback sample in browser
           <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples) 
           <br>Drag waveforms between slots in the staging area, they can also be dragged to and from the editor
           <br>The "STAGING" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.
         </div>
-        <hr>
-        <div>
-          <a href="mailto:gregsimon@gmail.com">Feedback</a>
-          |
-          <a href="https://github.com/gregsimon/luma-tools">GitHub</a>
-          |
-          Luma-1 firmware <span id="firmware_version">??</span>
-          |
-          SN: <span id="serial_number">??</span>
-          |
-          Luma-Tools deployed on: <span id="deployed_date"></span>
-        </div> 
-        
       </div>
-      
-    </div>
+
+    </div> <!-- sample editor -->
+
+    <!-- FOOTER -->
+    <div>
+      <hr>
+      <a href="mailto:gregsimon@gmail.com">Feedback</a>
+      |
+      <a href="https://github.com/gregsimon/luma-tools">GitHub</a>
+      |
+      Luma-1 firmware <span id="firmware_version">??</span>
+      |
+      SN: <span id="serial_number">??</span>
+      |
+      Luma-Tools deployed on: <span id="deployed_date"></span>
+    </div> 
 
   </body>
 </html>
