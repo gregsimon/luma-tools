@@ -26,6 +26,10 @@ var status_bar_text = "";
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
 
+const TAB_SAMPLE_EDITOR = 0;
+const TAB_MIDI_MONITOR = 1;
+const TAB_UTILITIES = 2;
+
 // send/receive device command IDs
 const CMD_SAMPLE = 0x00;
 const CMD_SAMPLE_BANK = 0x01;
@@ -71,6 +75,7 @@ Number.padLeft = (nr, len = 2, padChr = `0`) =>
   `${nr < 0 ? `-` : ``}${`${Math.abs(nr)}`.padStart(len, padChr)}`;
 
 function p(s) { console.log(s); }
+function de(id) { return document.getElementById(id); }
 
 // Initialize the application.
 function luma1_init() {
@@ -84,7 +89,7 @@ function luma1_init() {
         original_binary: null,
         audioBuffer: null
       });
-      var el = document.getElementById("canvas_slot_"+i);
+      var el = de("canvas_slot_"+i);
       el.draggable = true;
       el.ondrop = (ev) => {
         ev.preventDefault();
@@ -115,8 +120,8 @@ function luma1_init() {
       el.appendChild(opt);
     }
   };
-  populate_bank_select(document.getElementById('bankId'));
-  populate_bank_select(document.getElementById('bankId2'));
+  populate_bank_select(de('bankId'));
+  populate_bank_select(de('bankId2'));
 
   // populate the slot field
   let populate_slot_select = function(el) {
@@ -127,10 +132,10 @@ function luma1_init() {
       el.appendChild(opt);
     }
   };
-  populate_slot_select(document.getElementById('slotId'));
+  populate_slot_select(de('slotId'));
 
   // setup main waveform editor
-  var canvas = document.getElementById('editor_canvas');
+  var canvas = de('editor_canvas');
   canvas.draggable = true;
   canvas.onmousedown = onEditorCanvasMouseDown;
   canvas.onmousemove = onEditorCanvasMouseMove;
@@ -138,7 +143,7 @@ function luma1_init() {
   canvas.onmouseleave = onEditorCanvasMouseUp;
   canvas.ondragstart = (ev) => {
       const y = ev.offsetY;
-      const h = document.getElementById('editor_canvas').height;
+      const h = de('editor_canvas').height;
       const edge = h * drag_gutter_pct;
       if (y > edge && y < (h-edge)) {        
         ev.dataTransfer.setData("text/plain", 255); // start drag
@@ -153,6 +158,11 @@ function luma1_init() {
     if (srcId != "")
       copyWaveFormBetweenSlots(srcId, 255);
   };
+
+  // tabs
+  de("sample_editor_tab_buton").onclick = (ev) => {switchTab(TAB_SAMPLE_EDITOR);};
+  de("midi_monitor_tab_buton").onclick = (ev) => {switchTab(TAB_MIDI_MONITOR);};
+  de("utilities_tab_buton").onclick = (ev) => {switchTab(TAB_UTILITIES);};
   
   // general window events
   window.addEventListener( "resize",  function(event) {
@@ -177,7 +187,7 @@ function luma1_init() {
   // get the build #
   fetch("deploy_date.txt").then(function(response){
     response.text().then(function(text){ 
-      document.getElementById('deployed_date').innerText = text;
+      de('deployed_date').innerText = text;
     });
   });
 
@@ -195,6 +205,10 @@ function audio_init() {
   // when we drag import wav files WebAudio matches them to this audiocontext.
   if (actx == undefined)
     actx = new classAudioContext({sampleRate:12000});
+}
+
+function switchTab(newTab) {
+  console.log(newTab);
 }
 
 // Copy a webAudio buffer object, optionally endpointing the source.
@@ -219,6 +233,8 @@ function cloneAudioBuffer(fromAudioBuffer, start_index = 0, end_index = -1) {
 }
 
 function cloneArrayBuffer(src)  {
+  if (src == null)
+    return new ArrayBuffer(0);
   var dst = new ArrayBuffer(src.byteLength);
   new Uint8Array(dst).set(new Uint8Array(src));
   return dst;
@@ -381,7 +397,7 @@ function droppedFileLoadedZip(event) {
     for (const [key, value] of Object.entries(zip.files)) {     
 
       if (!value.dir && value.name[0] != '.') {
-        //p("entry "+value.name+"");
+        //console.log("entry "+value.name+"");
 
         if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix)
           continue;
@@ -394,16 +410,16 @@ function droppedFileLoadedZip(event) {
         if (bankId >= 0) {
           // uncompress the data.
           (function (bankId, filename) {
-            //p("full: " + name);
+            //console.log("full: " + name);
             droppedZip.file(value.name).async("ArrayBuffer").then(function(data) {
-              //p(filename+" "+data.byteLength+" bytes");
+              //console.log(filename+" "+data.byteLength+" bytes");
 
               bank[bankId].name = filename;
 
               const fileext = filename.slice(-4);
               if (fileext === ".wav") {
                 actx.decodeAudioData(data, function(buf) {
-                    p("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
+                    console.log("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
                     bank[bankId].audioBuffer = buf;
                     redrawAllWaveforms();
                 
@@ -412,7 +428,7 @@ function droppedFileLoadedZip(event) {
               } else if (fileext === ".bin") {
                   // this is the original binary stream
                   bank[bankId].original_binary = cloneArrayBuffer(data);
-                  //p(bank[bankId].original_binary);
+                  //console.log(bank[bankId].original_binary);
               }
 
             });
@@ -970,7 +986,7 @@ function onMidiMessageReceived(event) {
       }
     }
     else  {
-      p("unsupported Luma packet type=" + type);
+      console.log("unsupported Luma packet type=" + type);
     }
   }
 
@@ -1037,7 +1053,7 @@ function onMidiSuccessCallback(inMidiAccess) {
   }
 
   if (midiIn != null && midiOut != null) {
-    p("Connected to Luma");
+    console.log("Connected to Luma");
     var buf = new ArrayBuffer(32);
     dv = new DataView(buf);
     buf[0] = CMD_UTIL | 0x08;
@@ -1070,10 +1086,10 @@ function exportBankAsZip() {
     const slot_name = slot_names[i];
     const sample_name_base = trim_filename_ext(bank[i].name);
     if (bank[i].original_binary != null) {
-      //p(bank[i].original_binary);
+      //console.log(bank[i].original_binary);
       if ( bank[i].original_binary.byteLength > 0 ) {
         // export original binary
-        // p(bank[i].original_binary);
+        // console.log(bank[i].original_binary);
         zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);  
       }
     }

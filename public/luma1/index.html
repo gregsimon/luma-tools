@@ -13,9 +13,22 @@
     <title>Luma-1 Tools</title>
   </head>
   <body onload='luma1_init()'>
+
+    <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
+      <div style="display:flex; flex-flow: row nowrap;">
+        <input type="button" value="Sample Editor" class="tab_button" id="sample_editor_tab_buton"/>
+        <input type="button" value="MIDI Monitor" class="tab_button" id="midi_monitor_tab_buton"/>
+        <!--<input type="button" value="Utilities" class="tab_button" id="utilities_tab_buton"/>-->
+      </div>
+      <div style="margin-bottom:4px;">
+        MIDI Device: <select id='midiOut' onchange='changeMidiOut();'>
+          <option value="">No MIDI connection</option>
+        </select>
+      </div>
+    </div>
     
-    <div class = 'main_section'>
-      <div class='editor_waveform' 
+    <div id="sample_editor_tab" class = "main_section">
+      <div class="editor_waveform" 
             ondragover="dragOverHandler(event);"
             ondrop='dropHandler(event);'>
             <canvas id="editor_canvas" width="700px" height="240px"></canvas>
@@ -25,9 +38,7 @@
           justify-content: space-between; padding-top:8px; ">
         
           <div>
-          <select id='midiOut' onchange='changeMidiOut();'>
-            <option value="">No MIDI connection</option>
-          </select>
+         
           <select id='binaryFormat' onchange='changeBinFormat();'>
             <option value="ulaw_u8">UInt8 uLaw</option>
             <option value="pcm_u8">UInt8 PCM</option>

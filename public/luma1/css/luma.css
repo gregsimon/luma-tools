@@ -37,6 +37,18 @@ select {
   background-color:#9a9a9a;
 }
 
+.tab_button {
+  border-top: 1px solid gray;
+  border-left: 1px solid gray;
+  border-right: 1px solid gray;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-right: 10px;
+  border-bottom:none;
+}
+
 .waveform_slots ul {
   display: flex;
   flex-wrap: wrap;
