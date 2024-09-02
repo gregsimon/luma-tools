@@ -989,7 +989,12 @@ function formatMidiLogString(event) {
   if ((event.data[0] == 0xf0) && !settings_midi_monitor_show_sysex)
     return "";
 
-  let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
+  const date = new Date();
+  const dateString = date.getUTCHours() + ":"
+   + date.getMinutes() + ":" + date.getSeconds() + "." +
+   Number.padLeft(date.getMilliseconds(), 3);
+
+  let str = `${dateString} [${event.data.length} bytes]: `;
   for (const character of event.data) {
     str += `${character.toString(16)} `;
   }
