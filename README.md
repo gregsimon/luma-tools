@@ -3,8 +3,7 @@
 
 **luma-tools** is a web application that can be used as a companion to the [Luma-1 Drum computer](https://github.com/joebritt/luma1). It enables:
 - drag and drop sample conversion and loading
-- device memory memory backup
-- sample bank manipulation (coming soon!)
+- sample bank assembling, loading, importing, exporting
 
 Releases are hosted at **[https://luma.tools](https://luma.tools/)** and do not require any installation.
 
@@ -29,8 +28,6 @@ dependencies.
 - **Will it run offline?** It was designed to do this and will support this mode in an upcoming release!
 
 ## Roadmap
-- Bank loading/saving
-- Bank building
 - Offline support (either via Service Worker or Electron)
 - Pattern editing
 - ... ? email suggestions to [gregsimon@gmail.com](mailto:gregsimon@gmail.com)
