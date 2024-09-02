@@ -160,9 +160,12 @@ function luma1_init() {
   };
 
   // tabs
-  de("sample_editor_tab_buton").onclick = (ev) => {switchTab(TAB_SAMPLE_EDITOR);};
-  de("midi_monitor_tab_buton").onclick = (ev) => {switchTab(TAB_MIDI_MONITOR);};
-  de("utilities_tab_buton").onclick = (ev) => {switchTab(TAB_UTILITIES);};
+  de("sample_editor_tab_button").onclick = (ev) => {switchTab(TAB_SAMPLE_EDITOR);};
+  de("midi_monitor_tab_button").onclick = (ev) => {switchTab(TAB_MIDI_MONITOR);};
+
+  // MIDI log
+  de('midi_log').readonly = true;  
+  de('log_clear').onclick = (ev) => { de('midi_log').innerHTML=""; }
   
   // general window events
   window.addEventListener( "resize",  function(event) {
@@ -208,7 +211,19 @@ function audio_init() {
 }
 
 function switchTab(newTab) {
-  console.log(newTab);
+  de("sample_editor_tab").style.display = "none";
+  de("midi_monitor_tab").style.display = "none";
+  switch (newTab) {
+    case TAB_MIDI_MONITOR:
+      de("midi_monitor_tab").style.display = "block";
+      break;
+    case TAB_SAMPLE_EDITOR:
+      de("sample_editor_tab").style.display = "block";
+      break;
+    case TAB_UTILITIES:
+      de("utilities_tab").style.display = "block";
+      break;
+  }
 }
 
 // Copy a webAudio buffer object, optionally endpointing the source.
@@ -882,6 +897,15 @@ function requestReadPattern() {
   sendSysexToLuma(buf);
 }
 
+function formatMidiLogString(event) {
+  //let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
+  let str = `[${event.data.length} bytes]: `;
+  for (const character of event.data) {
+    str += `${character.toString(16)} `;
+  }
+  return str;
+}
+
 // ----------------------------------------------------------------------------
 // WebMIDI routines
 
@@ -891,11 +915,12 @@ function onMidiFailCallback(err) {
 }
 
 function onMidiMessageReceived(event) {
-  let str = `MIDI msg received at timestamp ${event.timeStamp}[${event.data.length} bytes]: `;
-  for (const character of event.data) {
-    str += `0x${character.toString(16)} `;
-  }
-  console.log(str);
+
+  let str = formatMidiLogString(event);
+  const midi_log = de('midi_log');
+  midi_log.innerHTML += `${str} \n`;
+  midi_log.scrollTop = midi_log.scrollHeight;
+
 
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.

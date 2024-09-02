@@ -7,9 +7,10 @@
   font-family: 'condensed';
 }
 
-body {
+body, html {
   background-color: rgb(24,24,24);
   color:rgb(190,190,190);
+  height:100%;
 }
 
 a { text-decoration:none; }
@@ -37,6 +38,24 @@ select {
   background-color:#9a9a9a;
 }
 
+#midi_monitor_tab{
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid white;
+  padding-top: 10px;
+}
+
+#midi_log {
+  font-family: fixed-width;
+  background-color:#292929;
+  color: white;
+  font-family:monospace, monospace;
+  border: none;
+  padding: 10px;
+  margin: 10px;
+  height: 400px;
+}
+
 .tab_button {
   border-top: 1px solid gray;
   border-left: 1px solid gray;
@@ -47,6 +66,7 @@ select {
   padding-right: 10px;
   margin-right: 10px;
   border-bottom:none;
+  user-select: none;
 }
 
 .waveform_slots ul {

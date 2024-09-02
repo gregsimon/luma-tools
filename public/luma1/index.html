@@ -14,11 +14,14 @@
   </head>
   <body onload='luma1_init()'>
 
+    <!-- tabs -->
     <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
       <div style="display:flex; flex-flow: row nowrap;">
-        <input type="button" value="Sample Editor" class="tab_button" id="sample_editor_tab_buton"/>
-        <input type="button" value="MIDI Monitor" class="tab_button" id="midi_monitor_tab_buton"/>
-        <!--<input type="button" value="Utilities" class="tab_button" id="utilities_tab_buton"/>-->
+        <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
+        <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
+        <!--<input type="button" value="Sample Editor" class="tab_button" id="sample_editor_tab_button"/>-->
+        <!--<input type="button" value="MIDI Monitor" class="tab_button" id="midi_monitor_tab_button"/>-->
+        <!--<input type="button" value="Utilities" class="tab_button" id="utilities_tab_button"/>-->
       </div>
       <div style="margin-bottom:4px;">
         MIDI Device: <select id='midiOut' onchange='changeMidiOut();'>
@@ -26,7 +29,20 @@
         </select>
       </div>
     </div>
-    
+
+    <!-- MIDI MONITOR -->
+    <div id="midi_monitor_tab" class="main_section" style="display:none;">
+      <div style="display: flex; flex-direction: column;
+            justify-content: space-between;">
+        
+          <div>
+            <input type="button" value="Clear" id="log_clear"/>
+          </div>
+          <textarea  id="midi_log"></textarea>        
+      </div>
+    </div>
+
+    <!-- SAMPLE EDITOR -->
     <div id="sample_editor_tab" class = "main_section">
       <div class="editor_waveform" 
             ondragover="dragOverHandler(event);"
