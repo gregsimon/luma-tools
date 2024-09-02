@@ -21,26 +21,26 @@
             <canvas id="editor_canvas" width="700px" height="240px"></canvas>
       </div>
 
-      <div id="status">
-        &nbsp;
-      </div>
-
-      <div style="flex-direction: row;">
-        <div>
+      <div style="display:flex; flex-flow: row nowrap;
+          justify-content: space-between; padding-top:8px; ">
+        
+          <div>
           <select id='midiOut' onchange='changeMidiOut();'>
-              <option value="">No MIDI connection</option>
+            <option value="">No MIDI connection</option>
           </select>
           <select id='binaryFormat' onchange='changeBinFormat();'>
             <option value="ulaw_u8">UInt8 uLaw</option>
             <option value="pcm_u8">UInt8 PCM</option>
-        </select>
+          </select>
           Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'/>
           &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
           <input type='button' value="Select All" onclick="resetRange()"/>
           <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
           <input type='button' value="Preview" onclick="playAudio()"/>
-          
         </div>
+          <img src="images/lumatools_logo.png"/>
+          
+        
       </div>
 
       <br>
