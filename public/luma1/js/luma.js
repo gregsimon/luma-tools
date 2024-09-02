@@ -184,7 +184,7 @@ function luma1_init() {
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
 
   resizeCanvasToParent();
-  drawSlotWaveforms();
+  redrawAllWaveforms();
 }
 
 // This can only be done after a user gesture on the page.
@@ -622,6 +622,13 @@ function drawEditorCanvas() {
     ctx.fillStyle = "rgb(0,0,0)";
     ctx.fillRect(offset, 0, w, h);
     ctx.globalAlpha = 1;    
+  } else {
+    ctx.fillStyle = slot_waveform_fg;
+    ctx.textAlign = "center";
+    ctx.font = "24px condensed";
+    ctx.fillText("Drag a .bin (sample ROM), wav, or zip (bank archive) file here to get started.",
+      w/2, h/2
+    );
   }
 }
 
@@ -871,7 +878,7 @@ function onMidiMessageReceived(event) {
   for (const character of event.data) {
     str += `0x${character.toString(16)} `;
   }
-  //p(str);
+  console.log(str);
 
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.
