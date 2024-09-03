@@ -86,6 +86,7 @@ function luma1_init() {
       bank.push({
         id: i,
         name: "untitled",
+        sample_rate: 12000,
         original_binary: null,
         audioBuffer: null
       });
@@ -981,6 +982,19 @@ function noteNumberToString(note) {
   return str;
 }
 
+function CCtoName(num) {
+  switch (num) {
+    case 0: return "sound bank MSB";
+    case 1: return "mod wheel";
+    case 7: return "volume level";
+    case 10: return "panoramic";
+    case 11: return "expression";
+    case 32: return "sound bank LSB";
+    case 64: return "sustain pedal";
+  }
+  return num;
+}
+
 function formatMidiLogString(event) {
   if ((event.data[0] == 0xf0) && !settings_midi_monitor_show_sysex)
     return "";
@@ -994,13 +1008,23 @@ function formatMidiLogString(event) {
   for (const character of event.data) {
     str += `${character.toString(16)} `;
   }
+
+  str += "  ";
   
   const d = event.data;
   // format the message.
-  if ((d[0] & 0xf0) == 0x90)
-    str += " --- Note ON  " + noteNumberToString(d[1]) + " vel="+d[2];
-  else if ((d[0] & 0xf0) == 0x80)
-    str += " --- Note OFF " + noteNumberToString(d[1]) + " vel="+d[2];
+  var midi_cmd = d[0] & 0xf0;
+  if (midi_cmd == 0x90)
+    str += "Note ON  " + noteNumberToString(d[1]) + " vel="+d[2];
+  else if (midi_cmd == 0x80)
+    str += "Note OFF " + noteNumberToString(d[1]) + " vel="+d[2];
+  else if (midi_cmd == 0xb0)
+    str += "CC controller=" + CCtoName(d[1]) + " value=" + d[2];
+  else if (midi_cmd == 0xe0)
+    str += "Pitch bend ";
+  else if (midi_cmd == 0xe0)
+    str += "Pitch bend ";
+
   return str;
 }
 
