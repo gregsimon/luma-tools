@@ -200,7 +200,7 @@ function luma1_init() {
 
 
   navigator.requestMIDIAccess({sysex:true}).then(onMidiSuccessCallback, onMidiFailCallback);
-
+  
   resizeCanvasToParent();
   redrawAllWaveforms();
 }
@@ -982,7 +982,6 @@ function noteNumberToString(note) {
 }
 
 function formatMidiLogString(event) {
-  //let str = `${event.timeStamp.toFixed(0)}ms [${event.data.length} bytes]: `;
   if ((event.data[0] == 0xf0) && !settings_midi_monitor_show_sysex)
     return "";
 
@@ -1009,11 +1008,11 @@ function formatMidiLogString(event) {
 // WebMIDI routines
 
 function onMidiFailCallback(err) {
-  console.log("WebMIDI failed to initialize: " + err.code);
+  console.log(`WebMIDI failed to initialize: ${err.code}`);
   document.getElementById('midiFailed').style.display='block';
 }
 
-function onMidiMessageReceived(event) {
+function onMIDIMessageReceived(event) {
 
   let str = formatMidiLogString(event);
   if (str != "") {
@@ -1113,11 +1112,48 @@ function onMidiMessageReceived(event) {
       console.log("unsupported Luma packet type=" + type);
     }
   }
+}
+
+// A MIDI device was attached to or detacted from the computer.
+function refreshMidiDeviceList(event) {
+  var midiSelectElement = de("midi_out_device");
+
+  midiSelectElement.innerHTML = "";
+
+  let 
+    outputs = midiAccess.outputs;
+    inputs = midiAccess.inputs;
+
+  midiSelectElement.options.add(new Option("NO MIDI Connection", "NONE", false, false));
+
+  // Add ports to the UI picker. If we have selected one in the past, set it again
+  outputs.forEach((port) => {
+      midiSelectElement.options.add(new Option(port.name, port.fingerprint, false, false));
+  });  
+  midiSelectElement.selectedIndex = 0;
+
+  // Load the last used MIDI port, if one was set.
+  if (midiSelectElement.value != undefined) {
+    midiSelectElement.value = settings_midiDeviceName;
+    outputs.forEach((port) => {
+      if (0 == port.name.localeCompare(settings_midiDeviceName)) {
+        midiOut = port;
+      }
+    });
+
+    // find the midi input port using the output device name 
+    inputs.forEach((port) => {
+      if (0 == port.name.localeCompare(settings_midiDeviceName)) {
+        midiIn = port;
+        midiIn.onmidimessage  = onMIDIMessageReceived;
+      }
+    });
+  }
 
 }
 
 // User changed MIDI device
-function changeMIDIOutCallback(event) {
+function userChangedMIDIOutDevice(event) {
     let
         outputs = midiAccess.outputs, 
         inputs = midiAccess.inputs,
@@ -1138,43 +1174,23 @@ function changeMIDIOutCallback(event) {
     inputs.forEach((port) => {
       if (0 == port.name.localeCompare(settings_midiDeviceName)) {
         midiIn = port;
-        midiIn.onmidimessage  = onMidiMessageReceived;
+        midiIn.onmidimessage  = onMIDIMessageReceived;
       }
     });
 }
 
-function onMidiSuccessCallback(inMidiAccess) {
-  midiAccess = inMidiAccess;
-  var selectMidiOut = document.getElementById("midiOut");
+function onMidiSuccessCallback(access) {
+  midiAccess = access;
 
-  let 
-    outputs = midiAccess.outputs;
-    inputs = midiAccess.inputs;
+  // We are going to only list the MIDI out device
+  // and then look for the MIDI in to connect as well. I supose
+  // ideally we'd show separate IN and OUT selects?
+  var selectMidiOut = de("midi_out_device");
+  
+  access.onstatechange = (event) => { refreshMidiDeviceList(); }
+  selectMidiOut.onchange = userChangedMIDIOutDevice;
 
-  // Add ports to the UI picker. If we have selected one in the past, set it again
-  outputs.forEach((port) => {
-      selectMidiOut.options.add(new Option(port.name, port.fingerprint, false, false));
-  });
-  selectMidiOut.onchange = changeMIDIOutCallback;
-  selectMidiOut.selectedIndex = 0;
-
-  // Load the last used MIDI port, if one was set.
-  if (selectMidiOut.value != undefined) {
-    selectMidiOut.value = settings_midiDeviceName;
-    outputs.forEach((port) => {
-      if (0 == port.name.localeCompare(settings_midiDeviceName)) {
-        midiOut = port;
-      }
-    });
-
-    // find the midi input port using the output device name 
-    inputs.forEach((port) => {
-      if (0 == port.name.localeCompare(settings_midiDeviceName)) {
-        midiIn = port;
-        midiIn.onmidimessage  = onMidiMessageReceived;
-      }
-    });
-  }
+  refreshMidiDeviceList();
 
   if (midiIn != null && midiOut != null) {
     console.log("Connected to Luma");
