@@ -14,7 +14,7 @@
   </head>
   <body onload='luma1_init()'>
 
-    <!-- tabs -->
+    <!-- Tab bar -->
     <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
       <div style="display:flex; flex-flow: row nowrap;">
         <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
@@ -27,23 +27,7 @@
       </div>
     </div>
 
-    <!-- MIDI MONITOR -->
-    <div id="midi_monitor_tab" class="main_section" style="display:none;">
-      <div style="display: flex; flex-direction: column;
-            justify-content: space-between;">
-        
-          <div>
-            <input type="button" value="Clear" id="log_clear"/>
-            |
-            <input type="checkbox" id="show_sysex"/>Show Sysex
-            |
-
-          </div>
-          <textarea  id="midi_log"></textarea>        
-      </div>
-    </div>
-
-    <!-- SAMPLE EDITOR -->
+    <!-- SAMPLE EDITOR page -->
     <div id="sample_editor_tab" class = "main_section">
       <div class="editor_waveform" 
             ondragover="dragOverHandler(event);"
@@ -117,8 +101,25 @@
           <br>The "STAGING" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.
         </div>
       </div>
-
     </div> <!-- sample editor -->
+
+    <!-- MIDI MONITOR page -->
+    <div id="midi_monitor_tab" class="main_section" style="display:none;">
+      <div style="display: flex; flex-direction: column;
+            justify-content: space-between;">
+        
+          <div>
+            <input type="button" value="Clear" id="log_clear"/>
+            |
+            <input type="checkbox" id="show_sysex"/>Show Sysex
+            |
+
+          </div>
+          <textarea  id="midi_log"></textarea>        
+      </div>
+    </div> <!-- MIDI Monitor-->
+
+
 
     <!-- FOOTER -->
     <div>

@@ -260,7 +260,6 @@ function cloneArrayBuffer(src)  {
   return dst;
 }
 
-
 // Copy the audio buffer between slots. If the src is the editor window
 // we want to only copy the part of the sample that is selected.
 function copyWaveFormBetweenSlots(srcId, dstId) {
@@ -374,7 +373,6 @@ function interpretBinaryFile() {
   document.getElementById('sample_name').value = sampleName;
 }
 
-
 function bankIdForName(name) {
   for (i=0; i<slot_names.length; i++) {
     if (name === slot_names[i])
@@ -416,11 +414,13 @@ function droppedFileLoadedZip(event) {
     // be at the same level as 'bank_path_prefix'
     for (const [key, value] of Object.entries(zip.files)) {     
 
-      if (!value.dir && value.name[0] != '.') {
-        //console.log("entry "+value.name+"");
+      if (!value.dir ) { //&& value.name.indexOf("t") == -1) {
+        //console.log(`entry {${value.name}|`);
 
-        if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix)
+        if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix) {
+          //console.log(`   Discard`);
           continue;
+        }
 
         var name = value.name.slice(bank_path_prefix.length);
 
@@ -428,19 +428,24 @@ function droppedFileLoadedZip(event) {
         var tokens = name.split("/");
         var bankId = bankIdForName(tokens[0]);
         if (bankId >= 0) {
+
+          if (tokens[1][0] == '.')   // ignore files that begin with .
+            continue;
+
           // uncompress the data.
           (function (bankId, filename) {
-            //console.log("full: " + name);
+            //console.log(`full: |${name}|`);
             droppedZip.file(value.name).async("ArrayBuffer").then(function(data) {
-              //console.log(filename+" "+data.byteLength+" bytes");
+              //console.log(`|${filename}| ${data.byteLength} bytes`);
 
               bank[bankId].name = filename;
 
               const fileext = filename.slice(-4);
               if (fileext === ".wav") {
                 actx.decodeAudioData(data, function(buf) {
-                    console.log("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
+                    //console.log("Decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
                     bank[bankId].audioBuffer = buf;
+                    bank[bankId].sample_rate = buf.sampleRate;
                     redrawAllWaveforms();
                 
                     // TODO trimBufferToFitLuma();
@@ -502,7 +507,6 @@ function trimBufferToFitLuma() {
   resizeCanvasToParent();
   redrawAllWaveforms();
   updateStatusBar();
-  
 }
 
 // Decode a Windows WAV file
@@ -523,7 +527,6 @@ function droppedFileLoadedWav(event) {
 function dragOverHandler(ev) {
   ev.preventDefault();
 }
-
 
 function resizeCanvasToParent() {
   // editor canvas
@@ -713,7 +716,6 @@ function dropHandler(ev) {
   });
 }
 
-
 function sendSysexToLuma(header) {
   // pack into the MIDI message
   // [f0] [69] [32 byte header] [ulaw data] ..... [f7]
@@ -785,7 +787,6 @@ function writeSampleToDevice(slotId = 255) {
 
   midiOut.send(sysx2);
 }
-
 
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
@@ -859,7 +860,6 @@ function playAudio() {
   theSound.start(0, editor_in_point / sampleRate, (editor_out_point-editor_in_point)/sampleRate);
 }
 
-
 // convert an arraybuffer into an AudioBuffer source ready for playback.
 function loadBIN_u8b_pcm(arraybuf) {
   dv = new DataView(arraybuf);
@@ -874,7 +874,6 @@ function loadBIN_u8b_pcm(arraybuf) {
   }
 }
 
-
 // Writes all samples in the bank[] data structure to the device.
 function writeBankToDevice() {
   const bankId = document.getElementById('bankId2').value;
@@ -886,7 +885,6 @@ function writeBankToDevice() {
     writeSampleToDeviceSlotBank(slotId, bankId);
   }
 }
-
 
 // reads all samples from the bank in the 'bankid2' field.
 function readBankfromDevice() {
@@ -972,7 +970,6 @@ function requestReadPattern() {
   sendSysexToLuma(buf);
 }
 
-
 function noteNumberToString(note) {
   const note_names = [" C", "C#", " D", "D#", " E", " F", "F#", " G", "G#", " A", "A#", " B"];
   var octave = note / 12;
@@ -1044,7 +1041,6 @@ function onMIDIMessageReceived(event) {
     midi_log.innerHTML += `${str} \n`;
     midi_log.scrollTop = midi_log.scrollHeight;
   }
-
 
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.
@@ -1236,8 +1232,7 @@ function trim_filename_ext(filename) {
   return filename;
 }
 
-// Add all the waveforms from the slots into a zip file and 
-// download it.
+// Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
   var bank_name = document.getElementById('bank_name').value;
 
