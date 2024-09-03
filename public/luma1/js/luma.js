@@ -21,7 +21,6 @@ var bank_name = "Untitled";
 const drag_gutter_pct = 0.10;
 var luma_firmware_version = "";
 var luma_serial_number = "";
-var status_bar_text = "";
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
@@ -603,8 +602,6 @@ function resetRange() {
 function updateStatusBar() {
   document.getElementById('in_point').value = editor_in_point;
   document.getElementById('out_point').value = editor_out_point;
-  status_bar_text = 
-    sourceAudioBuffer.length+" samples total, "+(editor_out_point-editor_in_point+1)+" samples selected";
 }
 
 function redrawAllWaveforms() {
