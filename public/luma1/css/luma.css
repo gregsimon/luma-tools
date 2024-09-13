@@ -38,7 +38,34 @@ select {
   background-color:#9a9a9a;
 }
 
-#midi_monitor_tab{
+#pattern_editor_tab {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid white;
+  padding-top: 10px;
+}
+
+
+#pattern_editor_tab {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid white;
+  padding-top: 10px;
+}
+
+
+#ram_editor {
+  font-family: fixed-width;
+  background-color:#292929;
+  color: white;
+  font-family:monospace, monospace;
+  border: none;
+  padding: 10px;
+  margin: 10px;
+  height: 100%;
+}
+
+#midi_monitor_tab {
   display: flex;
   flex-direction: column;
   border-top: 1px solid white;

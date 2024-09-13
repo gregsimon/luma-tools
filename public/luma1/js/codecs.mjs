@@ -97,7 +97,7 @@ function pack_sysex(src) {
   var b7s;
 
   var len = src.length;
-  var dst = new Array(len);
+  var dst = new Array(len*2);
 
   do {
     b7s = 0;
@@ -130,19 +130,25 @@ function unpack_sysex(src) {
   var debug=false;
   out_block = new Array(src.length*2); // larger than we need
 
-  if (debug) console.log("unpack_sysex: IN= "+src.length);
+  if (true) { 
+    console.log(`unpack_sysex: IN= ${src.length}`);
+
+  }
 
   var in_size = src.length;
   var in_idx = 0;
   var out_idx = 0;
   var buffer = new ArrayBuffer(7);
 
-  // [ <sign byte> <7 data bytes> ]
+  // [ <sign byte 0111 1111> <7 data bytes> ]
   while (in_size > 0) {
     var str ="";
 
     var signbyte = src[in_idx]; in_idx++;
+    
+    // last chunk may be less than final 7 data bytes
     var bytes_to_count = Math.min(7, in_size-1);
+
     for (var i=0; i<bytes_to_count; i++) {
       buffer[i] = src[in_idx];
       if (debug) str += `0x${buffer[i].toString(16)} `;
@@ -150,7 +156,7 @@ function unpack_sysex(src) {
     }
     if (debug) console.log(str);
     
-
+    // apply the high bit to the appropriate bytes.
     for (var i=6; i>=0; --i) {
       if ((1 << i) & signbyte) {
         buffer[6-i] = buffer[6-i] | 0x80;
@@ -172,15 +178,15 @@ function unpack_sysex(src) {
 
   }
 
-  if (debug) console.log("unpack_sysex: OUT="+out_idx+"   -header="+(out_idx-32));
+  if (true) console.log(`unpack_sysex: OUT=${out_idx}  -header=${out_idx-32}`);
   return out_block.slice(0, out_idx);
 }
 
-function arrayToArrayBuffer(buf) {
+function arrayToArrayBuffer(buf) {  
   var ab = new ArrayBuffer(buf.length);
-  var view = new Uint8Array(ab);
+  var ptr = new Uint8Array(ab);
   for (var i=0; i<buf.length; ++i) {
-    view[i] = buf[i];
+    ptr[i] = buf[i];
   }
   return ab;
 }

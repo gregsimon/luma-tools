@@ -3,7 +3,7 @@
 // globals
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
 var actx; // AudioContext
-var sourceAudioBuffer; // AudioBuffer (active sample)
+var editorAudioBuffer; // AudioBuffer (active sample)
 var midiAccess = null;
 var midiOut = null;
 var midiIn = null;
@@ -21,14 +21,17 @@ var bank_name = "Untitled";
 const drag_gutter_pct = 0.10;
 var luma_firmware_version = "";
 var luma_serial_number = "";
+var throttle_midi_send_ms = 0;
+var ram_dump = null;
 
 // settings vars that are persisted locally on computer
 var settings_midiDeviceName = "";
 var settings_midi_monitor_show_sysex = false;
 
 const TAB_SAMPLE_EDITOR = 0;
-const TAB_MIDI_MONITOR = 1;
-const TAB_UTILITIES = 2;
+const TAB_PATTERN_EDITOR = 1;
+const TAB_MIDI_MONITOR = 2;
+const TAB_UTILITIES = 3;
 
 // send/receive device command IDs
 const CMD_SAMPLE = 0x00;
@@ -135,6 +138,7 @@ function luma1_init() {
   };
   populate_slot_select(de('slotId'));
 
+
   // setup main waveform editor
   var canvas = de('editor_canvas');
   canvas.draggable = true;
@@ -162,6 +166,7 @@ function luma1_init() {
 
   // tabs
   de("sample_editor_tab_button").onclick = (ev) => {switchTab(TAB_SAMPLE_EDITOR);};
+  de("pattern_editor_tab_button").onclick = (ev) => {switchTab(TAB_PATTERN_EDITOR);};
   de("midi_monitor_tab_button").onclick = (ev) => {switchTab(TAB_MIDI_MONITOR);};
 
   // MIDI log
@@ -217,15 +222,19 @@ function audio_init() {
 
 function switchTab(newTab) {
   de("sample_editor_tab").style.display = "none";
+  de("pattern_editor_tab").style.display = "none";
   de("midi_monitor_tab").style.display = "none";
   switch (newTab) {
-    case TAB_MIDI_MONITOR:
-      de("midi_monitor_tab").style.display = "block";
-      break;
     case TAB_SAMPLE_EDITOR:
       de("sample_editor_tab").style.display = "block";
       break;
-    case TAB_UTILITIES:
+    case TAB_PATTERN_EDITOR:
+        de("pattern_editor_tab").style.display = "block";
+        break;
+    case TAB_MIDI_MONITOR:
+      de("midi_monitor_tab").style.display = "block";
+      break;
+        case TAB_UTILITIES:
       de("utilities_tab").style.display = "block";
       break;
   }
@@ -268,13 +277,13 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
 
   if (srcId == 255) {
     // Editor --> slot (with endpointing)
-    bank[dstId].audioBuffer = cloneAudioBuffer(sourceAudioBuffer, 
+    bank[dstId].audioBuffer = cloneAudioBuffer(editorAudioBuffer, 
                                                 editor_in_point, editor_out_point);
     bank[dstId].name = document.getElementById('sample_name').value;
     bank[dstId].original_binary = cloneArrayBuffer(binaryFileOriginal);
   } else if (dstId == 255) {
     // Slot --> editor
-    sourceAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
+    editorAudioBuffer = cloneAudioBuffer(bank[srcId].audioBuffer);
     sampleName = bank[srcId].name;
     document.getElementById('sample_name').value = sampleName;
     binaryFileOriginal = cloneArrayBuffer(bank[srcId].original_binary);
@@ -361,13 +370,13 @@ function drawSlotWaveformOnCanvas(canvas, audioBuffer, title, name = "untitled")
 function interpretBinaryFile() {
 
   if (binaryFormat === "ulaw_u8")
-    sourceAudioBuffer = convert_8b_ulaw_to_audioBuffer(binaryFileOriginal);
+    editorAudioBuffer = convert_8b_ulaw_to_audioBuffer(binaryFileOriginal);
   else if (binaryFormat === "pcm_u8")
     loadBIN_u8b_pcm(binaryFileOriginal);
 
   // These are indexes into the 
   editor_in_point = 0;
-  editor_out_point = sourceAudioBuffer.length-1;
+  editor_out_point = editorAudioBuffer.length-1;
 
   trimBufferToFitLuma();
   document.getElementById('sample_name').value = sampleName;
@@ -475,10 +484,10 @@ function droppedFileLoadedBIN(event) {
 
 function trimBufferToFitLuma() {
   // limit sourceAudioBuffer to kMaxSampleSize samples
-  console.log("imported sample len is "+sourceAudioBuffer.length);
-  if (sourceAudioBuffer.length >= kMaxSampleSize) {
-    console.log("trim buffer to kMaxSampleSize, original_size="+sourceAudioBuffer.length+" sampleRate="+
-    sourceAudioBuffer.sampleRate);
+  console.log("imported sample len is "+editorAudioBuffer.length);
+  if (editorAudioBuffer.length >= kMaxSampleSize) {
+    console.log("trim buffer to kMaxSampleSize, original_size="+editorAudioBuffer.length+" sampleRate="+
+    editorAudioBuffer.sampleRate);
 
     // TODO : resample buffer!
     var newSampleRate = 24000;
@@ -487,21 +496,21 @@ function trimBufferToFitLuma() {
     var anotherArray = new Float32Array(kMaxSampleSize);
     var offset = 0;
 
-    sourceAudioBuffer.copyFromChannel(anotherArray, 0, 0);
+    editorAudioBuffer.copyFromChannel(anotherArray, 0, 0);
     newArrayBuffer.copyToChannel(anotherArray, 0, 0);
     
-    sourceAudioBuffer = newArrayBuffer;
+    editorAudioBuffer = newArrayBuffer;
     editor_in_point = 0;
-    editor_out_point = sourceAudioBuffer.length-1;
-    console.log("trimmed - new len is "+sourceAudioBuffer.length);
+    editor_out_point = editorAudioBuffer.length-1;
+    console.log("trimmed - new len is "+editorAudioBuffer.length);
   }
   else {
     // sample is <= to the full sample size.
     // let's try padding with zeros on the end and see what that does.
-    console.log("sample is "+sourceAudioBuffer.length+"/"+kMaxSampleSize);
+    console.log("sample is "+editorAudioBuffer.length+"/"+kMaxSampleSize);
 
     editor_in_point = 0;
-    editor_out_point = sourceAudioBuffer.length-2;
+    editor_out_point = editorAudioBuffer.length-2;
   }
 
   resizeCanvasToParent();
@@ -515,9 +524,9 @@ function droppedFileLoadedWav(event) {
 
   actx.decodeAudioData(fileReader.result, function(buf) {
     console.log("decoded wav file: SR="+buf.sampleRate+" len="+buf.length);
-    sourceAudioBuffer = buf;
+    editorAudioBuffer = buf;
     editor_in_point = 0;
-    editor_out_point = sourceAudioBuffer.length-1;
+    editor_out_point = editorAudioBuffer.length-1;
 16866326 
     trimBufferToFitLuma();
     document.getElementById('sample_name').value = sampleName;
@@ -556,10 +565,10 @@ function onEditorCanvasMouseMove(event) {
     const w = canvas.width;
     var drag_gutter_size = h * drag_gutter_pct;
 
-    if (sourceAudioBuffer == null)
+    if (editorAudioBuffer == null)
       return;
 
-    var new_pt = (sourceAudioBuffer.length * x) / w;
+    var new_pt = (editorAudioBuffer.length * x) / w;
     if (shiftDown)
       new_pt = Math.round(new_pt / 1024) * 1024;
 
@@ -567,7 +576,7 @@ function onEditorCanvasMouseMove(event) {
       // adjust endpoint
       if (new_pt > editor_in_point)
         editor_out_point = Math.floor(new_pt);
-      editor_out_point = Math.min(sourceAudioBuffer.length-1, editor_out_point);
+      editor_out_point = Math.min(editorAudioBuffer.length-1, editor_out_point);
     } else if (y < drag_gutter_size) {
       // adjust inpoint
       if (new_pt < editor_out_point)
@@ -586,8 +595,8 @@ function onEditorCanvasMouseUp(event) {
 }
 
 function reverseSampleBuffer() {
-  var len = sourceAudioBuffer.length;
-  var data = sourceAudioBuffer.getChannelData(0);
+  var len = editorAudioBuffer.length;
+  var data = editorAudioBuffer.getChannelData(0);
   for (i=0; i<len/2; i++) {
     var sample = data[i];
     data[i] = data[len-1-i];
@@ -598,7 +607,7 @@ function reverseSampleBuffer() {
 
 function resetRange() {
   editor_in_point = 0;
-  editor_out_point = sourceAudioBuffer.length-1;
+  editor_out_point = editorAudioBuffer.length-1;
   updateStatusBar();
   redrawAllWaveforms();
 }
@@ -623,13 +632,13 @@ function drawEditorCanvas() {
   ctx.fillStyle = editor_waveform_bg;
   ctx.fillRect(0, 0, w, h);
  
-  if (sourceAudioBuffer && sourceAudioBuffer.length > 0) {
+  if (editorAudioBuffer && editorAudioBuffer.length > 0) {
     ctx.strokeStyle = editor_waveform_fg;
-    drawWaveform(w, h, ctx, sourceAudioBuffer);
+    drawWaveform(w, h, ctx, editorAudioBuffer);
     const tab_side = 15;
 
     ctx.fillStyle = drag_handle_color;
-    var offset = (w * editor_in_point)/sourceAudioBuffer.length;
+    var offset = (w * editor_in_point)/editorAudioBuffer.length;
     ctx.fillRect(offset, 0, 1, h);
     ctx.beginPath();
     ctx.moveTo(offset, 0);
@@ -647,7 +656,7 @@ function drawEditorCanvas() {
     
     
     ctx.fillStyle = drag_handle_color;
-    offset = (w * (editor_out_point))/sourceAudioBuffer.length;
+    offset = (w * (editor_out_point))/editorAudioBuffer.length;
     ctx.fillRect(offset-1, 0, 1, h);
     ctx.beginPath();
     ctx.moveTo(offset-1-tab_side, h);
@@ -718,7 +727,7 @@ function dropHandler(ev) {
 
 function sendSysexToLuma(header) {
   // pack into the MIDI message
-  // [f0] [69] [32 byte header] [ulaw data] ..... [f7]
+  // [f0] [69] [ulaw data] ..... [f7]
   var binaryStream = [];
   for (i=0; i<32; i++)
     binaryStream.push(header[i]); // 32b header
@@ -731,14 +740,21 @@ function sendSysexToLuma(header) {
   var sysx2 = sysx.concat(ulaw_stream_7bits);
   sysx2.push(0xf7);
 
-  midiOut.send(sysx2);
+  if (throttle_midi_send_ms > 0) {
+    setTimeout(function(packet) {
+      console.log(`sendSysexToLuma ${packet.length}`);
+      midiOut.send(packet);
+    }, throttle_midi_send_ms, sysx2);
+  }
+  else
+    midiOut.send(sysx2);  
 }
 
 // only send samples from in in-out points.
 // This result will need to be added to 2k, 4k, 8k, 16k, or 32k
 function writeSampleToDevice(slotId = 255) {
   var numSamples = editor_out_point - editor_in_point;
-  var channels = sourceAudioBuffer.getChannelData(0);
+  var channels = editorAudioBuffer.getChannelData(0);
   var ulaw_buffer = [];
 
   // Convert from float<> to g711 uLaw buffer
@@ -763,13 +779,13 @@ function writeSampleToDevice(slotId = 255) {
   // 26     slot Id
   // 27-31  padding
   binaryStream[0]  = 0x01; // write to specific slot
-  binaryStream[25] = 255;  // staging bank
-  binaryStream[26] = document.getElementById('slotId').value;
+  binaryStream[25] = de('bankId').value;  //  bank
+  binaryStream[26] = de('slotId').value;
 
   // pack name into offset [1]
   const kMaxChars = 24;
   sampleName = document.getElementById('sample_name').value.slice(0, kMaxChars);
-  console.log("writing "+sampleName.length+ " chars to slot "+document.getElementById('slotId').value);
+  //console.log("writing "+sampleName.length+ " chars to slot "+document.getElementById('slotId').value);
   for (i=0; i<sampleName.length; i++)
     binaryStream[i+1] = sampleName.charAt(i).charCodeAt();
 
@@ -785,6 +801,7 @@ function writeSampleToDevice(slotId = 255) {
   var sysx2 = sysx.concat(ulaw_stream_7bits);
   sysx2.push(0xf7);
 
+  console.log(`Writing ${sysx2.length} to MIDI OUT`);
   midiOut.send(sysx2);
 }
 
@@ -808,7 +825,7 @@ function writeSampleToDeviceSlotBank(slotId, bankId) {
   }
 
   // pack into the MIDI message
-  // [f0] [69] [32 byte header] [ulaw data] ..... [f7]
+  // [f0] [69] [32 byte header] [data] ..... [f7]
   var binaryStream = [];
   for (i=0; i<32; i++)
     binaryStream.push(0x00); // 32b header
@@ -852,7 +869,7 @@ function playAudio() {
   document.activeElement.blur();
 
   let	theSound = actx.createBufferSource();
-  theSound.buffer = sourceAudioBuffer;
+  theSound.buffer = editorAudioBuffer;
   theSound.connect(actx.destination); // connect to the output
 
   // convert end points into seconds for playback.
@@ -863,9 +880,9 @@ function playAudio() {
 // convert an arraybuffer into an AudioBuffer source ready for playback.
 function loadBIN_u8b_pcm(arraybuf) {
   dv = new DataView(arraybuf);
-  sourceAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
+  editorAudioBuffer = actx.createBuffer(1, dv.byteLength, 24000);
   editor_out_point = dv.byteLength;
-  channelData = sourceAudioBuffer.getChannelData(0);
+  channelData = editorAudioBuffer.getChannelData(0);
   for (i=0; i<dv.byteLength; i++) {
     var sample = dv.getUint8(i); // unsigned 8bit
     sample -= 128;
@@ -946,7 +963,7 @@ function saveLocalByteAray(name, buffer) {
 // Encode and download sample as a WAV file to local file system
 function exportSample() {
   audio_init(); // may not have been called
-  var channelData = sourceAudioBuffer.getChannelData(0);
+  var channelData = editorAudioBuffer.getChannelData(0);
 
   var encoder = new WavAudioEncoder(sampleRate, 1);
   encoder.encode([channelData]);
@@ -959,7 +976,7 @@ function exportSample() {
 }
 
 // Ask Luma to send the pattern block
-function requestReadPattern() {
+function readRAMfromDevice() {
   audio_init();
 
   var buf = new ArrayBuffer(32);
@@ -968,6 +985,14 @@ function requestReadPattern() {
   buf[0] = CMD_RAM_BANK | 0x08;
 
   sendSysexToLuma(buf);
+}
+
+
+// Ask Luma to send the pattern block
+function writeRAMToDevice() {
+  audio_init();
+
+  // TODO
 }
 
 function noteNumberToString(note) {
@@ -1042,11 +1067,15 @@ function onMIDIMessageReceived(event) {
     midi_log.scrollTop = midi_log.scrollHeight;
   }
 
+  console.log(`onMIDIMessageReceived ${event.data.length} bytes`);
+  console.log(`last byte is ${event.data[event.data.length-1].toString(16)}`);
+
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.
     // skip first two and last bytes
 
     const decoder = new TextDecoder();
+    console.log(`event.data MIDI In = ${event.data.length} bytes`);
     var data = Uint8Array.from(unpack_sysex(event.data.slice(2, event.data.length-1)));
     var type = data[0];
     if (type == 0x01 || type == 0x09) { // 0x01 or 0x09 for samples
@@ -1091,7 +1120,7 @@ function onMIDIMessageReceived(event) {
       } else {
         editor_out_point = newAudioBuffer.length;
 
-        sourceAudioBuffer = newAudioBuffer;
+        editorAudioBuffer = newAudioBuffer;
         binaryFileOriginal = ulaw_data_ab; // save the binary stream 
       }
 
@@ -1114,7 +1143,7 @@ function onMIDIMessageReceived(event) {
 
         case SX_SERIAL_NUMBER:
           luma_serial_number = enc.decode(data.slice(1, 25));
-          document.getElementById('serial_number').innerHTML = luma_serial_number;
+          de('serial_number').innerHTML = luma_serial_number;
           break;
 
         case SX_RAM_BANK_NAME:
@@ -1124,9 +1153,14 @@ function onMIDIMessageReceived(event) {
         case SX_VOICE_BANK_NAME:
           console.log(("SX_VOICE_BANK_NAME received"))
           bank_name = enc.decode(data.slice(1, 25));
-          document.getElementById('bank_name').value = bank_name;
+          de('bank_name').value = bank_name;
           break;
       }
+    }
+    else if (type == CMD_RAM_BANK) {
+      console.log(`CMD_RAM_BANK ${event.data.length} bytes`);
+      var el = de('ram_editor');
+      el.innerText = hexy(data.slice(32));
     }
     else  {
       console.log("unsupported Luma packet type=" + type);
@@ -1170,6 +1204,19 @@ function refreshMidiDeviceList(event) {
     });
   }
 
+}
+
+function generateRamp() {
+  var value = 0;
+  var data = editorAudioBuffer.getChannelData(0);
+  for( var i=0; i<editorAudioBuffer.length; i++) {
+      data[i] = value;
+      value = value + 0.01;
+      if (value > 1)
+        value = 0;
+  }
+
+  redrawAllWaveforms();
 }
 
 // User changed MIDI device
@@ -1234,7 +1281,7 @@ function trim_filename_ext(filename) {
 
 // Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
-  var bank_name = document.getElementById('bank_name').value;
+  var bank_name = de('bank_name').value;
 
   var zip = new JSZip();
 
