@@ -126,6 +126,7 @@ function luma1_init() {
   };
   populate_bank_select(de('bankId'));
   populate_bank_select(de('bankId2'));
+  populate_bank_select(de('ram_bankId'));
 
   // populate the slot field
   let populate_slot_select = function(el) {
@@ -981,8 +982,8 @@ function readRAMfromDevice() {
 
   var buf = new ArrayBuffer(32);
   dv = new DataView(buf);
-
   buf[0] = CMD_RAM_BANK | 0x08;
+  buf[25] = de('ram_bankId').value;
 
   sendSysexToLuma(buf);
 }
