@@ -894,7 +894,22 @@ function loadBIN_u8b_pcm(arraybuf) {
 
 // Writes all samples in the bank[] data structure to the device.
 function writeBankToDevice() {
-  const bankId = document.getElementById('bankId2').value;
+  const bankId = de('bankId2').value;
+
+  // Write the bank name
+  var buf = new ArrayBuffer(32);
+  dv = new DataView(buf);
+  buf[0] = CMD_UTIL | 0x08;
+  buf[25] = de('ram_bankId').value;
+  buf[26] = SX_RAM_BANK_NAME;
+  const kMaxChars = 24;
+  sampleName = de('bank_name').value.slice(0, kMaxChars);
+  for (i=0; i<sampleName.length; i++)
+    buf[i+1] = sampleName.charAt(i).charCodeAt();
+
+  sendSysexToLuma(buf);
+
+  // write the slots
   const write_order = [DRUM_CONGA, DRUM_TOM, DRUM_SNARE, DRUM_BASS,
     DRUM_HIHAT, DRUM_COWBELL, DRUM_CLAPS, DRUM_CLAVE, DRUM_TAMB, DRUM_CABASA];
   for (idx=0; idx<write_order.length; idx++) {
@@ -902,6 +917,7 @@ function writeBankToDevice() {
     console.log(`writing slot ${slotId} in bank ${bankId}`);
     writeSampleToDeviceSlotBank(slotId, bankId);
   }
+
 }
 
 // reads all samples from the bank in the 'bankid2' field.
