@@ -987,6 +987,15 @@ function readRAMfromDevice() {
   sendSysexToLuma(buf);
 }
 
+function downloadRAMBuffer() {
+
+  var ram_blob = new Blob([ram_buffer]);
+
+  var link = document.createElement('a');
+  link.href = window.URL.createObjectURL(ram_blob);
+  link.download = "luna_ram.bin";
+  link.click();
+}
 
 // Ask Luma to send the pattern block
 function writeRAMToDevice() {
@@ -1160,7 +1169,13 @@ function onMIDIMessageReceived(event) {
     else if (type == CMD_RAM_BANK) {
       console.log(`CMD_RAM_BANK ${event.data.length} bytes`);
       var el = de('ram_editor');
-      el.innerText = hexy(data.slice(32));
+      ram_buffer = data.slice(32);
+      var format = {
+        width:16,
+        html: false,
+        format:"twos",
+      };
+      el.innerText = hexy(ram_buffer, format);
     }
     else  {
       console.log("unsupported Luma packet type=" + type);
