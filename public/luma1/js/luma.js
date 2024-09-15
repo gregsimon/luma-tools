@@ -112,10 +112,10 @@ function luma1_init() {
   }
 
   // populate the bank select fields
-  let populate_bank_select = function(el) {
+  let populate_bank_select = function(el, top_item_name = "STAGING") {
     var opt = document.createElement('option');
     opt.value = 255;
-    opt.innerHTML = "STAGING";
+    opt.innerHTML = top_item_name;
     el.appendChild(opt);  
     for (i=0; i<=99; i++) {
       opt = document.createElement('option');
@@ -126,7 +126,7 @@ function luma1_init() {
   };
   populate_bank_select(de('bankId'));
   populate_bank_select(de('bankId2'));
-  populate_bank_select(de('ram_bankId'));
+  populate_bank_select(de('ram_bankId'), 'ACTIVE');
 
   // populate the slot field
   let populate_slot_select = function(el) {
