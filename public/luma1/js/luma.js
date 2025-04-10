@@ -2,31 +2,31 @@
 
 // globals
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
-var actx; // AudioContext
-var editorAudioBuffer; // AudioBuffer (active sample)
-var midiAccess = null;
-var midiOut = null;
-var midiIn = null;
-var fileReader;
-var editor_in_point = 0;
-var editor_out_point = 0;
-var sampleRate = 12000; // Hz
-var sampleName = "untitled";
-var shiftDown = false;
-var binaryFileOriginal = null; // Original raw bytes of loaded sample
-var binaryFormat = "ulaw_u8";
-var kMaxSampleSize = 32768;
-var bank = []; // Hold the state of each slot
-var bank_name = "Untitled";
+let actx; // AudioContext
+let editorAudioBuffer; // AudioBuffer (active sample)
+let midiAccess = null;
+let midiOut = null;
+let midiIn = null;
+let fileReader;
+let editor_in_point = 0;
+let editor_out_point = 0;
+let sampleRate = 12000; // Hz
+let sampleName = "untitled";
+let shiftDown = false;
+let binaryFileOriginal = null; // Original raw bytes of loaded sample
+let binaryFormat = "ulaw_u8";
+let kMaxSampleSize = 32768;
+let bank = []; // Hold the state of each slot
+let bank_name = "Untitled";
 const drag_gutter_pct = 0.10;
-var luma_firmware_version = "";
-var luma_serial_number = "";
-var throttle_midi_send_ms = 0;
-var ram_dump = null;
+let luma_firmware_version = "";
+let luma_serial_number = "";
+let throttle_midi_send_ms = 0;
+let ram_dump = null;
 
-// settings vars that are persisted locally on computer
-var settings_midiDeviceName = "";
-var settings_midi_monitor_show_sysex = false;
+// settings lets that are persisted locally on computer
+let settings_midiDeviceName = "";
+let settings_midi_monitor_show_sysex = false;
 
 const TAB_SAMPLE_EDITOR = 0;
 const TAB_PATTERN_EDITOR = 1;
@@ -56,7 +56,7 @@ const DRUM_TAMB = 5;
 const DRUM_TOM = 6;
 const DRUM_CONGA = 7;
 const DRUM_COWBELL = 8;
-const DRUM_CLAVE = 9
+const DRUM_CLAVE = 9;
 
 const slot_names = ["BASS", "SNARE", "HIHAT", "CLAPS",
   "CABASA", "TAMB", "TOM", "CONGA", "COWBELL", "RIMSHOT"];
@@ -69,9 +69,9 @@ const drag_handle_color = "rgb(46, 155, 214)";
 
 // State during read banks. We need to chain together a number
 // of sample request callbacks.
-var reading_banks = false;            // are we reading banks?
-var reading_banks_id;                 // 255, 0-99
-var reading_banks_current_slot = 0;   // what slot to drop the sample in when it arrives
+let reading_banks = false;            // are we reading banks?
+let reading_banks_id;                 // 255, 0-99
+let reading_banks_current_slot = 0;   // what slot to drop the sample in when it arrives
 
 // Used to pad number strings with 0s
 Number.padLeft = (nr, len = 2, padChr = `0`) => 
@@ -1309,6 +1309,65 @@ function trim_filename_ext(filename) {
     return filename.split('.').slice(0, -1).join('.')
 
   return filename;
+}
+
+
+// Writes all samples in the bank[] data structure to the device.
+function exportBankAsRom() {
+  var bank_name = de("bank_name").value;
+
+  var blob = new Blob();
+  var dataView = new DataView(blob);
+
+  let offset = 0;
+  for (let i = 0; i < slot_names.length; i++) {
+    let sample = bank[i].audioBuffer;
+
+    if (sample == null) continue;
+
+    let sampleData = sample.getChannelData(0);
+    let sampleLength = sampleData.length;
+
+    if (sampleLength > 16384) {
+      console.log(
+        "truncating sample " + i + " from " + sampleLength + " to 16384",
+      );
+      // truncate
+    } else if (sampleLength < 16384) {
+      console.log(
+        "padding sample " + i + " from " + sampleLength + " to 16384",
+      );
+    }
+
+    let sampleBuffer = new Float32Array(16384);
+
+    for (let j = 0; j < 16384; j++) {
+      if (j < sampleLength) {
+        sampleBuffer[j] = sampleData[j];
+      } else {
+        sampleBuffer[j] = 0.0; // Pad with zeros
+      }
+    }
+
+    // Copy float32 array to Uint8Array for Blob
+    let uint8Array = new Uint8Array(sampleBuffer.length * 4);
+    for (let j = 0; j < sampleBuffer.length; j++) {
+      uint8Array[j * 4] = (sampleBuffer[j] >>> 24) & 0xff;
+      uint8Array[j * 4 + 1] = (sampleBuffer[j] >>> 16) & 0xff;
+      uint8Array[j * 4 + 2] = (sampleBuffer[j] >>> 8) & 0xff;
+      uint8Array[j * 4 + 3] = sampleBuffer[j] & 0xff;
+    }
+    blob.append(uint8Array);
+  }
+
+  if (blob.size != 131072) {
+    console.log("Error: Bank size is not 128k. Actual size: " + blob.size);
+  }
+
+  var link = document.createElement("a");
+  link.href = window.URL.createObjectURL(blob);
+  link.download = bank_name + ".BIN";
+  link.click();
 }
 
 // Add all the waveforms from the slots into a zip file and download it.
