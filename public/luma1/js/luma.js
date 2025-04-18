@@ -1,4 +1,4 @@
-"Copyright 2023-2024 Greg Simon";
+"Copyright 2023-2025 Greg Simon";
 
 // globals
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1386,63 +1386,38 @@ function trim_filename_ext(filename) {
   return filename;
 }
 
-// Writes all samples in the bank[] data structure to the device.
+// This function takes all 8 slots and either expands or shrinks their
+// audio buffers (channel 0) to 16384 bytes, then cats them together as
+// one 128k continuous buffer. It then renames this "ROM.BIN" and downloads
+// it to the user's computer.
 function exportBankAsRom() {
-  var bank_name = de("bank_name").value;
+  // Each slot's channel 0 must be 16384 bytes, 8 slots = 131072 bytes (128k)
+  const SLOT_SIZE = 16384;
+  const NUM_SLOTS = 8;
+  const TOTAL_SIZE = SLOT_SIZE * NUM_SLOTS;
+  const romBuffer = new Uint8Array(TOTAL_SIZE);
 
-  var blob = new Blob();
-  var dataView = new DataView(blob);
-
-  let offset = 0;
-  for (let i = 0; i < slot_names.length; i++) {
-    let sample = bank[i].audioBuffer;
-
-    if (sample == null) continue;
-
-    let sampleData = sample.getChannelData(0);
-    let sampleLength = sampleData.length;
-
-    if (sampleLength > 16384) {
-      console.log(
-        "truncating sample " + i + " from " + sampleLength + " to 16384",
-      );
-      // truncate
-    } else if (sampleLength < 16384) {
-      console.log(
-        "padding sample " + i + " from " + sampleLength + " to 16384",
-      );
+  for (let i = 0; i < NUM_SLOTS; i++) {
+    if (!bank[i] || !bank[i].audioBuffer) {
+      // If slot is empty, leave as zeros
+      continue;
     }
-
-    let sampleBuffer = new Float32Array(16384);
-
-    for (let j = 0; j < 16384; j++) {
-      if (j < sampleLength) {
-        sampleBuffer[j] = sampleData[j];
-      } else {
-        sampleBuffer[j] = 0.0; // Pad with zeros
-      }
+    let channelData = bank[i].audioBuffer.getChannelData(0);
+    let ulaw = new Uint8Array(SLOT_SIZE);
+    for (let j = 0; j < SLOT_SIZE; j++) {
+      let s = (j < channelData.length) ? channelData[j] : 0;
+      // Clamp to [-1, 1]
+      s = Math.max(-1, Math.min(1, s));
+      // Convert float [-1,1] to 16-bit signed integer
+      let linear = Math.round(s * 32767);
+      ulaw[j] = linear_to_ulaw(linear);
     }
-
-    // Copy float32 array to Uint8Array for Blob
-    let uint8Array = new Uint8Array(sampleBuffer.length * 4);
-    for (let j = 0; j < sampleBuffer.length; j++) {
-      uint8Array[j * 4] = (sampleBuffer[j] >>> 24) & 0xff;
-      uint8Array[j * 4 + 1] = (sampleBuffer[j] >>> 16) & 0xff;
-      uint8Array[j * 4 + 2] = (sampleBuffer[j] >>> 8) & 0xff;
-      uint8Array[j * 4 + 3] = sampleBuffer[j] & 0xff;
-    }
-    blob.append(uint8Array);
+    romBuffer.set(ulaw, i * SLOT_SIZE);
   }
 
-  if (blob.size != 131072) {
-    console.log("Error: Bank size is not 128k. Actual size: " + blob.size);
-  }
-
-  var link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = bank_name + ".BIN";
-  link.click();
+  saveLocalByteAray("ROM.BIN", romBuffer.buffer);
 }
+
 
 // Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
