@@ -10,13 +10,19 @@
     <script src="js/jszip.min.js"></script>
     <script src="js/luma.js"></script>
     <script src="js/hexy.js"></script>
-    <title>Luma-1 Tools</title>
+    <title>Luma Tools</title>
   </head>
   <body onload='luma1_init()'>
 
     <!-- Tab bar -->
     <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
       <div style="display:flex; flex-flow: row nowrap;">
+        <div style="margin-right:20px; display:flex; align-items:center;">
+          Mode: <select id='device_mode' onchange='changeDeviceMode();'>
+            <option value="luma1">Luma-1</option>
+            <option value="lumamu">Luma-Mu</option>
+          </select>
+        </div>
         <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
         <div class="tab_button" id="pattern_editor_tab_button">Pattern Editor</div>
         <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
@@ -55,7 +61,7 @@
       </div>
       <br>
       <div style="flex-direction: row;">
-        <div>
+        <div id="luma1_sample_controls">
           <input type='button' value="Read Sample from Device" onclick="readSampleFromDevice()"/>
           Which slot: <select id='slotId'>
           </select>
@@ -65,13 +71,18 @@
           <input type='button' value="Export WAV..." onclick="exportSample()"/>
           <input type='button' value="Write Sample to Device" class="red_button" onclick='writeSampleToDevice()' />          
         </div>
+        <div id="lumamu_sample_controls" style="display:none;">
+          Which slot: <select id='slotId_mu'>
+          </select>
+          Sample name:<input type='text' value="untitled" id='sample_name_mu'/>
+          <input type='button' value="Export WAV..." onclick="exportSample()"/>
+        </div>
       </div>
 
       <div class="waveform_slots">
         <hr>
         Voice Bank Manager
-        <ul>
-
+        <ul id="slot_container" class="luma1_layout">
           <li><canvas id="canvas_slot_7" ></canvas></li>
           <li><canvas id="canvas_slot_6" ></canvas></li>
           <li><canvas id="canvas_slot_1" ></canvas></li>
@@ -84,12 +95,19 @@
           <li><canvas id="canvas_slot_5" ></canvas></li>
           <li><canvas id="canvas_slot_4" ></canvas></li>
         </ul>
-        <input type='button' value="Read Bank From Device" onclick="readBankfromDevice()"/>
-        Which bank: <select id='bankId2'></select>
-        Bank name: <input type='text' value='Untitled' id='bank_name'/>
-        <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
-        <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRom()"/>
-        <input type='button' class="red_button" value="Write Bank To Device" onclick="writeBankToDevice()"/>
+        <div id="luma1_controls">
+          <input type='button' value="Read Bank From Device" onclick="readBankfromDevice()"/>
+          Which bank: <select id='bankId2'></select>
+          Bank name: <input type='text' value='Untitled' id='bank_name'/>
+          <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
+          <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRom()"/>
+          <input type='button' class="red_button" value="Write Bank To Device" onclick="writeBankToDevice()"/>
+        </div>
+        <div id="lumamu_controls" style="display:none;">
+          Bank name: <input type='text' value='Untitled' id='bank_name_mu'/>
+          <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
+          <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRomMu()"/>
+        </div>
           
       </div>
 

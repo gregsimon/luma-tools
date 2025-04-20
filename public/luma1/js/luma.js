@@ -18,6 +18,7 @@ let binaryFormat = "ulaw_u8";
 let kMaxSampleSize = 32768;
 let bank = []; // Hold the state of each slot
 let bank_name = "Untitled";
+let current_mode = "luma1"; // Current device mode: luma1 or lumamu
 const drag_gutter_pct = 0.1;
 let luma_firmware_version = "";
 let luma_serial_number = "";
@@ -58,18 +59,35 @@ const DRUM_CONGA = 7;
 const DRUM_COWBELL = 8;
 const DRUM_CLAVE = 9;
 
-const slot_names = [
-  "BASS",
-  "SNARE",
-  "HIHAT",
-  "CLAPS",
-  "CABASA",
-  "TAMB",
-  "TOM",
-  "CONGA",
-  "COWBELL",
-  "RIMSHOT",
+// Luma-1 slot names
+const luma1_slot_names = [
+  "BASS", // 0  [ 1]
+  "SNARE", // 1 [ 6 wav]
+  "HIHAT", // 2 [ 3 wav]
+  "CLAPS", // 3 [ 4 wav]
+  "CABASA", // 4 [ 5 wav]
+  "TAMB", // 5 [  6 wav]
+  "TOM", // 6 [  7 wav ]
+  "CONGA", // 7 [8 wav]
+  "COWBELL", // 8  []
+  "RIMSHOT", // 9 [ ]
 ];
+
+// Luma-Mu slot names (ordered strange to follow 
+// unaddressed ordering of drum bank names)
+const lumamu_slot_names = [
+  "SLOT 4", // 0 
+  "SLOT 3", // 1
+  "SLOT 5", // 2
+  "SLOT 6", // 3
+  "SLOT 8", // 4
+  "SLOT 7", // 5
+  "SLOT 2", // 6
+  "SLOT 1", // 7
+];
+
+// Current slot names based on mode
+let slot_names = luma1_slot_names;
 
 const slot_waveform_fg = "rgb(214,214,214)";
 const slot_waveform_bg = "rgb(41,41,41)";
@@ -96,8 +114,14 @@ function de(id) {
 
 // Initialize the application.
 function luma1_init() {
+  
+  // Initialize with Luma-1 mode
+  current_mode = "luma1";
+  slot_names = luma1_slot_names;
+  
   // wire up the slot waveforms
-  for (let i = 0; i < slot_names.length; i++) {
+  // Always initialize 10 slots for both modes
+  for (let i = 0; i < 10; i++) {
     bank.push({
       id: i,
       name: "untitled",
@@ -144,17 +168,30 @@ function luma1_init() {
   populate_bank_select(document.getElementById("bankId2"));
   populate_bank_select(document.getElementById("ram_bankId"), "ACTIVE");
 
-  // populate the slot field
-  const populate_slot_select = (el) => {
-    for (let i = 0; i <= slot_names.length; i++) {
+  // populate the slot fields for both modes
+  const populate_slot_select = (el, mode) => {
+    // Clear existing options
+    el.innerHTML = '';
+    
+    // Get the appropriate slot names and number of slots based on mode
+    const slotNamesArray = (mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
+    const numSlots = slotNamesArray.length;
+    
+    for (let i = 0; i < numSlots; i++) {
       const opt = document.createElement("option");
       opt.value = i;
-      opt.innerHTML = slot_names[i];
+      opt.innerHTML = slotNamesArray[i];
       el.appendChild(opt);
     }
   };
-  populate_slot_select(document.getElementById("slotId"));
+  
+  // Initialize both slot selectors
+  populate_slot_select(document.getElementById("slotId"), "luma1");
+  populate_slot_select(document.getElementById("slotId_mu"), "lumamu");
 
+  // Add event listener for mode change
+  document.getElementById("device_mode").addEventListener("change", changeDeviceMode);
+  
   // setup main waveform editor
   const canvas = document.getElementById("editor_canvas");
   canvas.draggable = true;
@@ -248,6 +285,9 @@ function luma1_init() {
 
   resizeCanvasToParent();
   redrawAllWaveforms();
+
+  slot_names = (current_mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
+  updateUIForMode(current_mode);
 }
 
 // This can only be done after a user gesture on the page.
@@ -369,14 +409,25 @@ function convert_8b_ulaw_to_audioBuffer(arraybuf) {
 }
 
 function drawSlotWaveforms() {
-  for (i = 0; i < 10; i++) {
-    var c = document.getElementById("canvas_slot_" + i);
-    drawSlotWaveformOnCanvas(
-      c,
-      bank[i].audioBuffer,
-      slot_names[i],
-      bank[i].name,
-    );
+  // Get the appropriate number of slots based on current mode
+  const numSlots = (current_mode === "luma1") ? luma1_slot_names.length : lumamu_slot_names.length;
+  
+  for (let i = 0; i < 10; i++) {
+    const canvas = document.getElementById("canvas_slot_" + i);
+    if (canvas) {
+      // Only draw if this slot should be visible in the current mode
+      if (i < numSlots) {
+        // Use the appropriate slot name based on the current mode
+        const slotName = (current_mode === "luma1") ? luma1_slot_names[i] : lumamu_slot_names[i];
+        
+        drawSlotWaveformOnCanvas(
+          canvas,
+          bank[i].audioBuffer,
+          slotName,
+          bank[i].name
+        );
+      }
+    }
   }
 }
 
@@ -427,8 +478,13 @@ function interpretBinaryFile() {
 }
 
 function bankIdForName(name) {
-  for (i = 0; i < slot_names.length; i++) {
-    if (name === slot_names[i]) return i;
+  // try luma-1 bank names
+  for (i = 0; i < luma1_slot_names.length; i++) {
+    if (name === luma1_slot_names[i]) return i;
+  }
+  // try luma-mu bank names
+  for (i = 0; i < lumamu_slot_names.length; i++) {
+    if (name === lumamu_slot_names[i]) return i;
   }
   return -1;
 }
@@ -1033,17 +1089,22 @@ function saveLocalByteAray(name, buffer) {
 
 // Encode and download sample as a WAV file to local file system
 function exportSample() {
-  audio_init(); // may not have been called
-  var channelData = editorAudioBuffer.getChannelData(0);
+  if (!editorAudioBuffer) {
+    alert("No sample loaded");
+    return;
+  }
 
-  var encoder = new WavAudioEncoder(sampleRate, 1);
-  encoder.encode([channelData]);
-  var blob = encoder.finish();
-
-  var link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = sampleName + ".wav";
-  link.click();
+  // Get the appropriate sample name field based on current mode
+  const sampleNameField = (current_mode === "luma1") ? "sample_name" : "sample_name_mu";
+  let name = document.getElementById(sampleNameField).value || "untitled";
+  
+  let wav = encodeWAV(editorAudioBuffer, editor_in_point, editor_out_point);
+  let blob = new Blob([wav], { type: "audio/wav" });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = name + ".wav";
+  a.click();
 }
 
 // Ask Luma to send the pattern block
@@ -1391,6 +1452,10 @@ function trim_filename_ext(filename) {
 // one 128k continuous buffer. It then renames this "ROM.BIN" and downloads
 // it to the user's computer.
 function exportBankAsRom() {
+  if (current_mode === "lumamu") {
+    exportBankAsRomMu();
+    return;
+  }
   // Each slot's channel 0 must be 16384 bytes, 8 slots = 131072 bytes (128k)
   const SLOT_SIZE = 16384;
   const NUM_SLOTS = 8;
@@ -1411,6 +1476,7 @@ function exportBankAsRom() {
       // Convert float [-1,1] to 16-bit signed integer
       let linear = Math.round(s * 32767);
       ulaw[j] = linear_to_ulaw(linear);
+      ulaw[j] =~ ulaw[j];
     }
     romBuffer.set(ulaw, i * SLOT_SIZE);
   }
@@ -1418,10 +1484,47 @@ function exportBankAsRom() {
   saveLocalByteAray("ROM.BIN", romBuffer.buffer);
 }
 
+// Export ROM file for Luma-Mu mode
+// Similar to exportBankAsRom but uses the bank_name_mu field for naming
+// and only exports 8 slots
+function exportBankAsRomMu() {
+  // Each slot's channel 0 must be 16384 bytes, 8 slots = 131072 bytes (128k)
+  const SLOT_SIZE = 16384;
+  const NUM_SLOTS = 8;
+  const TOTAL_SIZE = SLOT_SIZE * NUM_SLOTS;
+  const romBuffer = new Uint8Array(TOTAL_SIZE);
+
+  const slot_export_order = [7, 6, 1, 0, 2, 3, 5, 4];
+  for (let i = 0; i < NUM_SLOTS; i++) {
+    const idx = slot_export_order[i];
+    if (!bank[idx] || !bank[idx].audioBuffer) {
+      // If slot is empty, leave as zeros
+      continue;
+    }
+    let channelData = bank[idx].audioBuffer.getChannelData(0);
+    let ulaw = new Uint8Array(SLOT_SIZE);
+    for (let j = 0; j < SLOT_SIZE; j++) {
+      let s = (j < channelData.length) ? channelData[j] : 0;
+      // Clamp to [-1, 1]
+      s = Math.max(-1, Math.min(1, s));
+      // Convert float [-1,1] to 16-bit signed integer
+      let linear = Math.round(s * 32767);
+      ulaw[j] = linear_to_ulaw(linear);
+      ulaw[j] = ~ulaw[j];
+    }
+    romBuffer.set(ulaw, i * SLOT_SIZE);
+  }
+
+  // Use the bank name from the Luma-Mu bank name field
+  const bankName = document.getElementById("bank_name_mu").value || "Untitled";
+  saveLocalByteAray(`${bankName}.bin`, romBuffer.buffer);
+}
 
 // Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
-  var bank_name = de("bank_name").value;
+  // Get the appropriate bank name based on current mode
+  const bankNameField = (current_mode === "luma1") ? "bank_name" : "bank_name_mu";
+  bank_name = document.getElementById(bankNameField).value || "Untitled";
 
   var zip = new JSZip();
 
@@ -1462,14 +1565,95 @@ function exportBankAsZip() {
 }
 
 function loadSettings() {
-  settings_midiDeviceName = localStorage.getItem("midiOutPortName");
-  if (localStorage.getItem("monitorShowSysex") == "true")
-    settings_midi_monitor_show_sysex = true;
-  else settings_midi_monitor_show_sysex = false;
-  de("show_sysex").checked = settings_midi_monitor_show_sysex;
+  settings_midiDeviceName = localStorage.getItem("midiDeviceName") || "";
+  settings_midi_monitor_show_sysex =
+    localStorage.getItem("midi_monitor_show_sysex") === "true";
+  // Load saved mode if available
+  const savedMode = localStorage.getItem("deviceMode");
+  if (savedMode) {
+    current_mode = savedMode;
+    document.getElementById("device_mode").value = savedMode;
+    updateUIForMode(savedMode);
+  }
 }
 
 function saveSettings() {
-  localStorage.setItem("midiOutPortName", settings_midiDeviceName);
-  localStorage.setItem("monitorShowSysex", settings_midi_monitor_show_sysex);
+  localStorage.setItem("midiDeviceName", settings_midiDeviceName);
+  localStorage.setItem("midi_monitor_show_sysex", settings_midi_monitor_show_sysex);
+  localStorage.setItem("deviceMode", current_mode);
+}
+
+// Function to handle mode change
+function changeDeviceMode() {
+  const modeSelect = document.getElementById("device_mode");
+  current_mode = modeSelect.value;
+  
+  // Update slot names based on mode
+  slot_names = (current_mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
+  
+  // Update UI elements based on mode
+  updateUIForMode(current_mode);
+  
+  // Save settings
+  saveSettings();
+}
+
+// Function to update UI elements based on mode
+function updateUIForMode(mode) {
+  const slotContainer = document.getElementById("slot_container");
+  
+  if (mode === "luma1") {
+    // Show Luma-1 specific elements
+    slotContainer.className = "luma1_layout";
+    document.getElementById("luma1_controls").style.display = "block";
+    document.getElementById("lumamu_controls").style.display = "none";
+    document.getElementById("luma1_sample_controls").style.display = "block";
+    document.getElementById("lumamu_sample_controls").style.display = "none";
+    document.getElementById("pattern_editor_tab_button").style.display = "block";
+    document.getElementById("midi_monitor_tab_button").style.display = "block";
+    
+    // Update title
+    document.title = "Luma-1 Tools";
+    
+    // Show all 10 slots for Luma-1
+    for (let i = 0; i < 10; i++) {
+      const slotElement = document.getElementById("canvas_slot_" + i);
+      if (slotElement) {
+        slotElement.parentElement.style.display = "flex";
+      }
+    }
+  } else {
+    // Show Luma-Mu specific elements
+    slotContainer.className = "lumamu_layout";
+    document.getElementById("luma1_controls").style.display = "none";
+    document.getElementById("lumamu_controls").style.display = "block";
+    document.getElementById("luma1_sample_controls").style.display = "none";
+    document.getElementById("lumamu_sample_controls").style.display = "block";
+    document.getElementById("pattern_editor_tab_button").style.display = "none";
+    document.getElementById("midi_monitor_tab_button").style.display = "none";
+    
+    // If we're in a tab that's not available in Luma-Mu mode, switch to sample editor
+    if (document.getElementById("pattern_editor_tab").style.display !== "none" ||
+        document.getElementById("midi_monitor_tab").style.display !== "none") {
+      switchTab(TAB_SAMPLE_EDITOR);
+    }
+    
+    // Hide slots 8 and 9 for Luma-Mu (only shows 0-7)
+    for (let i = 0; i < 10; i++) {
+      const slotElement = document.getElementById("canvas_slot_" + i);
+      if (slotElement) {
+        if (i < 8) {
+          slotElement.parentElement.style.display = "flex";
+        } else {
+          slotElement.parentElement.style.display = "none";
+        }
+      }
+    }
+    
+    // Update title
+    document.title = "Luma-Mu Tools";
+  }
+  
+  // Redraw waveforms to update labels
+  redrawAllWaveforms();
 }
