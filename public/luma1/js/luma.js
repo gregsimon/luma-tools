@@ -1520,6 +1520,71 @@ function exportBankAsRomMu() {
   saveLocalByteAray(`${bankName}.bin`, romBuffer.buffer);
 }
 
+// Upload directly to a PicoROM
+async function uploadToPicoROM() {
+  const statusDiv = document.createElement('div');
+  try {
+    // First, create the ROM binary data
+    const SLOT_SIZE = 16384;
+    const NUM_SLOTS = 8;
+    const TOTAL_SIZE = SLOT_SIZE * NUM_SLOTS;
+    const romBuffer = new Uint8Array(TOTAL_SIZE);
+
+    const slot_export_order = [7, 6, 1, 0, 2, 3, 5, 4];
+    for (let i = 0; i < NUM_SLOTS; i++) {
+      const idx = slot_export_order[i];
+      if (!bank[idx] || !bank[idx].audioBuffer) {
+        // If slot is empty, leave as zeros
+        continue;
+      }
+      let channelData = bank[idx].audioBuffer.getChannelData(0);
+      let ulaw = new Uint8Array(SLOT_SIZE);
+      for (let j = 0; j < SLOT_SIZE; j++) {
+        let s = (j < channelData.length) ? channelData[j] : 0;
+        // Clamp to [-1, 1]
+        s = Math.max(-1, Math.min(1, s));
+        // Convert float [-1,1] to 16-bit signed integer
+        let linear = Math.round(s * 32767);
+        ulaw[j] = linear_to_ulaw(linear);
+        ulaw[j] = ~ulaw[j]; // Invert for PicoROM format
+      }
+      romBuffer.set(ulaw, i * SLOT_SIZE);
+    }
+    
+    // Show a status message
+    
+    statusDiv.style.position = 'fixed';
+    statusDiv.style.top = '50%';
+    statusDiv.style.left = '50%';
+    statusDiv.style.transform = 'translate(-50%, -50%)';
+    statusDiv.style.padding = '20px';
+    statusDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    statusDiv.style.color = 'white';
+    statusDiv.style.borderRadius = '5px';
+    statusDiv.style.zIndex = '1000';
+    document.body.appendChild(statusDiv);
+    
+    statusDiv.textContent = 'Requesting PicoROM device...';
+    
+    // Upload the ROM to the PicoROM
+    await window.PicoROM.upload(romBuffer.buffer, (uploaded, total) => {
+      const percent = Math.floor((uploaded / total) * 100);
+      statusDiv.textContent = `Uploading to PicoROM: ${percent}%`;
+    });
+    
+    statusDiv.textContent = 'Upload complete!';
+    setTimeout(() => {
+      document.body.removeChild(statusDiv);
+    }, 2000);
+    
+  } catch (error) {
+    document.body.removeChild(statusDiv);
+    console.error('Error uploading to PicoROM:', error);
+    alert(`PicoROM upload failed: ${error.message}`);
+    
+  }
+}
+
 // Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
   // Get the appropriate bank name based on current mode

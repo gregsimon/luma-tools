@@ -8,6 +8,7 @@
     <script src="js/WavAudioEncoder.min.js"></script>
     <script src="js/codecs.mjs"></script>
     <script src="js/jszip.min.js"></script>
+    <script src="js/picorom.js"></script>
     <script src="js/luma.js"></script>
     <script src="js/hexy.js"></script>
     <title>Luma Tools</title>
@@ -18,7 +19,7 @@
     <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
       <div style="display:flex; flex-flow: row nowrap;">
         <div style="margin-right:20px; display:flex; align-items:center;">
-          Mode: <select id='device_mode' onchange='changeDeviceMode();'>
+          Device:&nbsp;<select id='device_mode' onchange='changeDeviceMode();'>
             <option value="luma1">Luma-1</option>
             <option value="lumamu">Luma-Mu</option>
           </select>
@@ -107,6 +108,7 @@
           Bank name: <input type='text' value='Untitled' id='bank_name_mu'/>
           <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
           <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRomMu()"/>
+          <!--<input type='button' value="Upload to PicoROM..." onclick="uploadToPicoROM()" class="red_button"/>-->
         </div>
           
       </div>
