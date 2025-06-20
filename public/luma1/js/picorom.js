@@ -43,7 +43,7 @@ class PicoROM {
         this.reader = null;
         this.writer = null;
         this.readLoop = null;
-        this.debug = true;
+        this.debug = false;
     }
 
     /**

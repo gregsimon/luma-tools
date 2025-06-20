@@ -1,5 +1,5 @@
 # Project Overview
-Using WebUSB open up a serial connection to the PicoROM and communicate with it. The protocol for talking with the picorom is implemented in a rust library listed below. Please read this file and write the API functions below in pure javascript using the webusb library. 
+Using WebSerial open up a serial connection to the PicoROM and communicate with it. The protocol for talking with the picorom is implemented in a rust library listed below. Please read this file and write the API functions below in pure javascript using the webserial API. 
 
 # Core API
 - list number of picoroms connected to the computer and return an array of their names (strings)
