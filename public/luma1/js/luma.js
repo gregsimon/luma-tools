@@ -1521,7 +1521,7 @@ function exportBankAsRomMu() {
 }
 
 // Upload directly to a PicoROM
-async function uploadToPicoROM() {
+async function uploadToPicoROMClicked() {
   const statusDiv = document.createElement('div');
   try {
     // First, create the ROM binary data
