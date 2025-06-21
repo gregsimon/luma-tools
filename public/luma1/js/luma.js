@@ -195,17 +195,17 @@ function luma1_init() {
   // setup main waveform editor
   const canvas = document.getElementById("editor_canvas");
   canvas.draggable = true;
-  canvas.onmousedown = () => {
-    onEditorCanvasMouseDown();
+  canvas.onmousedown = (event) => {
+    onEditorCanvasMouseDown(event);
   };
-  canvas.onmousemove = () => {
-    onEditorCanvasMouseMove();
+  canvas.onmousemove = (event) => {
+    onEditorCanvasMouseMove(event);
   };
-  canvas.onmouseup = () => {
-    onEditorCanvasMouseUp();
+  canvas.onmouseup = (event) => {
+    onEditorCanvasMouseUp(event);
   };
-  canvas.onmouseleave = () => {
-    onEditorCanvasMouseUp();
+  canvas.onmouseleave = (event) => {
+    onEditorCanvasMouseUp(event);
   };
   canvas.ondragstart = (ev) => {
     const y = ev.offsetY;
