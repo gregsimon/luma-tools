@@ -1551,6 +1551,9 @@ async function uploadToPicoROMClicked() {
       romBuffer.set(ulaw, i * SLOT_SIZE);
     }
     
+    // Get the bank name from the HTML
+    const bankName = document.getElementById("bank_name_mu").value || "Untitled";
+    
     // Show a status message
     
     statusDiv.style.position = 'fixed';
@@ -1566,11 +1569,11 @@ async function uploadToPicoROMClicked() {
     
     statusDiv.textContent = 'Requesting PicoROM device...';
     
-    // Upload the ROM to the PicoROM
+    // Upload the ROM to the PicoROM with the bank name
     await window.PicoROM.upload(romBuffer.buffer, (uploaded, total) => {
       const percent = Math.floor((uploaded / total) * 100);
       statusDiv.textContent = `Uploading to PicoROM: ${percent}%`;
-    });
+    }, bankName);
     
     statusDiv.textContent = 'Upload complete!';
     setTimeout(() => {

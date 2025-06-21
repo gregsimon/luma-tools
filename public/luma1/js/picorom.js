@@ -398,6 +398,34 @@ class PicoROM {
     }
 
     /**
+     * Set a parameter on the PicoROM device
+     * @param {string} name - The name of the parameter
+     * @param {string} value - The value to set
+     * @returns {Promise<void>}
+     */
+    async setParameter(name, value) {
+        await this.sendPacket({
+            type: 'ParameterSet',
+            param: name,
+            value: value
+        });
+
+        const deadline = Date.now() + 1000;
+        while (Date.now() < deadline) {
+            const response = await this.receivePacket();
+            if (!response) continue;
+
+            if (response.type === 'Parameter') {
+                return; // Success
+            } else if (response.type === 'ParameterError') {
+                throw new Error(`Could not set parameter '${name}' to '${value}'`);
+            }
+        }
+
+        throw new Error('Timeout waiting for parameter set response');
+    }
+
+    /**
      * Upload binary data to the PicoROM device
      * @param {ArrayBuffer} data - The binary data to upload
      * @param {number} addrMask - The address mask to use
@@ -535,9 +563,10 @@ async function requestPicoROMDevice() {
  * Upload binary data to a PicoROM device
  * @param {ArrayBuffer} binaryData - The binary data to upload
  * @param {Function} progressCallback - Callback for upload progress
+ * @param {string} name - Optional name to set on the device after upload
  * @returns {Promise<void>}
  */
-async function uploadToPicoROM(binaryData, progressCallback = null) {
+async function uploadToPicoROM(binaryData, progressCallback = null, name = null) {
     let port;
     let picoROM;
     
@@ -551,6 +580,11 @@ async function uploadToPicoROM(binaryData, progressCallback = null) {
         
         // Upload the binary data
         await picoROM.upload(binaryData, 0xFFFFFFFF, progressCallback);
+        
+        // Set the name parameter if provided
+        if (name) {
+            await picoROM.setParameter('name', name);
+        }
         
         return true;
     } catch (error) {
