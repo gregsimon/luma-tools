@@ -580,6 +580,71 @@ function droppedFileLoadedBIN(event) {
   interpretBinaryFile();
 }
 
+// Handle ROM binary files in Luma-Mu mode
+function droppedFileLoadedRomMu(event) {
+  const SLOT_SIZE = 16384;
+  const NUM_SLOTS = 8;
+  const TOTAL_SIZE = SLOT_SIZE * NUM_SLOTS;
+  
+  // Verify file size
+  if (fileReader.result.byteLength !== TOTAL_SIZE) {
+    alert("Invalid ROM file size. Expected 131072 bytes (128k)");
+    return;
+  }
+  
+  const romData = new Uint8Array(fileReader.result);
+  const slot_import_order = [7, 6, 1, 0, 2, 3, 5, 4]; // Same order as exportBankAsRomMu
+  
+  // Process each slot
+  for (let i = 0; i < NUM_SLOTS; i++) {
+    const slotIndex = slot_import_order[i];
+    const slotOffset = i * SLOT_SIZE;
+    const slotData = romData.slice(slotOffset, slotOffset + SLOT_SIZE);
+    
+    // Convert uLaw data back to linear PCM
+    const linearData = new Float32Array(SLOT_SIZE);
+    for (let j = 0; j < SLOT_SIZE; j++) {
+      let ulaw = slotData[j];
+      ulaw = ~ulaw; // Invert back from PicoROM format
+      const linear = ulaw_to_linear(ulaw);
+      linearData[j] = linear / 32768.0; // Convert to float [-1, 1]
+    }
+    
+    // Create AudioBuffer for this slot
+    const audioBuffer = actx.createBuffer(1, SLOT_SIZE, 24000);
+    audioBuffer.copyToChannel(linearData, 0);
+    
+    // Store in bank array
+    bank[slotIndex] = {
+      id: slotIndex,
+      name: `Slot ${slotIndex}`,
+      sample_rate: 24000,
+      original_binary: slotData.buffer,
+      audioBuffer: audioBuffer,
+    };
+  }
+  
+  // Update the bank name from the filename
+  const bankName = sampleName || "Imported ROM";
+  document.getElementById("bank_name_mu").value = bankName;
+  
+  // Load the first slot into the editor
+  if (bank[0] && bank[0].audioBuffer) {
+    editorAudioBuffer = cloneAudioBuffer(bank[0].audioBuffer);
+    sampleName = bank[0].name;
+    document.getElementById("sample_name_mu").value = sampleName;
+    binaryFileOriginal = cloneArrayBuffer(bank[0].original_binary);
+    resetRange();
+  }
+  
+  // Redraw all waveforms
+  resizeCanvasToParent();
+  redrawAllWaveforms();
+  updateStatusBar();
+  
+  console.log(`Imported ROM file with ${NUM_SLOTS} slots`);
+}
+
 function trimBufferToFitLuma() {
   // limit sourceAudioBuffer to kMaxSampleSize samples
   console.log("imported sample len is " + editorAudioBuffer.length);
@@ -772,11 +837,13 @@ function drawEditorCanvas() {
     ctx.fillStyle = slot_waveform_fg;
     ctx.textAlign = "center";
     ctx.font = "24px condensed";
-    ctx.fillText(
-      "Drag a .bin (sample ROM), wav, or zip (bank archive) file here to get started.",
-      w / 2,
-      h / 2,
-    );
+    
+    let helpText = "Drag a .bin (sample ROM), wav, or zip (bank archive) file here to get started.";
+    if (current_mode === "lumamu") {
+      helpText = "Drag a .bin (ROM file), wav, or zip (bank archive) file here to get started.";
+    }
+    
+    ctx.fillText(helpText, w / 2, h / 2);
   }
 }
 
@@ -814,7 +881,14 @@ function dropHandler(ev) {
       //console.log(`… file2[${i}].name = ${file.name}`);
 
       fileReader = new FileReader();
-      if (name.slice(-4) === ".bin") fileReader.onload = droppedFileLoadedBIN;
+      if (name.slice(-4) === ".bin") {
+        // Check if we're in Luma-Mu mode and this might be a ROM file
+        if (current_mode === "lumamu" && file.size === 131072) { // 128k = 8 slots * 16384 bytes
+          fileReader.onload = droppedFileLoadedRomMu;
+        } else {
+          fileReader.onload = droppedFileLoadedBIN;
+        }
+      }
       else if (name.slice(-4) === ".wav")
         fileReader.onload = droppedFileLoadedWav;
       else if (name.slice(-4) === ".zip")
@@ -1720,6 +1794,27 @@ function updateUIForMode(mode) {
     
     // Update title
     document.title = "Luma-Mu Tools";
+  }
+  
+  // Update help text based on mode
+  const helpTextElement = document.getElementById("help_text");
+  if (helpTextElement) {
+    if (mode === "luma1") {
+      helpTextElement.innerHTML = 
+        "Drag a binary file (8-bit PCM or uLaw), Wav file, or a zip archive of a bank onto top editor above.<br>" +
+        "Press \"Spacebar\" to playback sample in browser<br>" +
+        "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
+        "Drag waveforms between slots in the staging area, they can also be dragged to and from the editor<br>" +
+        "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
+    } else {
+      helpTextElement.innerHTML = 
+        "Drag a ROM file (.bin), Wav file, or a zip archive of a bank onto top editor above.<br>" +
+        "ROM files should be 131072 bytes (128k) containing 8 slots of sample data.<br>" +
+        "Press \"Spacebar\" to playback sample in browser<br>" +
+        "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
+        "Drag waveforms between slots in the staging area, they can also be dragged to and from the editor<br>" +
+        "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
+    }
   }
   
   // Redraw waveforms to update labels
