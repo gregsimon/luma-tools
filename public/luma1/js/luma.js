@@ -192,6 +192,31 @@ function luma1_init() {
   // Add event listener for mode change
   document.getElementById("device_mode").addEventListener("change", changeDeviceMode);
   
+  // Add event handlers for sample offset text fields
+  document.getElementById("in_point").addEventListener("input", (e) => {
+    const value = parseInt(e.target.value) || 0;
+    if (editorAudioBuffer) {
+      editor_in_point = Math.max(0, Math.min(value, editorAudioBuffer.length - 1));
+      if (editor_in_point >= editor_out_point) {
+        editor_out_point = Math.min(editor_in_point + 1, editorAudioBuffer.length - 1);
+        document.getElementById("out_point").value = editor_out_point;
+      }
+      redrawAllWaveforms();
+    }
+  });
+  
+  document.getElementById("out_point").addEventListener("input", (e) => {
+    const value = parseInt(e.target.value) || 0;
+    if (editorAudioBuffer) {
+      editor_out_point = Math.max(0, Math.min(value, editorAudioBuffer.length - 1));
+      if (editor_out_point <= editor_in_point) {
+        editor_in_point = Math.max(0, editor_out_point - 1);
+        document.getElementById("in_point").value = editor_in_point;
+      }
+      redrawAllWaveforms();
+    }
+  });
+
   // setup main waveform editor
   const canvas = document.getElementById("editor_canvas");
   canvas.draggable = true;
