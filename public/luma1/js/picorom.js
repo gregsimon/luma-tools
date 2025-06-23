@@ -499,6 +499,54 @@ class PicoROM {
         
         throw new Error('Timeout waiting for commit to complete');
     }
+
+    /**
+     * Read the entire ROM image from the PicoROM device
+     * @param {Function} progressCallback - Callback for read progress
+     * @returns {Promise<ArrayBuffer>} - The ROM image data
+     */
+    async readImage(progressCallback = null) {
+        // Get the address mask to determine the ROM size
+        const addrMaskStr = await this.getParameter('addr_mask');
+        const addrMask = parseInt(addrMaskStr, 16);
+        const imageSize = addrMask + 1;
+
+        if (isNaN(imageSize) || imageSize <= 0) {
+            throw new Error(`Invalid image size determined from addr_mask: ${addrMaskStr}`);
+        }
+
+        // Set pointer to 0
+        await this.sendPacket({
+            type: 'PointerSet',
+            offset: 0
+        });
+
+        // Read data in chunks
+        const image = new Uint8Array(imageSize);
+        let bytesRead = 0;
+
+        while (bytesRead < imageSize) {
+            // Request a chunk of data
+            await this.sendPacket({ type: 'Read' });
+
+            const response = await this.receivePacket(1000);
+
+            if (response && response.type === 'ReadData') {
+                const chunk = response.data;
+                const bytesToCopy = Math.min(chunk.length, imageSize - bytesRead);
+                image.set(chunk.slice(0, bytesToCopy), bytesRead);
+                bytesRead += bytesToCopy;
+
+                if (progressCallback) {
+                    progressCallback(bytesRead, imageSize);
+                }
+            } else {
+                throw new Error('Timeout or error while reading image data from device.');
+            }
+        }
+
+        return image.buffer;
+    }
 }
 
 /**
@@ -598,9 +646,35 @@ async function uploadToPicoROM(binaryData, progressCallback = null, name = null)
     }
 }
 
+/**
+ * Read the entire ROM image from a PicoROM device
+ * @param {Function} progressCallback - Callback for read progress
+ * @returns {Promise<ArrayBuffer>} - The ROM image data
+ */
+async function readImageFromPicoROM(progressCallback = null) {
+    let port;
+    let picoROM;
+
+    try {
+        port = await requestPicoROMDevice();
+        picoROM = new PicoROM(port);
+        await picoROM.open();
+        const image = await picoROM.readImage(progressCallback);
+        return image;
+    } catch (error) {
+        console.error("Error reading image from PicoROM:", error);
+        throw error;
+    } finally {
+        if (picoROM) {
+            await picoROM.close();
+        }
+    }
+}
+
 // Export the API functions
 window.PicoROM = {
     listDevices: listPicoROMs,
     upload: uploadToPicoROM,
-    requestDevice: requestPicoROMDevice
+    requestDevice: requestPicoROMDevice,
+    readImage: readImageFromPicoROM
 };

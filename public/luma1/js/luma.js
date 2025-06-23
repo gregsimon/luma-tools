@@ -1687,6 +1687,63 @@ async function uploadToPicoROMClicked() {
   }
 }
 
+// Read from a PicoROM and load into the editor
+async function readFromPicoROMClicked() {
+  audio_init();
+  const statusDiv = document.createElement('div');
+  try {
+    statusDiv.style.position = 'fixed';
+    statusDiv.style.top = '50%';
+    statusDiv.style.left = '50%';
+    statusDiv.style.transform = 'translate(-50%, -50%)';
+    statusDiv.style.padding = '20px';
+    statusDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    statusDiv.style.color = 'white';
+    statusDiv.style.borderRadius = '5px';
+    statusDiv.style.zIndex = '1000';
+    document.body.appendChild(statusDiv);
+    
+    statusDiv.textContent = 'Requesting PicoROM device...';
+
+    const imageBuffer = await window.PicoROM.readImage((read, total) => {
+        const percent = Math.floor((read / total) * 100);
+        statusDiv.textContent = `Reading from PicoROM: ${percent}%`;
+    });
+    
+    statusDiv.textContent = 'Read complete! Loading bank...';
+
+    // We have the ROM, now load it into the bank slots
+    const rom = new Uint8Array(imageBuffer);
+    const SLOT_SIZE = 16384;
+    const NUM_SLOTS = 8;
+    const slot_import_order = [7, 6, 1, 0, 2, 3, 5, 4];
+
+    for (let i = 0; i < NUM_SLOTS; i++) {
+        const idx = slot_import_order[i];
+        const offset = i * SLOT_SIZE;
+        const chunk = rom.slice(offset, offset + SLOT_SIZE);
+
+        const audioBuffer = convert_8b_ulaw_to_audioBuffer(chunk.buffer);
+        bank[idx].audioBuffer = audioBuffer;
+        bank[idx].name = ``;
+        bank[idx].original_binary = chunk.buffer;
+    }
+
+    redrawAllWaveforms();
+
+    setTimeout(() => {
+      document.body.removeChild(statusDiv);
+    }, 2000);
+
+  } catch (error) {
+    if (statusDiv.parentElement) {
+        document.body.removeChild(statusDiv);
+    }
+    console.error('Error reading from PicoROM:', error);
+    alert(`PicoROM read failed: ${error.message}`);
+  }
+}
+
 // Add all the waveforms from the slots into a zip file and download it.
 function exportBankAsZip() {
   // Get the appropriate bank name based on current mode
