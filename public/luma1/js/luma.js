@@ -630,7 +630,7 @@ function droppedFileLoadedRomMu(event) {
     const linearData = new Float32Array(SLOT_SIZE);
     for (let j = 0; j < SLOT_SIZE; j++) {
       let ulaw = slotData[j];
-      ulaw = ~ulaw; // Invert back from PicoROM format
+      //ulaw = ~ulaw; // Invert back from PicoROM format
       const linear = ulaw_to_linear(ulaw);
       linearData[j] = linear / 32768.0; // Convert to float [-1, 1]
     }

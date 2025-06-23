@@ -430,9 +430,10 @@ class PicoROM {
      * @param {ArrayBuffer} data - The binary data to upload
      * @param {number} addrMask - The address mask to use
      * @param {Function} progressCallback - Callback for upload progress
+     * @param {boolean} verify - Whether to read back and verify each chunk after writing
      * @returns {Promise<void>}
      */
-    async upload(data, addrMask = 0xFFFFFFFF, progressCallback = null) {
+    async upload(data, addrMask = 0xFFFFFFFF, progressCallback = null, verify = false) {
         const bytes = new Uint8Array(data);
         
         // Set the pointer to 0
@@ -449,6 +450,38 @@ class PicoROM {
                 type: 'Write',
                 data: chunk
             });
+
+            if (verify) {
+                // Set pointer back to where this chunk started
+                await this.sendPacket({
+                    type: 'PointerSet',
+                    offset: i
+                });
+
+                // Read back the data to verify
+                await this.sendPacket({ type: 'Read' });
+                const response = await this.receivePacket(1000);
+
+                if (response && response.type === 'ReadData') {
+                    if (response.data.length < chunk.length) {
+                        throw new Error(`Verification failed at offset ${i}. Read back only ${response.data.length} bytes, expected ${chunk.length}`);
+                    }
+
+                    for (let j = 0; j < chunk.length; j++) {
+                        if (chunk[j] !== response.data[j]) {
+                            throw new Error(`Verification failed at offset ${i + j}. Expected ${chunk[j]}, got ${response.data[j]}`);
+                        }
+                    }
+                } else {
+                    throw new Error(`Verification read failed at offset ${i}. No ReadData packet received.`);
+                }
+                
+                // After reading, the pointer has advanced. We need to set it to where it should be for the next write.
+                await this.sendPacket({
+                    type: 'PointerSet',
+                    offset: i + chunk.length
+                });
+            }
             
             uploaded += chunk.length;
             if (progressCallback) {
@@ -627,7 +660,7 @@ async function uploadToPicoROM(binaryData, progressCallback = null, name = null)
         await picoROM.open();
         
         // Upload the binary data
-        await picoROM.upload(binaryData, 0xFFFFFFFF, progressCallback);
+        await picoROM.upload(binaryData, 0xFFFFFFFF, progressCallback, true);
         
         // Set the name parameter if provided
         if (name) {
