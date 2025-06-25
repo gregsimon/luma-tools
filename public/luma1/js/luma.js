@@ -673,16 +673,17 @@ function droppedFileLoadedRomMu(event) {
 function trimBufferToFitLuma() {
   // limit sourceAudioBuffer to kMaxSampleSize samples
   console.log("imported sample len is " + editorAudioBuffer.length);
-  if (editorAudioBuffer.length >= kMaxSampleSize) {
+  if (editorAudioBuffer.length > kMaxSampleSize) {
     console.log(
       "trim buffer to kMaxSampleSize, original_size=" +
         editorAudioBuffer.length +
         " sampleRate=" +
-        editorAudioBuffer.sampleRate,
+        editorAudioBuffer.sampleRate, // <-- this comes from the original wav file
     );
 
-    // TODO : resample buffer!
-    var newSampleRate = 24000;
+    // use the same sample rate as the original file so we just
+    // copy out samples
+    var newSampleRate = editorAudioBuffer.sampleRate;
 
     var newArrayBuffer = actx.createBuffer(1, kMaxSampleSize, newSampleRate);
     var anotherArray = new Float32Array(kMaxSampleSize);
@@ -720,7 +721,7 @@ function droppedFileLoadedWav(event) {
     editorAudioBuffer = buf;
     editor_in_point = 0;
     editor_out_point = editorAudioBuffer.length - 1;
-    16866326;
+    
     trimBufferToFitLuma();
     document.getElementById("sample_name").value = sampleName;
   });
@@ -1069,12 +1070,20 @@ function playAudio() {
   theSound.buffer = editorAudioBuffer;
   theSound.connect(actx.destination); // connect to the output
 
+  console.log("editor_in_point = " + editor_in_point);
+  console.log("editor_out_point = " + editor_out_point); 
+  console.log("num samples to play = " + (editor_out_point - editor_in_point+1));
+  console.log("total duration = " + (editor_out_point - editor_in_point+1) / sampleRate + " seconds");
+  
   // convert end points into seconds for playback.
   // TODO make sample rate adjustable
   theSound.start(
+    // when (seconds) playback should start (immediately)
     0,
-    editor_in_point / sampleRate,
-    (editor_out_point - editor_in_point) / sampleRate,
+    // offset (seconds) into the buffer where playback starts
+    editor_in_point / sampleRate, 
+    // duration (seconds) of the sample to play
+    (editor_out_point - editor_in_point+1) / sampleRate,
   );
 }
 
