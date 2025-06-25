@@ -380,7 +380,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     bank[dstId].audioBuffer = cloneAudioBuffer(
       editorAudioBuffer,
       editor_in_point,
-      editor_out_point,
+      editor_out_point + 1,  // +1 because editor_out_point is inclusive but cloneAudioBuffer expects exclusive
     );
     bank[dstId].name = document.getElementById("sample_name").value;
     bank[dstId].original_binary = cloneArrayBuffer(binaryFileOriginal);
@@ -630,7 +630,7 @@ function droppedFileLoadedRomMu(event) {
     const linearData = new Float32Array(SLOT_SIZE);
     for (let j = 0; j < SLOT_SIZE; j++) {
       let ulaw = slotData[j];
-      //ulaw = ~ulaw; // Invert back from PicoROM format
+      ulaw = ~ulaw; // Invert back from PicoROM format
       const linear = ulaw_to_linear(ulaw);
       linearData[j] = linear / 32768.0; // Convert to float [-1, 1]
     }
@@ -642,7 +642,7 @@ function droppedFileLoadedRomMu(event) {
     // Store in bank array
     bank[slotIndex] = {
       id: slotIndex,
-      name: `Slot ${slotIndex}`,
+      name: ``,
       sample_rate: 24000,
       original_binary: slotData.buffer,
       audioBuffer: audioBuffer,
