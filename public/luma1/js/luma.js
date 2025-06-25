@@ -689,7 +689,16 @@ function trimBufferToFitLuma() {
     var anotherArray = new Float32Array(kMaxSampleSize);
     var offset = 0;
 
+    // editorBuffer --> anotherArray
     editorAudioBuffer.copyFromChannel(anotherArray, 0, 0);
+
+    // write each sample from anotherArray to the console
+    for (i = 0; i < anotherArray.length; i++) {
+      //console.log(anotherArray[i]);
+    }
+  
+
+    // newArrayBuffer <-- anotherArray
     newArrayBuffer.copyToChannel(anotherArray, 0, 0);
 
     editorAudioBuffer = newArrayBuffer;
@@ -710,21 +719,90 @@ function trimBufferToFitLuma() {
   updateStatusBar();
 }
 
-// Decode a Windows WAV file
+// Decode a Windows WAV file using wav.js (no resampling)
 function droppedFileLoadedWav(event) {
   document.getElementById("binaryFormat").setAttribute("disabled", true);
 
-  actx.decodeAudioData(fileReader.result, function (buf) {
-    console.log(
-      "decoded wav file: SR=" + buf.sampleRate + " len=" + buf.length,
-    );
-    editorAudioBuffer = buf;
-    editor_in_point = 0;
-    editor_out_point = editorAudioBuffer.length - 1;
-    
-    trimBufferToFitLuma();
-    document.getElementById("sample_name").value = sampleName;
-  });
+  const wavFile = new wav(fileReader.result);
+  
+  if (wavFile.readyState !== wavFile.DONE) {
+    alert("Error loading WAV file: " + wavFile.error);
+    return;
+  }
+  
+  // Check if format is supported
+  if (wavFile.isCompressed()) {
+    alert("Compressed WAV files are not supported. Please use uncompressed PCM format.");
+    return;
+  }
+  
+  if (!wavFile.isMono()) {
+    alert("Only mono WAV files are supported. Please convert to mono.");
+    return;
+  }
+  
+  // Get the raw PCM data
+  const dataOffset = wavFile.dataOffset;
+  const dataLength = wavFile.dataLength;
+  const bitsPerSample = wavFile.bitsPerSample;
+  const sampleRate = wavFile.sampleRate;
+  
+  console.log(`Data: ${dataLength} bytes, ${bitsPerSample}-bit, ${sampleRate} Hz`);
+  
+  // Create AudioBuffer with the original sample rate
+  const numSamples = dataLength / (bitsPerSample / 8);
+  const audioBuffer = actx.createBuffer(1, numSamples, sampleRate);
+  const channelData = audioBuffer.getChannelData(0);
+  
+  // Copy samples based on bit depth
+  const dataView = new DataView(fileReader.result, dataOffset, dataLength);
+  
+  if (bitsPerSample === 8) {
+    // 8-bit unsigned PCM (0-255, center at 128)
+    for (let i = 0; i < numSamples; i++) {
+      const sample = dataView.getUint8(i);
+      channelData[i] = (sample - 128) / 128.0; // Convert to [-1, 1]
+    }
+  } else if (bitsPerSample === 16) {
+    // 16-bit signed PCM
+    for (let i = 0; i < numSamples; i++) {
+      const sample = dataView.getInt16(i * 2, true); // true = little endian
+      channelData[i] = sample / 32768.0; // Convert to [-1, 1]
+    }
+  } else if (bitsPerSample === 24) {
+    // 24-bit signed PCM
+    for (let i = 0; i < numSamples; i++) {
+      const offset = i * 3;
+      let sample = dataView.getUint8(offset) | 
+                  (dataView.getUint8(offset + 1) << 8) | 
+                  (dataView.getUint8(offset + 2) << 16);
+      
+      // Handle sign extension for 24-bit
+      if (sample & 0x800000) {
+        sample = sample | ~0xFFFFFF;
+      }
+      
+      channelData[i] = sample / 8388608.0; // Convert to [-1, 1]
+    }
+  } else if (bitsPerSample === 32) {
+    // 32-bit signed PCM
+    for (let i = 0; i < numSamples; i++) {
+      const sample = dataView.getInt32(i * 4, true); // true = little endian
+      channelData[i] = sample / 2147483648.0; // Convert to [-1, 1]
+    }
+  } else {
+    alert(`Unsupported bit depth: ${bitsPerSample}-bit. Please use 8, 16, 24, or 32-bit PCM.`);
+    return;
+  }
+  
+  editorAudioBuffer = audioBuffer;
+  editor_in_point = 0;
+  editor_out_point = editorAudioBuffer.length - 1;
+  
+  trimBufferToFitLuma();
+  document.getElementById("sample_name").value = sampleName;
+  
+  console.log(`Successfully loaded wav ${numSamples} samples at ${sampleRate} Hz`);
 }
 
 function dragOverHandler(ev) {
@@ -1073,6 +1151,7 @@ function playAudio() {
   console.log("editor_in_point = " + editor_in_point);
   console.log("editor_out_point = " + editor_out_point); 
   console.log("num samples to play = " + (editor_out_point - editor_in_point+1));
+  console.log("start at " + editor_in_point / sampleRate + " seconds");
   console.log("total duration = " + (editor_out_point - editor_in_point+1) / sampleRate + " seconds");
   
   // convert end points into seconds for playback.
@@ -1081,9 +1160,9 @@ function playAudio() {
     // when (seconds) playback should start (immediately)
     0,
     // offset (seconds) into the buffer where playback starts
-    editor_in_point / sampleRate, 
+    editor_in_point / theSound.buffer.sampleRate, 
     // duration (seconds) of the sample to play
-    (editor_out_point - editor_in_point+1) / sampleRate,
+    (editor_out_point - editor_in_point+1) / theSound.buffer.sampleRate,
   );
 }
 
