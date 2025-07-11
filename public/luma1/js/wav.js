@@ -2,9 +2,9 @@
 
 wav.js - a javascript audiolib for reading WAVE files
 
-Reads the Format chunk of a WAVE file using the RIFF specification.
+Reads the Format chunk of a WAV file using the RIFF specification.
 
-Only supports slice() on uncompressed PCM format.
+Supports uncompressed PCM and various compressed formats.
 Only supports one Data chunk.
 
 NOTE: Does not auto-correct:
@@ -12,10 +12,26 @@ NOTE: Does not auto-correct:
  - Incorrect Average Samples Per Second value
  - Missing word alignment padding
 
-@author  David Lindkvist
+@author  David Lindkvist, Greg Simon (supporting compressed formats)
 @twitter ffdead
 
 */
+
+// Compression format constants
+var WAV_COMPRESSION = {
+  PCM: 1,
+  MS_ADPCM: 2,
+  IMA_ADPCM: 17,
+  DVI_ADPCM: 6,
+  ALAW: 7,
+  MULAW: 8,
+  MP3: 85,
+  GSM: 49,
+  G721_ADPCM: 20,
+  G723_ADPCM: 24,
+  G726_ADPCM: 27,
+  G729_ADPCM: 28
+};
 
 
 /**
@@ -37,18 +53,24 @@ function wav(file) {
   
   // original File and loaded ArrayBuffer
   this.file          = file instanceof Blob ? file : undefined;
-  this.buffer        = file instanceof ArrayBuffer ? file : undefined;;
+  this.buffer        = file instanceof ArrayBuffer ? file : undefined;
   
   // format
   this.chunkID       = undefined; // must be RIFF
   this.chunkSize     = undefined; // size of file after this field
   this.format        = undefined; // must be WAVE
-  this.compression   = undefined; // 1=PCM
+  this.compression   = undefined; // 1=PCM, 2=MS_ADPCM, etc.
   this.numChannels   = undefined; // Mono = 1, Stereo = 2
   this.sampleRate    = undefined; // 8000, 44100, etc.
   this.byteRate      = undefined; // bytes per second
   this.blockAlign    = undefined; // number of bytes for one sample including all channels.
   this.bitsPerSample = undefined; // 8 bits = 8, 16 bits = 16, etc.
+  
+  // compression-specific properties
+  this.formatChunkSize = undefined; // size of format chunk
+  this.extraFormatBytes = undefined; // extra bytes in format chunk
+  this.samplesPerBlock = undefined; // for ADPCM formats
+  this.coefficients = undefined; // for MS_ADPCM
   
   // data chunk
   this.dataOffset    = -1; // index of data block
@@ -73,8 +95,8 @@ wav.prototype.peek = function () {
   var reader = new FileReader();
   var that = this;
   
-  // only load the first 44 bytes of the header
-  var headerBlob = this.sliceFile(0, 44);
+  // Load more bytes for compressed formats that may have larger format chunks
+  var headerBlob = this.sliceFile(0, 128);
   reader.readAsArrayBuffer(headerBlob);
   
   reader.onloadend = function() {  
@@ -114,38 +136,158 @@ wav.prototype.parseHeader = function () {
   this.format        = this.readText(8, 4);
   if (this.format !== 'WAVE') throw 'NOT_SUPPORTED_FORMAT';
   
-  this.compression   = this.readDecimal(20, 2); 
-  this.numChannels   = this.readDecimal(22, 2); 
-  this.sampleRate    = this.readDecimal(24, 4); 
+  // Find and parse the fmt chunk
+  this.parseFormatChunk();
+};
+
+/**
+ * Find and parse the format chunk
+ */
+wav.prototype.parseFormatChunk = function () {
+  var offset = 12; // Start after RIFF header (12 bytes)
+  
+  // Skip the WAVE identifier
+  offset += 4;
+  
+  // Look for the fmt chunk
+  while (offset < this.buffer.byteLength - 8) {
+    var chunkType = this.readText(offset, 4);
+    var chunkSize = this.readDecimal(offset + 4, 4);
+    
+    if (chunkType === 'fmt ') {
+      // Found the format chunk, parse it
+      this.formatChunkSize = chunkSize;
+      this.parseFormatChunkData(offset + 8, chunkSize);
+      return;
+    }
+    else {
+      // Skip this chunk and continue
+      offset += 8 + chunkSize;
+      // Handle word alignment padding
+      if (chunkSize % 2 !== 0) {
+        offset += 1;
+      }
+    }
+  }
+  
+  // If we get here, no fmt chunk was found
+  throw 'NO_FORMAT_CHUNK_FOUND: could not locate fmt chunk in WAV file';
+};
+
+/**
+ * Parse the format chunk data
+ */
+wav.prototype.parseFormatChunkData = function (offset, chunkSize) {
+  // Read format information from the fmt chunk
+  this.compression   = this.readDecimal(offset, 2); 
+  this.numChannels   = this.readDecimal(offset + 2, 2); 
+  this.sampleRate    = this.readDecimal(offset + 4, 4); 
 
   // == SampleRate * NumChannels * BitsPerSample/8
-  this.byteRate      = this.readDecimal(28, 4); 
+  this.byteRate      = this.readDecimal(offset + 8, 4); 
   
   // == NumChannels * BitsPerSample/8
-  this.blockAlign    = this.readDecimal(32, 2); 
+  this.blockAlign    = this.readDecimal(offset + 12, 2); 
 
-  this.bitsPerSample = this.readDecimal(34, 2);
+  this.bitsPerSample = this.readDecimal(offset + 14, 2);
+  
+  // Handle compressed formats with additional parameters
+  this.extraFormatBytes = chunkSize - 16; // Standard format chunk is 16 bytes
+  
+  if (this.extraFormatBytes > 0) {
+    this.parseCompressionSpecificData(offset + 16);
+  }
 };
 
 /**
  * Walk through all subchunks and look for the Data chunk
  */
 wav.prototype.parseData = function () {
-
-  var chunkType = this.readText(36, 4);
-  var chunkSize = this.readDecimal(40, 4);
+  var offset = 12; // Start after RIFF header (12 bytes)
   
-  // only support files where data chunk is first (canonical format)
-  if (chunkType === 'data') {
-    this.dataLength = chunkSize;
-    this.dataOffset = 44;
+  // Skip the WAVE identifier
+  offset += 4;
+  
+  // Iterate through chunks until we find the data chunk
+  while (offset < this.buffer.byteLength - 8) {
+    var chunkType = this.readText(offset, 4);
+    var chunkSize = this.readDecimal(offset + 4, 4);
+    
+    if (chunkType === 'data') {
+      this.dataLength = chunkSize;
+      this.dataOffset = offset + 8; // Skip chunk header
+      return;
+    }
+    else if (chunkType === 'fmt ') {
+      // Skip fmt chunk and continue
+      offset += 8 + chunkSize;
+      // Handle word alignment padding
+      if (chunkSize % 2 !== 0) {
+        offset += 1;
+      }
+    }
+    else {
+      // Skip unknown chunk and continue
+      offset += 8 + chunkSize;
+      // Handle word alignment padding
+      if (chunkSize % 2 !== 0) {
+        offset += 1;
+      }
+    }
   }
-  else {
-    // duration cant be calculated && slice will not work
-    throw 'NOT_CANONICAL_FORMAT: unsupported "' + chunkType + '"" chunk - was expecting data';
-  }
+  
+  // If we get here, no data chunk was found
+  throw 'NO_DATA_CHUNK_FOUND: could not locate data chunk in WAV file';
 };
 
+/**
+ * Parse compression-specific data in the format chunk
+ */
+wav.prototype.parseCompressionSpecificData = function (offset) {
+  // offset should point to the start of compression-specific data
+  
+  switch (this.compression) {
+    case WAV_COMPRESSION.MS_ADPCM:
+      // MS ADPCM has samples per block and coefficients
+      this.samplesPerBlock = this.readDecimal(offset, 2);
+      this.coefficients = [];
+      for (var i = 0; i < 7; i++) {
+        this.coefficients.push({
+          predictor: this.readDecimal(offset + 2 + i * 4, 2),
+          delta: this.readDecimal(offset + 4 + i * 4, 2)
+        });
+      }
+      break;
+      
+    case WAV_COMPRESSION.IMA_ADPCM:
+      // IMA ADPCM has samples per block
+      this.samplesPerBlock = this.readDecimal(offset, 2);
+      break;
+      
+    case WAV_COMPRESSION.DVI_ADPCM:
+      // DVI ADPCM has samples per block
+      this.samplesPerBlock = this.readDecimal(offset, 2);
+      break;
+      
+    case WAV_COMPRESSION.MP3:
+      // MP3 has ID and flags
+      this.mp3Id = this.readDecimal(offset, 2);
+      this.mp3Flags = this.readDecimal(offset + 2, 2);
+      this.mp3BlockSize = this.readDecimal(offset + 4, 2);
+      this.mp3FramesPerBlock = this.readDecimal(offset + 6, 2);
+      this.mp3CodecDelay = this.readDecimal(offset + 8, 2);
+      break;
+      
+    case WAV_COMPRESSION.GSM:
+      // GSM has samples per block
+      this.samplesPerBlock = this.readDecimal(offset, 2);
+      break;
+      
+    default:
+      // For other compressed formats, just skip the extra bytes
+      break;
+  }
+};
 
 
 /**
@@ -154,6 +296,11 @@ wav.prototype.parseData = function () {
  * @param {int} end    Length of requested slice in seconds
  */
 wav.prototype.slice = function (start, length, callback) {
+  
+  // Check if this compression format supports slicing
+  if (!this.supportsSlicing()) {
+    throw 'SLICING_NOT_SUPPORTED: slicing is not supported for compression format ' + this.getCompressionName();
+  }
   
   var reader = new FileReader();
   var that = this;
@@ -250,6 +397,49 @@ wav.prototype.sliceFile = function (start, end) {
 wav.prototype.isCompressed = function () {
   return this.compression !== 1;  
 };
+
+/**
+ * Check if the current compression format supports slicing
+ */
+wav.prototype.supportsSlicing = function () {
+  // Only PCM supports slicing for now
+  // Compressed formats would require decoding which is complex
+  return this.compression === WAV_COMPRESSION.PCM;
+};
+
+/**
+ * Get the name of the compression format
+ */
+wav.prototype.getCompressionName = function () {
+  for (var name in WAV_COMPRESSION) {
+    if (WAV_COMPRESSION[name] === this.compression) {
+      return name;
+    }
+  }
+  return 'UNKNOWN_FORMAT_' + this.compression;
+};
+
+/**
+ * Get compression format details
+ */
+wav.prototype.getCompressionDetails = function () {
+  var details = {
+    name: this.getCompressionName(),
+    compression: this.compression,
+    supportsSlicing: this.supportsSlicing()
+  };
+  
+  // Add format-specific details
+  if (this.samplesPerBlock) {
+    details.samplesPerBlock = this.samplesPerBlock;
+  }
+  
+  if (this.coefficients) {
+    details.coefficients = this.coefficients;
+  }
+  
+  return details;
+};
   
 wav.prototype.isMono = function () {
   return this.numChannels === 1;  
@@ -268,8 +458,13 @@ wav.prototype.getDuration = function () {
  * Override toString
  */
 wav.prototype.toString = function () {
+  var compressionInfo = this.getCompressionName();
+  if (!this.supportsSlicing()) {
+    compressionInfo += ' (slicing not supported)';
+  }
+  
   return (this.file ? this.file.name : 'noname.wav') + ' (' + this.chunkID + '/' + this.format + ')\n' +
-    'Compression: ' + (this.isCompressed() ? 'yes' : 'no (PCM)') + '\n' +
+    'Compression: ' + compressionInfo + '\n' +
     'Number of channels: ' + this.numChannels + ' (' + (this.isStereo()?'stereo':'mono') + ')\n' +
     'Sample rate: ' + this.sampleRate + ' Hz\n'+
     'Sample size: ' + this.bitsPerSample + '-bit\n'+

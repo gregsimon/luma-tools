@@ -758,18 +758,7 @@ function droppedFileLoadedWav(event) {
     alert("Error loading WAV file: " + wavFile.error);
     return;
   }
-  
-  // Check if format is supported
-  if (wavFile.isCompressed()) {
-    alert("Compressed WAV files are not supported. Please use uncompressed PCM format.");
-    return;
-  }
-  
-  if (!wavFile.isMono()) {
-    alert("Only mono WAV files are supported. Please convert to mono.");
-    return;
-  }
-  
+    
   // Get the raw PCM data
   const dataOffset = wavFile.dataOffset;
   const dataLength = wavFile.dataLength;
