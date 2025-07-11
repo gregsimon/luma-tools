@@ -26,6 +26,7 @@
  * -Two changes to make implementation bitexact with ITU-T reference implementation
  */
 
+// uLaw conversion functions (from codecs.mjs)
 function ulaw_to_linear(ulaw) {
   const  ULAW_BIAS = 0x84;
   ulaw = ~ulaw;
@@ -90,6 +91,7 @@ function top_bit(bits) {
   return i;
 }
 
+// SysEx conversion functions (from codecs.mjs)
 // Converts an 8-bit ArrayBuffer into a 7-bit SysEx array.
 function pack_sysex(src) {
   var in_idx = 0;
