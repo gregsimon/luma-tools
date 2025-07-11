@@ -17,7 +17,6 @@ let sampleName = "untitled";
 let shiftDown = false;
 let binaryFileOriginal = null; // Original raw bytes of loaded sample
 let binaryFormat = "ulaw_u8";
-let kMaxSampleSize = 32768;
 let bank = []; // Hold the state of each slot
 let bank_name = "Untitled";
 let current_mode = "luma1"; // Current device mode: luma1 or lumamu
@@ -353,6 +352,11 @@ function cloneArrayBuffer(src) {
   var dst = new ArrayBuffer(src.byteLength);
   new Uint8Array(dst).set(new Uint8Array(src));
   return dst;
+}
+
+// Get maximum sample size based on current mode
+function getMaxSampleSize() {
+  return (current_mode === "lumamu") ? 16384 : 32768;
 }
 
 // Create AudioBuffer from byte array for playback
@@ -714,26 +718,26 @@ function droppedFileLoadedRomMu(event) {
 }
 
 function trimBufferToFitLuma() {
-  // limit sourceSampleData to kMaxSampleSize samples
+  // limit sourceSampleData to getMaxSampleSize() samples
   console.log("imported sample len is " + editorSampleLength);
-  if (editorSampleLength > kMaxSampleSize) {
+  if (editorSampleLength > getMaxSampleSize()) {
     console.log(
-      "trim buffer to kMaxSampleSize, original_size=" +
+      "trim buffer to getMaxSampleSize(), original_size=" +
         editorSampleLength
     );
 
-    const newSampleData = new Uint8Array(kMaxSampleSize);
-    newSampleData.set(editorSampleData.subarray(0, kMaxSampleSize));
+    const newSampleData = new Uint8Array(getMaxSampleSize());
+    newSampleData.set(editorSampleData.subarray(0, getMaxSampleSize()));
     
     editorSampleData = newSampleData;
-    editorSampleLength = kMaxSampleSize;
+    editorSampleLength = getMaxSampleSize();
     editor_in_point = 0;
     editor_out_point = editorSampleLength - 1;
     console.log("trimmed - new len is " + editorSampleLength);
   } else {
     // sample is <= to the full sample size.
     // let's try padding with zeros on the end and see what that does.
-    console.log("sample is " + editorSampleLength + "/" + kMaxSampleSize);
+    console.log("sample is " + editorSampleLength + "/" + getMaxSampleSize());
 
     editor_in_point = 0;
     editor_out_point = editorSampleLength - 2;
