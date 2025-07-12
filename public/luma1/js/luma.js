@@ -208,6 +208,7 @@ function luma1_init() {
         editor_out_point = Math.min(editor_in_point + 1, editorSampleLength - 1);
         document.getElementById("out_point").value = editor_out_point;
       }
+      updateStatusBar();
       redrawAllWaveforms();
     }
   });
@@ -220,6 +221,7 @@ function luma1_init() {
         editor_in_point = Math.max(0, editor_out_point - 1);
         document.getElementById("in_point").value = editor_in_point;
       }
+      updateStatusBar();
       redrawAllWaveforms();
     }
   });
@@ -784,11 +786,10 @@ function trimBufferToFitLuma() {
     console.log("trimmed - new len is " + editorSampleLength);
   } else {
     // sample is <= to the full sample size.
-    // let's try padding with zeros on the end and see what that does.
     console.log("sample is " + editorSampleLength + "/" + getMaxSampleSize());
 
     editor_in_point = 0;
-    editor_out_point = editorSampleLength - 2;
+    editor_out_point = editorSampleLength - 1;
   }
 
   resizeCanvasToParent();
@@ -1000,6 +1001,10 @@ function resetRange() {
 function updateStatusBar() {
   document.getElementById("in_point").value = editor_in_point;
   document.getElementById("out_point").value = editor_out_point;
+  
+  // Calculate and display the number of selected samples
+  const sampleCount = editor_out_point - editor_in_point + 1;
+  document.getElementById("sample_count").textContent = sampleCount;
 }
 
 function redrawAllWaveforms() {
