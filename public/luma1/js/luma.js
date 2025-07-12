@@ -26,6 +26,11 @@ let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
 
+// Drag state variables
+let isDraggingEndpoint = false;
+let draggingWhichEndpoint = null; // "in" or "out"
+let isDraggingWaveform = false;
+
 // settings lets that are persisted locally on computer
 let settings_midiDeviceName = "";
 let settings_midi_monitor_show_sysex = false;
@@ -235,14 +240,19 @@ function luma1_init() {
     onEditorCanvasMouseUp(event);
   };
   canvas.ondragstart = (ev) => {
-    const y = ev.offsetY;
-    const h = canvas.height;
-    const edge = h * drag_gutter_pct;
-    if (y > edge && y < h - edge) {
-      ev.dataTransfer.setData("text/plain", 255); // start drag
-    } else {
-      ev.preventDefault(); // do endpoint adjustment
+    // Only allow waveform dragging if not dragging endpoints
+    if (isDraggingEndpoint) {
+      ev.preventDefault();
+      return;
     }
+    
+    // Only allow waveform dragging if we're in waveform drag mode
+    if (!isDraggingWaveform) {
+      ev.preventDefault();
+      return;
+    }
+    
+    ev.dataTransfer.setData("text/plain", 255); // start drag
   };
   canvas.ondragover = (ev) => {
     ev.preventDefault();
@@ -293,6 +303,41 @@ function luma1_init() {
   window.addEventListener("keyup", (e) => {
     if (e.key.charCodeAt(0) === 83) {
       shiftDown = false;
+    }
+  });
+  
+  // Global mouse events for endpoint dragging
+  window.addEventListener("mousemove", (event) => {
+    if (isDraggingEndpoint && editorCanvasMouseIsDown) {
+      const canvas = document.getElementById("editor_canvas");
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const w = canvas.width;
+      
+      if (editorSampleData == null) return;
+      
+      var new_pt = (editorSampleLength * x) / w;
+      if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
+      
+      if (draggingWhichEndpoint === "in") {
+        if (new_pt < editor_out_point) {
+          editor_in_point = Math.floor(new_pt);
+          editor_in_point = Math.max(0, editor_in_point);
+        }
+      } else if (draggingWhichEndpoint === "out") {
+        if (new_pt > editor_in_point) {
+          editor_out_point = Math.floor(new_pt);
+          editor_out_point = Math.min(editorSampleLength - 1, editor_out_point);
+        }
+      }
+      updateStatusBar();
+      drawEditorCanvas();
+    }
+  });
+  
+  window.addEventListener("mouseup", (event) => {
+    if (isDraggingEndpoint) {
+      onEditorCanvasMouseUp(event);
     }
   });
 
@@ -863,35 +908,61 @@ function resizeCanvasToParent() {
 var editorCanvasMouseIsDown = false;
 function onEditorCanvasMouseDown(event) {
   editorCanvasMouseIsDown = true;
+  
+  const x = event.offsetX;
+  const y = event.offsetY;
+  const canvas = document.getElementById("editor_canvas");
+  const h = canvas.height;
+  const w = canvas.width;
+  const tab_side = 15;
+  
+  if (editorSampleData == null) return;
+  
+  // Calculate endpoint positions
+  const in_offset = (w * editor_in_point) / editorSampleLength;
+  const out_offset = (w * editor_out_point) / editorSampleLength;
+  
+  // Check if clicking on in-point handle (triangle at top)
+  if (y < tab_side && x >= in_offset && x <= in_offset + tab_side) {
+    isDraggingEndpoint = true;
+    draggingWhichEndpoint = "in";
+    return;
+  }
+  
+  // Check if clicking on out-point handle (triangle at bottom)
+  if (y >= h - tab_side && x >= out_offset - tab_side && x <= out_offset) {
+    isDraggingEndpoint = true;
+    draggingWhichEndpoint = "out";
+    return;
+  }
+  
+  // If not clicking on endpoints, prepare for waveform drag
+  isDraggingWaveform = true;
 }
 
 function onEditorCanvasMouseMove(event) {
-  if (editorCanvasMouseIsDown) {
+  if (editorCanvasMouseIsDown && isDraggingEndpoint) {
     const x = event.offsetX;
     const y = event.offsetY;
-    var canvas = document.getElementById("editor_canvas");
-    const h = canvas.height;
+    const canvas = document.getElementById("editor_canvas");
     const w = canvas.width;
-    var drag_gutter_size = h * drag_gutter_pct;
 
     if (editorSampleData == null) return;
 
     var new_pt = (editorSampleLength * x) / w;
     if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
 
-    if (y >= h - drag_gutter_size) {
-      // adjust endpoint
-      if (new_pt > editor_in_point) editor_out_point = Math.floor(new_pt);
-      editor_out_point = Math.min(
-        editorSampleLength - 1,
-        editor_out_point,
-      );
-    } else if (y < drag_gutter_size) {
-      // adjust inpoint
-      if (new_pt < editor_out_point) editor_in_point = Math.floor(new_pt);
-      editor_in_point = Math.max(0, editor_in_point);
-    } else {
-      // TODO : initiate a drag
+    // Handle endpoint dragging
+    if (draggingWhichEndpoint === "in") {
+      if (new_pt < editor_out_point) {
+        editor_in_point = Math.floor(new_pt);
+        editor_in_point = Math.max(0, editor_in_point);
+      }
+    } else if (draggingWhichEndpoint === "out") {
+      if (new_pt > editor_in_point) {
+        editor_out_point = Math.floor(new_pt);
+        editor_out_point = Math.min(editorSampleLength - 1, editor_out_point);
+      }
     }
     updateStatusBar();
     drawEditorCanvas();
@@ -900,6 +971,9 @@ function onEditorCanvasMouseMove(event) {
 
 function onEditorCanvasMouseUp(event) {
   editorCanvasMouseIsDown = false;
+  isDraggingEndpoint = false;
+  draggingWhichEndpoint = null;
+  isDraggingWaveform = false;
 }
 
 function reverseSampleBuffer() {
