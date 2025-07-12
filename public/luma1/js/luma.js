@@ -735,7 +735,7 @@ function droppedFileLoadedRomMu(event) {
     // Store in bank array
     bank[slotIndex] = {
       id: slotIndex,
-      name: ``,
+      name: `Slot ${slotIndex + 1}`, // Provide a default name
       sample_rate: 24000,
       original_binary: slotData.buffer,
       sampleData: slotData,
@@ -1936,7 +1936,7 @@ async function readFromPicoROMClicked() {
 
         bank[idx].sampleData = new Uint8Array(chunk);
         bank[idx].sampleLength = chunk.length;
-        bank[idx].name = ``;
+        bank[idx].name = `Slot ${idx + 1}`; // Provide a default name
         bank[idx].original_binary = chunk.buffer;
     }
 
@@ -1965,10 +1965,27 @@ function exportBankAsZip() {
 
   zip.file("BANKNAME.TXT", bank_name);
 
-  for (i = 0; i < slot_names.length; i++) {
+  // For Luma-Mu mode, we need to use the correct slot names that match the import/export order
+  let exportSlotNames;
+  if (current_mode === "lumamu") {
+    // Use the same slot names as defined in lumamu_slot_names
+    // This ensures consistency with the UI display
+    exportSlotNames = lumamu_slot_names;
+  } else {
+    // For Luma-1 mode, use the standard slot names
+    exportSlotNames = slot_names;
+  }
+
+  // Only export the slots that are used in the current mode
+  const numSlotsToExport = (current_mode === "lumamu") ? 8 : 10;
+  for (i = 0; i < numSlotsToExport; i++) {
     console.log("slot " + i);
-    const slot_name = slot_names[i];
-    const sample_name_base = trim_filename_ext(bank[i].name);
+    const slot_name = exportSlotNames[i];
+    let sample_name_base = trim_filename_ext(bank[i].name);
+    // Provide a fallback name if the sample name is empty
+    if (!sample_name_base || sample_name_base === "") {
+      sample_name_base = `sample_${i + 1}`;
+    }
     if (bank[i].original_binary != null) {
       //console.log(bank[i].original_binary);
       if (bank[i].original_binary.byteLength > 0) {
