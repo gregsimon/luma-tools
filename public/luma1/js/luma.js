@@ -237,17 +237,15 @@ function luma1_init() {
     onEditorCanvasMouseUp(event);
   };
   canvas.onmouseleave = (event) => {
-    onEditorCanvasMouseUp(event);
+    // Only stop dragging if we're not dragging endpoints
+    // Endpoint dragging should continue even when mouse leaves the canvas
+    if (!isDraggingEndpoint) {
+      onEditorCanvasMouseUp(event);
+    }
   };
   canvas.ondragstart = (ev) => {
-    // Only allow waveform dragging if not dragging endpoints
-    if (isDraggingEndpoint) {
-      ev.preventDefault();
-      return;
-    }
-    
-    // Only allow waveform dragging if we're in waveform drag mode
-    if (!isDraggingWaveform) {
+    // Only allow waveform dragging if not dragging endpoints and we're in waveform drag mode
+    if (isDraggingEndpoint || !isDraggingWaveform) {
       ev.preventDefault();
       return;
     }
@@ -258,11 +256,14 @@ function luma1_init() {
     ev.preventDefault();
   };
   canvas.ondrop = (ev) => {
-    ev.preventDefault();
+    // Only handle waveform dragging, let file drops pass through to parent
     const srcId = ev.dataTransfer.getData("text/plain");
-    if (srcId !== "") {
+    if (srcId !== "" && srcId !== "255") {
+      ev.preventDefault();
       copyWaveFormBetweenSlots(srcId, 255);
+      return; // Don't let event bubble up
     }
+    // For file drops (no text/plain data), let event bubble up to parent div
   };
 
   // tabs
@@ -936,8 +937,11 @@ function onEditorCanvasMouseDown(event) {
     return;
   }
   
-  // If not clicking on endpoints, prepare for waveform drag
-  isDraggingWaveform = true;
+  // If not clicking on endpoints, check if it's in the middle area for waveform drag
+  const edge = h * drag_gutter_pct;
+  if (y > edge && y < h - edge) {
+    isDraggingWaveform = true;
+  }
 }
 
 function onEditorCanvasMouseMove(event) {
