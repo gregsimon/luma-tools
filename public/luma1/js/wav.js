@@ -145,10 +145,7 @@ wav.prototype.parseHeader = function () {
  */
 wav.prototype.parseFormatChunk = function () {
   var offset = 12; // Start after RIFF header (12 bytes)
-  
-  // Skip the WAVE identifier
-  offset += 4;
-  
+    
   // Look for the fmt chunk
   while (offset < this.buffer.byteLength - 8) {
     var chunkType = this.readText(offset, 4);
@@ -204,9 +201,6 @@ wav.prototype.parseFormatChunkData = function (offset, chunkSize) {
  */
 wav.prototype.parseData = function () {
   var offset = 12; // Start after RIFF header (12 bytes)
-  
-  // Skip the WAVE identifier
-  offset += 4;
   
   // Iterate through chunks until we find the data chunk
   while (offset < this.buffer.byteLength - 8) {
