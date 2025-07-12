@@ -446,8 +446,11 @@ function playSlotAudio(id) {
   // the spacebar is pressed.
   document.activeElement.blur();
 
+  // Get the selected sample rate for playback
+  const playbackSampleRate = getSelectedSampleRate();
+
   // Create AudioBuffer on-demand for playback
-  const audioBuffer = createAudioBufferFromBytes(bank[id].sampleData, bank[id].sample_rate);
+  const audioBuffer = createAudioBufferFromBytes(bank[id].sampleData, playbackSampleRate);
   if (!audioBuffer) return;
   
   let theSound = actx.createBufferSource();
@@ -455,8 +458,7 @@ function playSlotAudio(id) {
   theSound.connect(actx.destination); // connect to the output
 
   // convert end points into seconds for playback.
-  // TODO make sample rate adjustable
-  theSound.start(0, 0, audioBuffer.length / sampleRate);
+  theSound.start(0, 0, audioBuffer.length / playbackSampleRate);
 }
 
 // convert an arraybuffer into a byte array in uLaw format
@@ -827,6 +829,15 @@ function droppedFileLoadedWav(event) {
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
   
+  // Set the sample rate picker to match the WAV file's sample rate
+  const picker = document.getElementById('sample_rate_picker');
+  if (sampleRate === 12000 || sampleRate === 24000 || sampleRate === 44100 || sampleRate === 48000) {
+    picker.value = sampleRate.toString();
+  } else {
+    // If the WAV file has an unsupported sample rate, default to 24000
+    picker.value = "24000";
+  }
+  
   trimBufferToFitLuma();
   document.getElementById("sample_name").value = sampleName;
   
@@ -1161,13 +1172,22 @@ function writeSampleToDeviceSlotBank(slotId, bankId) {
   midiOut.send(sysx2);
 }
 
+// Get the selected sample rate from the picker
+function getSelectedSampleRate() {
+  const picker = document.getElementById('sample_rate_picker');
+  return parseInt(picker.value);
+}
+
 function playAudio() {
   // disable focus since it may double-trigger if "Preview" is selected and
   // the spacebar is pressed.
   document.activeElement.blur();
 
+  // Get the selected sample rate for playback
+  const playbackSampleRate = getSelectedSampleRate();
+
   // Create AudioBuffer on-demand for playback
-  const audioBuffer = createAudioBufferFromBytes(editorSampleData, sampleRate);
+  const audioBuffer = createAudioBufferFromBytes(editorSampleData, playbackSampleRate);
   if (!audioBuffer) return;
 
   let theSound = actx.createBufferSource();
@@ -1177,11 +1197,10 @@ function playAudio() {
   console.log("editor_in_point = " + editor_in_point);
   console.log("editor_out_point = " + editor_out_point); 
   console.log("num samples to play = " + (editor_out_point - editor_in_point+1));
-  console.log("start at " + editor_in_point / sampleRate + " seconds");
-  console.log("total duration = " + (editor_out_point - editor_in_point+1) / sampleRate + " seconds");
+  console.log("start at " + editor_in_point / playbackSampleRate + " seconds");
+  console.log("total duration = " + (editor_out_point - editor_in_point+1) / playbackSampleRate + " seconds");
   
   // convert end points into seconds for playback.
-  // TODO make sample rate adjustable
   theSound.start(
     // when (seconds) playback should start (immediately)
     0,
@@ -1314,8 +1333,11 @@ function exportSample() {
   const sampleNameField = (current_mode === "luma1") ? "sample_name" : "sample_name_mu";
   let name = document.getElementById(sampleNameField).value || "untitled";
   
+  // Get the selected sample rate for export
+  const exportSampleRate = getSelectedSampleRate();
+  
   // Create AudioBuffer for WAV encoding
-  const audioBuffer = createAudioBufferFromBytes(editorSampleData, sampleRate);
+  const audioBuffer = createAudioBufferFromBytes(editorSampleData, exportSampleRate);
   if (!audioBuffer) {
     alert("Error creating audio buffer for export");
     return;
@@ -1323,7 +1345,7 @@ function exportSample() {
   
   // Use WavAudioEncoder like in the ZIP export
   var channelData = audioBuffer.getChannelData(0);
-  var encoder = new WavAudioEncoder(sampleRate, 1);
+  var encoder = new WavAudioEncoder(exportSampleRate, 1);
   encoder.encode([channelData]);
   var blob = encoder.finish();
   let url = URL.createObjectURL(blob);
@@ -1881,11 +1903,14 @@ function exportBankAsZip() {
     }
 
     // export WAV
+    // Get the selected sample rate for export
+    const exportSampleRate = getSelectedSampleRate();
+    
     // Create AudioBuffer for WAV encoding
-    const audioBuffer = createAudioBufferFromBytes(bank[i].sampleData, bank[i].sample_rate);
+    const audioBuffer = createAudioBufferFromBytes(bank[i].sampleData, exportSampleRate);
     if (audioBuffer) {
       var channelData = audioBuffer.getChannelData(0);
-      var encoder = new WavAudioEncoder(sampleRate, 1);
+      var encoder = new WavAudioEncoder(exportSampleRate, 1);
       encoder.encode([channelData]);
       var blob = encoder.finish();
       zip.folder(slot_name).file(sample_name_base + ".wav", blob);
