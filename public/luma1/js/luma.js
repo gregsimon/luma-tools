@@ -813,82 +813,114 @@ function droppedFileLoadedWav(event) {
   const dataLength = wavFile.dataLength;
   const bitsPerSample = wavFile.bitsPerSample;
   const sampleRate = wavFile.sampleRate;
+  const numChannels = wavFile.numChannels;
   
-  console.log(`Data: ${dataLength} bytes, ${bitsPerSample}-bit, ${sampleRate} Hz`);
-  
-  // Create AudioBuffer with the original sample rate
-  const numSamples = dataLength / (bitsPerSample / 8);
-  const audioBuffer = actx.createBuffer(1, numSamples, sampleRate);
+  if (numChannels !== 1 && numChannels !== 2) {
+    alert(`Unsupported channel count: ${numChannels}. Only mono and stereo are supported.`);
+    return;
+  }
+
+  console.log(`Data: ${dataLength} bytes, ${bitsPerSample}-bit, ${sampleRate} Hz, ${numChannels} channel(s)`);
+
+  // Number of frames (samples per channel)
+  const numFrames = dataLength / (bitsPerSample / 8) / numChannels;
+  const audioBuffer = actx.createBuffer(1, numFrames, sampleRate);
   const channelData = audioBuffer.getChannelData(0);
-  
-  // Copy samples based on bit depth
   const dataView = new DataView(fileReader.result, dataOffset, dataLength);
-  
+
   if (bitsPerSample === 8) {
-    // 8-bit unsigned PCM (0-255, center at 128)
-    for (let i = 0; i < numSamples; i++) {
-      const sample = dataView.getUint8(i);
-      channelData[i] = (sample - 128) / 128.0; // Convert to [-1, 1]
+    if (numChannels === 1) {
+      for (let i = 0; i < numFrames; i++) {
+        const sample = dataView.getUint8(i);
+        channelData[i] = (sample - 128) / 128.0;
+      }
+    } else {
+      for (let i = 0; i < numFrames; i++) {
+        const left = dataView.getUint8(i * 2);
+        const right = dataView.getUint8(i * 2 + 1);
+        channelData[i] = ((left - 128) + (right - 128)) / 2 / 128.0;
+      }
     }
   } else if (bitsPerSample === 16) {
-    // 16-bit signed PCM
-    for (let i = 0; i < numSamples; i++) {
-      const sample = dataView.getInt16(i * 2, true); // true = little endian
-      channelData[i] = sample / 32768.0; // Convert to [-1, 1]
+    if (numChannels === 1) {
+      for (let i = 0; i < numFrames; i++) {
+        const sample = dataView.getInt16(i * 2, true);
+        channelData[i] = sample / 32768.0;
+      }
+    } else {
+      for (let i = 0; i < numFrames; i++) {
+        const left = dataView.getInt16(i * 4, true);
+        const right = dataView.getInt16(i * 4 + 2, true);
+        channelData[i] = ((left + right) / 2) / 32768.0;
+      }
     }
   } else if (bitsPerSample === 24) {
-    // 24-bit signed PCM
-    for (let i = 0; i < numSamples; i++) {
-      const offset = i * 3;
-      let sample = dataView.getUint8(offset) | 
-                  (dataView.getUint8(offset + 1) << 8) | 
-                  (dataView.getUint8(offset + 2) << 16);
-      
-      // Handle sign extension for 24-bit
-      if (sample & 0x800000) {
-        sample = sample | ~0xFFFFFF;
+    if (numChannels === 1) {
+      for (let i = 0; i < numFrames; i++) {
+        const offset = i * 3;
+        let sample = dataView.getUint8(offset) |
+                    (dataView.getUint8(offset + 1) << 8) |
+                    (dataView.getUint8(offset + 2) << 16);
+        if (sample & 0x800000) sample = sample | ~0xFFFFFF;
+        channelData[i] = sample / 8388608.0;
       }
-      
-      channelData[i] = sample / 8388608.0; // Convert to [-1, 1]
+    } else {
+      for (let i = 0; i < numFrames; i++) {
+        const offset = i * 6;
+        let left = dataView.getUint8(offset) |
+                  (dataView.getUint8(offset + 1) << 8) |
+                  (dataView.getUint8(offset + 2) << 16);
+        let right = dataView.getUint8(offset + 3) |
+                   (dataView.getUint8(offset + 4) << 8) |
+                   (dataView.getUint8(offset + 5) << 16);
+        if (left & 0x800000) left = left | ~0xFFFFFF;
+        if (right & 0x800000) right = right | ~0xFFFFFF;
+        channelData[i] = ((left + right) / 2) / 8388608.0;
+      }
     }
   } else if (bitsPerSample === 32) {
-    // 32-bit signed PCM
-    for (let i = 0; i < numSamples; i++) {
-      const sample = dataView.getInt32(i * 4, true); // true = little endian
-      channelData[i] = sample / 2147483648.0; // Convert to [-1, 1]
+    if (numChannels === 1) {
+      for (let i = 0; i < numFrames; i++) {
+        const sample = dataView.getInt32(i * 4, true);
+        channelData[i] = sample / 2147483648.0;
+      }
+    } else {
+      for (let i = 0; i < numFrames; i++) {
+        const left = dataView.getInt32(i * 8, true);
+        const right = dataView.getInt32(i * 8 + 4, true);
+        channelData[i] = ((left + right) / 2) / 2147483648.0;
+      }
     }
   } else {
     alert(`Unsupported bit depth: ${bitsPerSample}-bit. Please use 8, 16, 24, or 32-bit PCM.`);
     return;
   }
-  
+
   // Convert to uLaw format for storage
-  const sampleData = new Uint8Array(numSamples);
-  for (let i = 0; i < numSamples; i++) {
-    // Convert float to uLaw
+  const sampleData = new Uint8Array(numFrames);
+  for (let i = 0; i < numFrames; i++) {
     const linear = Math.round(channelData[i] * 32767);
     const ulaw = linear_to_ulaw(linear);
     sampleData[i] = ~ulaw; // Invert for storage format
   }
-  
+
   editorSampleData = sampleData;
-  editorSampleLength = numSamples;
+  editorSampleLength = numFrames;
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
-  
+
   // Set the sample rate picker to match the WAV file's sample rate
   const picker = document.getElementById('sample_rate_picker');
   if (sampleRate === 12000 || sampleRate === 24000 || sampleRate === 44100 || sampleRate === 48000) {
     picker.value = sampleRate.toString();
   } else {
-    // If the WAV file has an unsupported sample rate, default to 24000
     picker.value = "24000";
   }
-  
+
   trimBufferToFitLuma();
   document.getElementById("sample_name").value = sampleName;
-  
-  console.log(`Successfully loaded wav ${numSamples} samples at ${sampleRate} Hz`);
+
+  console.log(`Successfully loaded wav ${numFrames} samples at ${sampleRate} Hz`);
 }
 
 function dragOverHandler(ev) {
