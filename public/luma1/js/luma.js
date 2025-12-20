@@ -1,4 +1,4 @@
-"Copyright 2023-2025 Greg Simon";
+"Copyright 2023-2026 Greg Simon";
 
 
 // globals
@@ -39,6 +39,7 @@ const TAB_SAMPLE_EDITOR = 0;
 const TAB_PATTERN_EDITOR = 1;
 const TAB_MIDI_MONITOR = 2;
 const TAB_UTILITIES = 3;
+const TAB_LIBRARIAN = 4;
 
 // send/receive device command IDs
 const CMD_SAMPLE = 0x00;
@@ -278,6 +279,9 @@ function luma1_init() {
   document.getElementById("midi_monitor_tab_button").onclick = () => {
     switchTab(TAB_MIDI_MONITOR);
   };
+  document.getElementById("librarian_tab_button").onclick = () => {
+    switchTab(TAB_LIBRARIAN);
+  };
 
   // MIDI log
   document.getElementById("midi_log").readonly = true;
@@ -377,6 +381,7 @@ function switchTab(newTab) {
   de("sample_editor_tab").style.display = "none";
   de("pattern_editor_tab").style.display = "none";
   de("midi_monitor_tab").style.display = "none";
+  de("librarian_tab").style.display = "none";
   switch (newTab) {
     case TAB_SAMPLE_EDITOR:
       de("sample_editor_tab").style.display = "block";
@@ -389,6 +394,9 @@ function switchTab(newTab) {
       break;
     case TAB_UTILITIES:
       de("utilities_tab").style.display = "block";
+      break;
+    case TAB_LIBRARIAN:
+      de("librarian_tab").style.display = "block";
       break;
   }
 }
