@@ -173,7 +173,7 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
     }
     
     if (data.files && data.files.length > 0) {
-      data.files.forEach(file => {
+      data.files.forEach((file, index) => {
         const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
         const div = document.createElement("div");
         div.style.padding = "8px";
@@ -181,6 +181,10 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
         div.style.display = "flex";
         div.style.justifyContent = "space-between";
         div.style.alignItems = "center";
+        // Alternate row colors for better legibility
+        if (index % 2 === 0) {
+          div.style.backgroundColor = "#2a2a2a";
+        }
         
         const nameSpan = document.createElement("span");
         nameSpan.textContent = (isFolder ? "📁 " : "📄 ") + file.name;
