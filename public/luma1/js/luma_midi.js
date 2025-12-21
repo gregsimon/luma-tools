@@ -49,8 +49,9 @@ function onMIDIMessageReceived(event) {
       unpack_sysex(event.data.slice(2, event.data.length - 1)),
     );
     var type = data[0];
-    if (type == 0x01 || type == 0x09) {
-      // 0x01 or 0x09 for samples
+    if (type == CMD_SAMPLE || type == (CMD_SAMPLE | CMD_REQUEST) || 
+        type == CMD_SAMPLE_BANK || type == (CMD_SAMPLE_BANK | CMD_REQUEST)) {
+      // 0x00, 0x08, 0x01, or 0x09 for samples
       var name = data.slice(1, 24);
       var name_len = 0;
       for (var i = 0; i < name.length; i++) {
@@ -86,7 +87,7 @@ function onMIDIMessageReceived(event) {
       if (typeof resizeCanvasToParent === 'function') resizeCanvasToParent();
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
       if (typeof updateStatusBar === 'function') updateStatusBar();
-    } else if (type == CMD_UTIL) {
+    } else if (type == CMD_UTIL || type == (CMD_UTIL | CMD_REQUEST)) {
       var enc = new TextDecoder("utf-8");
       switch (data[26]) {
         case SX_TEENSY_VERSION:
@@ -109,7 +110,7 @@ function onMIDIMessageReceived(event) {
           if (bn) bn.value = bank_name;
           break;
       }
-    } else if (type == CMD_RAM_BANK) {
+    } else if (type == CMD_RAM_BANK || type == (CMD_RAM_BANK | CMD_REQUEST)) {
       console.log(`CMD_RAM_BANK ${event.data.length} bytes`);
       var el = de("ram_editor");
       if (el) {
@@ -200,14 +201,13 @@ function onMidiSuccessCallback(access) {
 
   if (midiIn != null && midiOut != null) {
     console.log("Connected to Luma");
-    var buf = new ArrayBuffer(32);
-    let dv = new DataView(buf);
+    var buf = new Uint8Array(32);
     buf[0] = CMD_UTIL | 0x08;
     buf[26] = SX_TEENSY_VERSION;
-    sendSysexToLuma(new Uint8Array(buf));
+    sendSysexToLuma(buf);
 
     buf[26] = SX_SERIAL_NUMBER;
-    sendSysexToLuma(new Uint8Array(buf));
+    sendSysexToLuma(buf);
   }
 }
 
@@ -288,8 +288,7 @@ function writeSampleToDeviceSlotBank(slotId, bankId) {
 function writeBankToDevice() {
   const bankId = de("bankId2").value;
 
-  var buf = new ArrayBuffer(32);
-  let dv = new DataView(buf);
+  var buf = new Uint8Array(32);
   buf[0] = CMD_UTIL | 0x08;
   const rbId = de("ram_bankId");
   buf[25] = rbId ? rbId.value : 0;
@@ -300,7 +299,7 @@ function writeBankToDevice() {
   for (let i = 0; i < bName.length; i++)
     buf[i + 1] = bName.charAt(i).charCodeAt();
 
-  sendSysexToLuma(new Uint8Array(buf));
+  sendSysexToLuma(buf);
 
   const write_order = [
     DRUM_CONGA, DRUM_TOM, DRUM_SNARE, DRUM_BASS, DRUM_HIHAT,
@@ -324,40 +323,41 @@ function readBankfromDevice() {
 }
 
 function readNextSampleInBank() {
-  var buf = new ArrayBuffer(32);
-  let dv = new DataView(buf);
+  var buf = new Uint8Array(32);
   buf[0] = CMD_SAMPLE | 0x08;
   buf[25] = reading_banks_id;
   buf[26] = reading_banks_current_slot;
-  sendSysexToLuma(new Uint8Array(buf));
+  sendSysexToLuma(buf);
 }
 
 function readSampleFromDevice() {
   if (typeof audio_init === 'function') audio_init();
 
-  var slotId = document.getElementById("slotId").selectedIndex;
-  var bankId = document.getElementById("bankId").value;
-  console.log("bankid = " + bankId);
+  const slotEl = de(current_mode === "luma1" ? "slotId" : "slotId_mu");
+  const bankEl = de("bankId");
+  if (!slotEl || !bankEl) return;
 
-  var buf = new ArrayBuffer(32);
-  let dv = new DataView(buf);
+  var slotId = slotEl.value;
+  var bankId = bankEl.value;
+  console.log(`Requesting sample: mode=${current_mode}, bank=${bankId}, slot=${slotId}`);
+
+  var buf = new Uint8Array(32);
   buf[0] = CMD_SAMPLE | 0x08;
   buf[25] = bankId;
   buf[26] = slotId;
 
-  sendSysexToLuma(new Uint8Array(buf));
+  sendSysexToLuma(buf);
 }
 
 function readRAMfromDevice() {
   if (typeof audio_init === 'function') audio_init();
 
-  var buf = new ArrayBuffer(32);
-  let dv = new DataView(buf);
+  var buf = new Uint8Array(32);
   buf[0] = CMD_RAM_BANK | 0x08;
   const rbId = de("ram_bankId");
   buf[25] = rbId ? rbId.value : 0;
 
-  sendSysexToLuma(new Uint8Array(buf));
+  sendSysexToLuma(buf);
 }
 
 function writeRAMToDevice() {
