@@ -2416,49 +2416,68 @@ async function uploadToDrive() {
   const sampleNameField = (current_mode === "luma1") ? "sample_name" : "sample_name_mu";
   let name = document.getElementById(sampleNameField).value || "untitled";
   
-  // For simplicity, we'll upload the current editor buffer as a .bin file
-  const blob = new Blob([editorSampleData], { type: 'application/octet-stream' });
-  const filename = name.endsWith(".bin") ? name : name + ".bin";
-
   const listContainer = document.getElementById("drive_file_list");
   const originalStatus = listContainer.innerHTML;
-  listContainer.innerHTML = `Uploading ${filename}...`;
+  listContainer.innerHTML = `Preparing files for upload...`;
 
   try {
     const folderId = await getOrCreateRootFolder();
     
-    const metadata = {
-      name: filename,
-      mimeType: 'application/octet-stream',
-      parents: [folderId]
-    };
+    // 1. Prepare and upload the .bin file
+    const binBlob = new Blob([editorSampleData], { type: 'application/octet-stream' });
+    const binFilename = name.endsWith(".bin") ? name : name + ".bin";
+    listContainer.innerHTML = `Uploading ${binFilename}...`;
+    await uploadBlobToDrive(binBlob, binFilename, 'application/octet-stream', folderId);
 
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', blob);
+    // 2. Prepare and upload the .wav file
+    const exportSampleRate = getSelectedSampleRate();
+    const audioBuffer = createAudioBufferFromBytes(editorSampleData, exportSampleRate);
+    if (!audioBuffer) throw new Error("Error creating audio buffer for WAV export");
+    
+    var channelData = audioBuffer.getChannelData(0);
+    var encoder = new WavAudioEncoder(exportSampleRate, 1);
+    encoder.encode([channelData]);
+    const wavBlob = encoder.finish();
+    const wavFilename = name.endsWith(".bin") ? name.slice(0, -4) + ".wav" : name + ".wav";
+    
+    listContainer.innerHTML = `Uploading ${wavFilename}...`;
+    await uploadBlobToDrive(wavBlob, wavFilename, 'audio/wav', folderId);
 
-    const response = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${googleDriveAccessToken}`
-        },
-        body: form
-      }
-    );
-
-    if (response.ok) {
-      alert(`Successfully uploaded ${filename} to your Google Drive!`);
-      listDriveFiles(); // Refresh the list
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.error.message);
-    }
+    alert(`Successfully uploaded both ${binFilename} and ${wavFilename} to your Google Drive!`);
+    listDriveFiles(); // Refresh the list
   } catch (error) {
     console.error("Upload failed:", error);
     alert("Upload failed: " + error.message);
     listContainer.innerHTML = originalStatus;
+  }
+}
+
+// Helper function to perform a single blob upload to Google Drive
+async function uploadBlobToDrive(blob, filename, mimeType, folderId) {
+  const metadata = {
+    name: filename,
+    mimeType: mimeType,
+    parents: [folderId]
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const response = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${googleDriveAccessToken}`
+      },
+      body: form
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error.message);
   }
 }
 
