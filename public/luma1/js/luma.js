@@ -26,6 +26,17 @@ let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
 
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAcdlLcHOK_j68DCQaECjfU9tNeIAAopVA",
+  authDomain: "luma-tools.firebaseapp.com",
+  projectId: "luma-tools",
+  storageBucket: "luma-tools.firebasestorage.app",
+  messagingSenderId: "225679885224",
+  appId: "1:225679885224:web:dff1e269683868fd85939d",
+  measurementId: "G-2X4KL02039"
+};
+
 // Drag state variables
 let isDraggingEndpoint = false;
 let draggingWhichEndpoint = null; // "in" or "out"
@@ -122,6 +133,35 @@ function de(id) {
 // Initialize the application.
 function luma1_init() {
   
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  // Set up Auth state listener
+  auth.onAuthStateChanged((user) => {
+    const loginBtn = document.getElementById("login_button");
+    const userInfo = document.getElementById("user_info");
+    const userName = document.getElementById("user_name");
+    const libAuthNotice = document.getElementById("librarian_auth_notice");
+    const libContent = document.getElementById("librarian_content");
+
+    if (user) {
+      if (loginBtn) loginBtn.style.display = "none";
+      if (userInfo) userInfo.style.display = "flex";
+      if (userName) userName.textContent = user.displayName || user.email;
+      if (libAuthNotice) libAuthNotice.style.display = "none";
+      if (libContent) libContent.style.display = "block";
+      console.log("User signed in:", user.uid);
+    } else {
+      if (loginBtn) loginBtn.style.display = "block";
+      if (userInfo) userInfo.style.display = "none";
+      if (userName) userName.textContent = "";
+      if (libAuthNotice) libAuthNotice.style.display = "block";
+      if (libContent) libContent.style.display = "none";
+      console.log("User signed out");
+    }
+  });
+
   // Initialize with Luma-1 mode
   current_mode = "luma1";
   slot_names = luma1_slot_names;
@@ -2181,4 +2221,19 @@ function updateUIForMode(mode) {
   
   // Redraw waveforms to update labels
   redrawAllWaveforms();
+}
+
+// Authentication functions
+function login() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).catch((error) => {
+    console.error("Login failed:", error);
+    alert("Login failed: " + error.message);
+  });
+}
+
+function logout() {
+  firebase.auth().signOut().catch((error) => {
+    console.error("Logout failed:", error);
+  });
 }

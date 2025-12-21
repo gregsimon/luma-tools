@@ -9,6 +9,9 @@
     <script src="js/jszip.min.js"></script>
     <script src="js/picorom.js"></script>
     <script src="js/wav.js"></script>
+    <!-- Firebase Compat (Non-ESM) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="js/luma.js"></script>
     <script src="js/hexy.js"></script>
     <title>Luma Tools</title>
@@ -29,7 +32,13 @@
         <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
         <div class="tab_button" id="librarian_tab_button">Librarian</div>
       </div>
-      <div style="margin-bottom:4px;">
+      <div style="display:flex; align-items:center; margin-bottom:4px;">
+        <div id="user_info" style="margin-right: 15px; display: none; align-items: center;">
+          <span id="user_name" style="margin-right: 8px; font-size: 14px;"></span>
+          <input type="button" value="Logout" onclick="logout()" />
+        </div>
+        <input type="button" id="login_button" value="Login with Google" onclick="login()" />
+        &nbsp;&nbsp;
         MIDI Device: <select id='midi_out_device' onchange='changeMidiOut();'>
           <!--<option value="">No MIDI connection</option>-->
         </select>
@@ -164,7 +173,15 @@
 
     <!-- LIBRARIAN page -->
     <div id="librarian_tab" class="main_section" style="display:none;">
-      <!-- Librarian content will go here -->
+      <div id="librarian_auth_notice" style="text-align: center; padding: 50px;">
+        <p>Please login to access your personal sound library.</p>
+        <input type="button" value="Login with Google" onclick="login()" />
+      </div>
+      <div id="librarian_content" style="display: none;">
+        <!-- Librarian content will go here -->
+        <h3>Your Sound Library</h3>
+        <p>Content coming soon...</p>
+      </div>
     </div> <!-- Librarian-->
 
 
