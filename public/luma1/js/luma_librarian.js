@@ -194,6 +194,10 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
           nameSpan.onclick = () => listDriveFiles(file.id, file.name);
         }
         
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.gap = "8px";
+        
         const actionBtn = document.createElement("input");
         actionBtn.type = "button";
         if (isFolder) {
@@ -204,8 +208,18 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
           actionBtn.onclick = () => downloadFromDrive(file.id, file.name);
         }
         
+        // Add Share button for files (not folders)
+        if (!isFolder) {
+          const shareBtn = document.createElement("input");
+          shareBtn.type = "button";
+          shareBtn.value = "Share";
+          shareBtn.onclick = () => shareDriveFile(file.id, file.name);
+          buttonContainer.appendChild(shareBtn);
+        }
+        
+        buttonContainer.appendChild(actionBtn);
         div.appendChild(nameSpan);
-        div.appendChild(actionBtn);
+        div.appendChild(buttonContainer);
         listContainer.appendChild(div);
       });
     } else {
@@ -357,6 +371,89 @@ async function uploadBankToDrive() {
     console.error("Upload failed:", error);
     alert("Upload failed: " + error.message);
     if (listContainer) listContainer.innerHTML = originalStatus;
+  }
+}
+
+async function shareDriveFile(fileId, filename) {
+  if (!googleDriveAccessToken) {
+    alert("Please click 'Login with Google' again to enable Google Drive access.");
+    return;
+  }
+
+  try {
+    // First, try to create a permission to allow anyone with the link to view (read-only)
+    let permissionCreated = false;
+    try {
+      const permissionResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${googleDriveAccessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            role: 'reader',
+            type: 'anyone'
+          })
+        }
+      );
+
+      if (permissionResponse.ok) {
+        permissionCreated = true;
+      } else {
+        // Check if permission already exists (409) or if it's a scope issue
+        const errorData = await permissionResponse.json();
+        if (errorData.error && errorData.error.code === 409) {
+          // Permission already exists, that's fine
+          permissionCreated = true;
+        } else if (errorData.error && errorData.error.message && errorData.error.message.includes('insufficient')) {
+          // Insufficient permissions - we'll still try to get/create a link
+          console.warn("Insufficient permissions to create share link, but will try to get existing link");
+        }
+      }
+    } catch (permError) {
+      console.warn("Error creating permission:", permError);
+      // Continue anyway to try to get the link
+    }
+
+    // Get the file metadata to retrieve the shareable link
+    let shareableLink = `https://drive.google.com/file/d/${fileId}/view`;
+    
+    try {
+      const fileResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=webViewLink,webContentLink`,
+        {
+          headers: {
+            'Authorization': `Bearer ${googleDriveAccessToken}`
+          }
+        }
+      );
+
+      if (fileResponse.ok) {
+        const fileData = await fileResponse.json();
+        shareableLink = fileData.webViewLink || fileData.webContentLink || shareableLink;
+      }
+    } catch (linkError) {
+      console.warn("Error getting file link:", linkError);
+      // Use the constructed link as fallback
+    }
+
+    // Copy to clipboard if possible, otherwise show in prompt
+    const message = permissionCreated 
+      ? `Shareable link for "${filename}" copied to clipboard!\n\n${shareableLink}\n\nAnyone with this link can view the file (read-only).`
+      : `Link for "${filename}" copied to clipboard!\n\n${shareableLink}\n\nNote: You may need to manually enable sharing in Google Drive for this link to work.`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareableLink);
+      alert(message);
+    } else {
+      // Fallback: show in prompt
+      prompt(`Shareable link for "${filename}" (read-only):`, shareableLink);
+    }
+  } catch (error) {
+    console.error("Share failed:", error);
+    alert("Failed to create shareable link: " + error.message + "\n\nYou may need to share the file manually through Google Drive.");
   }
 }
 
