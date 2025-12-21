@@ -25,7 +25,7 @@ let luma_firmware_version = "";
 let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
-let ENABLE_LIBRARIAN = true;
+let ENABLE_LIBRARIAN = false;
 
 // Firebase configuration
 const firebaseConfig = {
