@@ -38,8 +38,8 @@ function logout() {
 async function getOrCreateRootFolder() {
   if (lumaFolderId) return lumaFolderId;
 
-  console.log("Searching for 'luma1_sounds' folder...");
-  const query = encodeURIComponent("name = 'luma1_sounds' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+  console.log("Searching for 'luma_librarian' folder...");
+  const query = encodeURIComponent("name = 'luma_librarian' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`,
     {
@@ -61,7 +61,7 @@ async function getOrCreateRootFolder() {
     return lumaFolderId;
   }
 
-  console.log("Creating 'luma1_sounds' folder...");
+  console.log("Creating 'luma_librarian' folder...");
   const createResponse = await fetch(
     'https://www.googleapis.com/drive/v3/files',
     {
@@ -71,7 +71,7 @@ async function getOrCreateRootFolder() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        name: 'luma1_sounds',
+        name: 'luma_librarian',
         mimeType: 'application/vnd.google-apps.folder'
       })
     }
@@ -144,7 +144,7 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
     
     const rootLink = document.createElement("a");
     rootLink.href = "#";
-    rootLink.textContent = "luma1_sounds";
+    rootLink.textContent = "luma_librarian";
     rootLink.onclick = (e) => { e.preventDefault(); listDriveFiles(rootId); };
     navDiv.appendChild(rootLink);
 
