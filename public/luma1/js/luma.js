@@ -25,7 +25,7 @@ let luma_firmware_version = "";
 let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
-let ENABLE_LIBRARIAN = false;
+let ENABLE_LIBRARIAN = true;
 
 // Firebase configuration
 const firebaseConfig = {
@@ -2493,17 +2493,20 @@ async function downloadFromDrive(fileId, filename) {
     fileReader = { result: arrayBuffer }; // Mock fileReader for existing handlers
 
     const lowerFilename = filename.toLowerCase();
-    if (lowerFilename.endsWith(".wav")) {
-      droppedFileLoadedWav();
-      console.log(`Loaded ${filename} from Google Drive into the Editor.`);
-      switchTab(TAB_SAMPLE_EDITOR);
-    } else if (lowerFilename.endsWith(".zip")) {
+    if (lowerFilename.endsWith(".zip")) {
       droppedFileLoadedZip();
       console.log(`Loaded Bank ${filename} from Google Drive into Staging Slots.`);
     } else {
-      droppedFileLoadedBIN();
-      console.log(`Loaded ${filename} from Google Drive into the Editor.`);
+      // Switch tab BEFORE loading so that resizeCanvasToParent() 
+      // can calculate the correct parent width.
       switchTab(TAB_SAMPLE_EDITOR);
+
+      if (lowerFilename.endsWith(".wav")) {
+        droppedFileLoadedWav();
+      } else {
+        droppedFileLoadedBIN();
+      }
+      console.log(`Loaded ${filename} from Google Drive into the Editor.`);
     }
   } catch (error) {
     console.error("Download failed:", error);
