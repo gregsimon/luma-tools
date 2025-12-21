@@ -30,6 +30,9 @@ function droppedFileLoadedZip(event) {
       return;
     }
 
+    // Collect all file loading promises
+    var filePromises = [];
+
     for (const [key, value] of Object.entries(zip.files)) {
       if (!value.dir) {
         if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix) {
@@ -41,27 +44,44 @@ function droppedFileLoadedZip(event) {
         if (bankId >= 0) {
           if (tokens[1][0] == ".") continue;
           (function (bankId, filename) {
-            droppedZip.file(value.name).async("ArrayBuffer").then(function (data) {
+            var filePromise = droppedZip.file(value.name).async("ArrayBuffer").then(function (data) {
               bank[bankId].name = filename;
               const fileext = filename.slice(-4);
               if (fileext === ".wav") {
-                actx.decodeAudioData(data, function (buf) {
-                  const sampleData = createBytesFromAudioBuffer(buf);
-                  bank[bankId].sampleData = sampleData;
-                  bank[bankId].sampleLength = buf.length;
-                  bank[bankId].sample_rate = buf.sampleRate;
-                  if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+                return new Promise(function(resolve) {
+                  actx.decodeAudioData(data, function (buf) {
+                    const sampleData = createBytesFromAudioBuffer(buf);
+                    bank[bankId].sampleData = sampleData;
+                    bank[bankId].sampleLength = buf.length;
+                    bank[bankId].sample_rate = buf.sampleRate;
+                    resolve();
+                  }, function(error) {
+                    console.error("Error decoding audio:", error);
+                    resolve(); // Resolve anyway to not block other files
+                  });
                 });
               } else if (fileext === ".bin") {
                 bank[bankId].original_binary = cloneArrayBuffer(data);
                 bank[bankId].sampleData = convert_8b_ulaw_to_bytes(data);
                 bank[bankId].sampleLength = data.byteLength;
+                return Promise.resolve();
               }
+              return Promise.resolve();
             });
+            filePromises.push(filePromise);
           })(bankId, tokens[1]);
         }
       }
     }
+
+    // Wait for all files to load, then redraw waveforms once
+    Promise.all(filePromises).then(function() {
+      if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+      if (typeof updateStatusBar === 'function') updateStatusBar();
+    }).catch(function(error) {
+      console.error("Error loading bank files:", error);
+      if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+    });
   });
 }
 

@@ -324,6 +324,7 @@ async function downloadFromDrive(fileId, filename) {
 
     const lowerFilename = filename.toLowerCase();
     if (lowerFilename.endsWith(".zip")) {
+      if (typeof switchTab === 'function') switchTab(TAB_SAMPLE_EDITOR);
       if (typeof droppedFileLoadedZip === 'function') droppedFileLoadedZip();
       console.log(`Loaded Bank ${filename} from Google Drive into Staging Slots.`);
     } else {
