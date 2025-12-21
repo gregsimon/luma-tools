@@ -179,8 +179,14 @@
       </div>
       <div id="librarian_content" style="display: none;">
         <!-- Librarian content will go here -->
-        <h3>Your Sound Library</h3>
-        <p>Content coming soon...</p>
+        <p>Manage your sounds directly from your Google Drive account.</p>
+        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+          <input type="button" value="List Sounds from Drive" onclick="listDriveFiles()" />
+          <input type="button" value="Upload Current Sample to Drive" onclick="uploadToDrive()" />
+        </div>
+        <div id="drive_file_list" style="border: 1px solid #444; padding: 10px; min-height: 100px; background: #222; overflow-y: auto; max-height: 400px;">
+          Click "List Sounds" to see your files...
+        </div>
       </div>
     </div> <!-- Librarian-->
 
@@ -189,6 +195,8 @@
     <div>
       <hr>
       <a href="mailto:gregsimon@gmail.com">Feedback</a>
+      |
+      <a href="privacy.md">Privacy Policy</a>
       |
       <a href="https://github.com/gregsimon/luma-tools">GitHub</a>
       |

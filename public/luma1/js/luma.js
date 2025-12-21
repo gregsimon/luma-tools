@@ -2224,16 +2224,268 @@ function updateUIForMode(mode) {
 }
 
 // Authentication functions
+let googleDriveAccessToken = null;
+
 function login() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithPopup(provider).catch((error) => {
+  // drive.file: for uploading/creating files
+  // drive.readonly: to see and download files you've uploaded manually
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
+  provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+
+  firebase.auth().signInWithPopup(provider).then((result) => {
+    // This gives you a Google Access Token. You can use it to access the Google API.
+    googleDriveAccessToken = result.credential.accessToken;
+    console.log("Drive Access Token acquired");
+    
+    // If we're on the librarian tab, refresh the list
+    if (document.getElementById("librarian_tab").style.display !== "none") {
+      listDriveFiles();
+    }
+  }).catch((error) => {
     console.error("Login failed:", error);
     alert("Login failed: " + error.message);
   });
 }
 
 function logout() {
-  firebase.auth().signOut().catch((error) => {
+  firebase.auth().signOut().then(() => {
+    googleDriveAccessToken = null;
+    lumaFolderId = null;
+  }).catch((error) => {
     console.error("Logout failed:", error);
   });
+}
+
+// Google Drive API functions
+let lumaFolderId = null;
+
+async function getOrCreateRootFolder() {
+  if (lumaFolderId) return lumaFolderId;
+
+  console.log("Searching for 'luma1_sounds' folder...");
+  const query = encodeURIComponent("name = 'luma1_sounds' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`,
+    {
+      headers: {
+        'Authorization': `Bearer ${googleDriveAccessToken}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error("Folder search failed: " + errorData.error.message);
+  }
+
+  const data = await response.json();
+  if (data.files && data.files.length > 0) {
+    lumaFolderId = data.files[0].id;
+    console.log("Found existing 'luma1_sounds' folder:", lumaFolderId);
+    if (data.files.length > 1) {
+      console.warn("Multiple 'luma1_sounds' folders found. Using the first one.");
+    }
+    return lumaFolderId;
+  }
+
+  // Create it if it doesn't exist
+  console.log("Creating 'luma1_sounds' folder...");
+  const createResponse = await fetch(
+    'https://www.googleapis.com/drive/v3/files',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${googleDriveAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: 'luma1_sounds',
+        mimeType: 'application/vnd.google-apps.folder'
+      })
+    }
+  );
+
+  if (!createResponse.ok) {
+    const errorData = await createResponse.json();
+    throw new Error("Folder creation failed: " + errorData.error.message);
+  }
+
+  const newData = await createResponse.json();
+  lumaFolderId = newData.id;
+  console.log("Created new folder:", lumaFolderId);
+  return lumaFolderId;
+}
+
+async function listDriveFiles() {
+  if (!googleDriveAccessToken) {
+    alert("Please click 'Login with Google' again to enable Google Drive access for this session.");
+    return;
+  }
+
+  const listContainer = document.getElementById("drive_file_list");
+  listContainer.innerHTML = "Listing files...";
+
+  try {
+    const folderId = await getOrCreateRootFolder();
+    
+    // Search for .bin, .wav, and .zip files ONLY inside our specific folder
+    const query = encodeURIComponent(`'${folderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.zip') and trashed = false`);
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id, name, mimeType)`,
+      {
+        headers: {
+          'Authorization': `Bearer ${googleDriveAccessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error.message);
+    }
+
+    const data = await response.json();
+    
+    if (data.files && data.files.length > 0) {
+      listContainer.innerHTML = "";
+      data.files.forEach(file => {
+        const div = document.createElement("div");
+        div.style.padding = "8px";
+        div.style.borderBottom = "1px solid #333";
+        div.style.display = "flex";
+        div.style.justifyContent = "space-between";
+        div.style.alignItems = "center";
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        
+        const loadBtn = document.createElement("input");
+        loadBtn.type = "button";
+        loadBtn.value = file.name.toLowerCase().endsWith(".zip") ? "Load Bank into Slots" : "Load into Editor";
+        loadBtn.onclick = () => downloadFromDrive(file.id, file.name);
+        
+        div.appendChild(nameSpan);
+        div.appendChild(loadBtn);
+        listContainer.appendChild(div);
+      });
+    } else {
+      listContainer.innerHTML = "No compatible files (.bin, .wav, or .zip) found in your Drive.";
+    }
+  } catch (error) {
+    console.error("Error listing Drive files:", error);
+    listContainer.innerHTML = "Error listing files: " + error.message;
+  }
+}
+
+async function uploadToDrive() {
+  if (!googleDriveAccessToken) {
+    alert("Please click 'Login with Google' again to enable Google Drive access for this session.");
+    return;
+  }
+
+  if (!editorSampleData) {
+    alert("No sample loaded in the editor to upload.");
+    return;
+  }
+
+  const sampleNameField = (current_mode === "luma1") ? "sample_name" : "sample_name_mu";
+  let name = document.getElementById(sampleNameField).value || "untitled";
+  
+  // For simplicity, we'll upload the current editor buffer as a .bin file
+  const blob = new Blob([editorSampleData], { type: 'application/octet-stream' });
+  const filename = name.endsWith(".bin") ? name : name + ".bin";
+
+  const listContainer = document.getElementById("drive_file_list");
+  const originalStatus = listContainer.innerHTML;
+  listContainer.innerHTML = `Uploading ${filename}...`;
+
+  try {
+    const folderId = await getOrCreateRootFolder();
+    
+    const metadata = {
+      name: filename,
+      mimeType: 'application/octet-stream',
+      parents: [folderId]
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+
+    const response = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleDriveAccessToken}`
+        },
+        body: form
+      }
+    );
+
+    if (response.ok) {
+      alert(`Successfully uploaded ${filename} to your Google Drive!`);
+      listDriveFiles(); // Refresh the list
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.error.message);
+    }
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert("Upload failed: " + error.message);
+    listContainer.innerHTML = originalStatus;
+  }
+}
+
+async function downloadFromDrive(fileId, filename) {
+  if (!googleDriveAccessToken) {
+    alert("Please click 'Login with Google' again to enable Google Drive access.");
+    return;
+  }
+
+  const listContainer = document.getElementById("drive_file_list");
+  const originalStatus = listContainer.innerHTML;
+  listContainer.innerHTML = `Downloading ${filename}...`;
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${googleDriveAccessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to download file");
+
+    const arrayBuffer = await response.arrayBuffer();
+    
+    // Load into the editor
+    audio_init(); // Ensure AudioContext is ready
+    sampleName = trim_filename_ext(filename);
+    binaryFileOriginal = arrayBuffer;
+    fileReader = { result: arrayBuffer }; // Mock fileReader for existing handlers
+
+    const lowerFilename = filename.toLowerCase();
+    if (lowerFilename.endsWith(".wav")) {
+      droppedFileLoadedWav();
+      console.log(`Loaded ${filename} from Google Drive into the Editor.`);
+      switchTab(TAB_SAMPLE_EDITOR);
+    } else if (lowerFilename.endsWith(".zip")) {
+      droppedFileLoadedZip();
+      console.log(`Loaded Bank ${filename} from Google Drive into Staging Slots.`);
+    } else {
+      droppedFileLoadedBIN();
+      console.log(`Loaded ${filename} from Google Drive into the Editor.`);
+      switchTab(TAB_SAMPLE_EDITOR);
+    }
+  } catch (error) {
+    console.error("Download failed:", error);
+    //alert("Download failed: " + error.message);
+  } finally {
+    listContainer.innerHTML = originalStatus;
+    listDriveFiles(); // Refresh list to clear status
+  }
 }
