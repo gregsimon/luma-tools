@@ -293,6 +293,69 @@ async function uploadBlobToDrive(blob, filename, mimeType, folderId) {
   }
 }
 
+async function uploadBankToDrive() {
+  if (!googleDriveAccessToken) {
+    alert("Please click 'Login with Google' again to enable Google Drive access for this session.");
+    return;
+  }
+
+  const listContainer = document.getElementById("drive_file_list");
+  const originalStatus = listContainer ? listContainer.innerHTML : "";
+  if (listContainer) listContainer.innerHTML = `Preparing bank for upload...`;
+
+  try {
+    const rootId = await getOrCreateRootFolder();
+    const folderId = currentDriveFolderId || rootId;
+
+    // Get bank name (same logic as exportBankAsZip)
+    const bankNameField = (current_mode === "luma1") ? "bank_name" : "bank_name_mu";
+    const bnInput = document.getElementById(bankNameField);
+    const bank_name = (bnInput ? bnInput.value : "Untitled") || "Untitled";
+
+    // Create zip file (same logic as exportBankAsZip)
+    var zip = new JSZip();
+    zip.file("BANKNAME.TXT", bank_name);
+
+    let exportSlotNames = (current_mode === "lumamu") ? lumamu_slot_names : slot_names;
+    const numSlotsToExport = (current_mode === "lumamu") ? 8 : 10;
+    for (let i = 0; i < numSlotsToExport; i++) {
+      const slot_name = exportSlotNames[i];
+      let sample_name_base = trim_filename_ext(bank[i].name);
+      if (!sample_name_base || sample_name_base === "") {
+        sample_name_base = `sample_${i + 1}`;
+      }
+      if (bank[i].original_binary != null && bank[i].original_binary.byteLength > 0) {
+        zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);
+      }
+
+      const exportSampleRate = getSelectedSampleRate();
+      const audioBuffer = createAudioBufferFromBytes(bank[i].sampleData, exportSampleRate);
+      if (audioBuffer) {
+        var channelData = audioBuffer.getChannelData(0);
+        var encoder = new WavAudioEncoder(exportSampleRate, 1);
+        encoder.encode([channelData]);
+        var blob = encoder.finish();
+        zip.folder(slot_name).file(sample_name_base + ".wav", blob);
+      }
+    }
+
+    // Generate zip blob and upload
+    if (listContainer) listContainer.innerHTML = `Generating zip file...`;
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    
+    const zipFilename = bank_name + ".zip";
+    if (listContainer) listContainer.innerHTML = `Uploading ${zipFilename}...`;
+    await uploadBlobToDrive(zipBlob, zipFilename, 'application/zip', folderId);
+
+    alert(`Successfully uploaded ${zipFilename} to your Google Drive!`);
+    listDriveFiles();
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert("Upload failed: " + error.message);
+    if (listContainer) listContainer.innerHTML = originalStatus;
+  }
+}
+
 async function downloadFromDrive(fileId, filename) {
   if (!googleDriveAccessToken) {
     alert("Please click 'Login with Google' again to enable Google Drive access.");
