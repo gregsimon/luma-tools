@@ -2276,6 +2276,8 @@ function logout() {
   firebase.auth().signOut().then(() => {
     googleDriveAccessToken = null;
     lumaFolderId = null;
+    currentDriveFolderId = null;
+    driveFolderStack = [];
   }).catch((error) => {
     console.error("Logout failed:", error);
   });
@@ -2283,6 +2285,8 @@ function logout() {
 
 // Google Drive API functions
 let lumaFolderId = null;
+let currentDriveFolderId = null;
+let driveFolderStack = []; // Stack of {id, name} for breadcrumbs/navigation
 
 async function getOrCreateRootFolder() {
   if (lumaFolderId) return lumaFolderId;
@@ -2306,6 +2310,7 @@ async function getOrCreateRootFolder() {
   const data = await response.json();
   if (data.files && data.files.length > 0) {
     lumaFolderId = data.files[0].id;
+    if (!currentDriveFolderId) currentDriveFolderId = lumaFolderId;
     console.log("Found existing 'luma1_sounds' folder:", lumaFolderId);
     if (data.files.length > 1) {
       console.warn("Multiple 'luma1_sounds' folders found. Using the first one.");
@@ -2337,11 +2342,12 @@ async function getOrCreateRootFolder() {
 
   const newData = await createResponse.json();
   lumaFolderId = newData.id;
+  if (!currentDriveFolderId) currentDriveFolderId = lumaFolderId;
   console.log("Created new folder:", lumaFolderId);
   return lumaFolderId;
 }
 
-async function listDriveFiles() {
+async function listDriveFiles(targetFolderId = null, folderName = null) {
   if (!googleDriveAccessToken) {
     alert("Please click 'Login with Google' again to enable Google Drive access for this session.");
     return;
@@ -2351,12 +2357,31 @@ async function listDriveFiles() {
   listContainer.innerHTML = "Listing files...";
 
   try {
-    const folderId = await getOrCreateRootFolder();
+    const rootId = await getOrCreateRootFolder();
     
-    // Search for .bin, .wav, and .zip files ONLY inside our specific folder
-    const query = encodeURIComponent(`'${folderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.zip') and trashed = false`);
+    // Update navigation state
+    if (targetFolderId) {
+      if (targetFolderId === rootId) {
+        driveFolderStack = [];
+        currentDriveFolderId = rootId;
+      } else if (targetFolderId === "UP") {
+        driveFolderStack.pop();
+        currentDriveFolderId = driveFolderStack.length > 0 ? driveFolderStack[driveFolderStack.length - 1].id : rootId;
+      } else {
+        // Only push if we are moving forward to a new subfolder
+        if (driveFolderStack.length === 0 || driveFolderStack[driveFolderStack.length - 1].id !== targetFolderId) {
+          driveFolderStack.push({ id: targetFolderId, name: folderName });
+        }
+        currentDriveFolderId = targetFolderId;
+      }
+    } else if (!currentDriveFolderId) {
+      currentDriveFolderId = rootId;
+    }
+
+    // Search for .bin, .wav, .zip files AND folders inside current folder
+    const query = encodeURIComponent(`'${currentDriveFolderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.zip' or mimeType = 'application/vnd.google-apps.folder') and trashed = false`);
     const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id, name, mimeType)`,
+      `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=folder,name&fields=files(id, name, mimeType)`,
       {
         headers: {
           'Authorization': `Bearer ${googleDriveAccessToken}`
@@ -2370,10 +2395,50 @@ async function listDriveFiles() {
     }
 
     const data = await response.json();
+    listContainer.innerHTML = "";
+
+    // Add navigation header/breadcrumbs
+    const navDiv = document.createElement("div");
+    navDiv.style.padding = "5px";
+    navDiv.style.marginBottom = "10px";
+    navDiv.style.borderBottom = "1px dashed #555";
+    navDiv.style.fontSize = "0.9em";
+    
+    const rootLink = document.createElement("a");
+    rootLink.href = "#";
+    rootLink.textContent = "luma1_sounds";
+    rootLink.onclick = (e) => { e.preventDefault(); listDriveFiles(rootId); };
+    navDiv.appendChild(rootLink);
+
+    driveFolderStack.forEach((f, idx) => {
+      navDiv.appendChild(document.createTextNode(" / "));
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = f.name;
+      link.onclick = (e) => { 
+        e.preventDefault(); 
+        // Go back to this specific folder in the stack
+        driveFolderStack = driveFolderStack.slice(0, idx + 1);
+        listDriveFiles(f.id, f.name); 
+      };
+      navDiv.appendChild(link);
+    });
+    listContainer.appendChild(navDiv);
+
+    // Add "Up" button if not at root
+    if (currentDriveFolderId !== rootId) {
+      const upDiv = document.createElement("div");
+      upDiv.style.padding = "8px";
+      upDiv.style.cursor = "pointer";
+      upDiv.style.color = "#aaa";
+      upDiv.innerHTML = "<strong>📁 .. (Parent Folder)</strong>";
+      upDiv.onclick = () => listDriveFiles("UP");
+      listContainer.appendChild(upDiv);
+    }
     
     if (data.files && data.files.length > 0) {
-      listContainer.innerHTML = "";
       data.files.forEach(file => {
+        const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
         const div = document.createElement("div");
         div.style.padding = "8px";
         div.style.borderBottom = "1px solid #333";
@@ -2382,19 +2447,32 @@ async function listDriveFiles() {
         div.style.alignItems = "center";
         
         const nameSpan = document.createElement("span");
-        nameSpan.textContent = file.name;
+        nameSpan.textContent = (isFolder ? "📁 " : "📄 ") + file.name;
+        if (isFolder) {
+          nameSpan.style.cursor = "pointer";
+          nameSpan.style.fontWeight = "bold";
+          nameSpan.onclick = () => listDriveFiles(file.id, file.name);
+        }
         
-        const loadBtn = document.createElement("input");
-        loadBtn.type = "button";
-        loadBtn.value = file.name.toLowerCase().endsWith(".zip") ? "Load Bank into Slots" : "Load into Editor";
-        loadBtn.onclick = () => downloadFromDrive(file.id, file.name);
+        const actionBtn = document.createElement("input");
+        actionBtn.type = "button";
+        if (isFolder) {
+          actionBtn.value = "Open";
+          actionBtn.onclick = () => listDriveFiles(file.id, file.name);
+        } else {
+          actionBtn.value = file.name.toLowerCase().endsWith(".zip") ? "Load Bank into Slots" : "Load into Editor";
+          actionBtn.onclick = () => downloadFromDrive(file.id, file.name);
+        }
         
         div.appendChild(nameSpan);
-        div.appendChild(loadBtn);
+        div.appendChild(actionBtn);
         listContainer.appendChild(div);
       });
     } else {
-      listContainer.innerHTML = "No compatible files (.bin, .wav, or .zip) found in your Drive.";
+      const emptyMsg = document.createElement("div");
+      emptyMsg.style.padding = "10px";
+      emptyMsg.textContent = "This folder is empty.";
+      listContainer.appendChild(emptyMsg);
     }
   } catch (error) {
     console.error("Error listing Drive files:", error);
@@ -2421,7 +2499,8 @@ async function uploadToDrive() {
   listContainer.innerHTML = `Preparing files for upload...`;
 
   try {
-    const folderId = await getOrCreateRootFolder();
+    const rootId = await getOrCreateRootFolder();
+    const folderId = currentDriveFolderId || rootId;
     
     // 1. Prepare and upload the .bin file
     const binBlob = new Blob([editorSampleData], { type: 'application/octet-stream' });
