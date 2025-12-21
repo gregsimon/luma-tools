@@ -25,6 +25,7 @@ let luma_firmware_version = "";
 let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
+let ENABLE_LIBRARIAN = true;
 
 // Firebase configuration
 const firebaseConfig = {
@@ -147,13 +148,13 @@ function luma1_init() {
 
     if (user) {
       if (loginBtn) loginBtn.style.display = "none";
-      if (userInfo) userInfo.style.display = "flex";
+      if (userInfo) userInfo.style.display = ENABLE_LIBRARIAN ? "flex" : "none";
       if (userName) userName.textContent = user.displayName || user.email;
       if (libAuthNotice) libAuthNotice.style.display = "none";
       if (libContent) libContent.style.display = "block";
       console.log("User signed in:", user.uid);
     } else {
-      if (loginBtn) loginBtn.style.display = "block";
+      if (loginBtn) loginBtn.style.display = ENABLE_LIBRARIAN ? "block" : "none";
       if (userInfo) userInfo.style.display = "none";
       if (userName) userName.textContent = "";
       if (libAuthNotice) libAuthNotice.style.display = "block";
@@ -161,6 +162,14 @@ function luma1_init() {
       console.log("User signed out");
     }
   });
+
+  // Specifically hide login UI if librarian is disabled
+  if (!ENABLE_LIBRARIAN) {
+    const loginBtn = document.getElementById("login_button");
+    const userInfo = document.getElementById("user_info");
+    if (loginBtn) loginBtn.style.display = "none";
+    if (userInfo) userInfo.style.display = "none";
+  }
 
   // Initialize with Luma-1 mode
   current_mode = "luma1";
@@ -319,9 +328,14 @@ function luma1_init() {
   document.getElementById("midi_monitor_tab_button").onclick = () => {
     switchTab(TAB_MIDI_MONITOR);
   };
-  document.getElementById("librarian_tab_button").onclick = () => {
-    switchTab(TAB_LIBRARIAN);
-  };
+  
+  if (ENABLE_LIBRARIAN) {
+    document.getElementById("librarian_tab_button").onclick = () => {
+      switchTab(TAB_LIBRARIAN);
+    };
+  } else {
+    document.getElementById("librarian_tab_button").style.display = "none";
+  }
 
   // MIDI log
   document.getElementById("midi_log").readonly = true;
@@ -2155,6 +2169,11 @@ function updateUIForMode(mode) {
     document.getElementById("lumamu_sample_controls").style.display = "none";
     document.getElementById("pattern_editor_tab_button").style.display = "block";
     document.getElementById("midi_monitor_tab_button").style.display = "block";
+    if (ENABLE_LIBRARIAN) {
+      document.getElementById("librarian_tab_button").style.display = "block";
+    } else {
+      document.getElementById("librarian_tab_button").style.display = "none";
+    }
     
     // Update title
     document.title = "Luma-1 Tools";
@@ -2175,6 +2194,11 @@ function updateUIForMode(mode) {
     document.getElementById("lumamu_sample_controls").style.display = "block";
     document.getElementById("pattern_editor_tab_button").style.display = "none";
     document.getElementById("midi_monitor_tab_button").style.display = "none";
+    if (ENABLE_LIBRARIAN) {
+      document.getElementById("librarian_tab_button").style.display = "block";
+    } else {
+      document.getElementById("librarian_tab_button").style.display = "none";
+    }
     
     // If we're in a tab that's not available in Luma-Mu mode, switch to sample editor
     if (document.getElementById("pattern_editor_tab").style.display !== "none" ||
