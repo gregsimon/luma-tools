@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/luma.css">
+    <title>Terms of Service - Luma Tools</title>
+    <style>
+      #terms-content {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      #terms-content h1 {
+        color: rgb(236,221,223);
+        border-bottom: 2px solid rgb(138,138,138);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      #terms-content h2 {
+        color: rgb(236,221,223);
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+      #terms-content h3 {
+        color: rgb(236,221,223);
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+      #terms-content p {
+        margin-bottom: 15px;
+      }
+      #terms-content ul, #terms-content ol {
+        margin-bottom: 15px;
+        padding-left: 30px;
+      }
+      #terms-content li {
+        margin-bottom: 8px;
+      }
+      #terms-content a {
+        color: #7a7a7a;
+        text-decoration: underline;
+      }
+      #terms-content a:hover {
+        color: rgb(236,221,223);
+      }
+      #terms-content code {
+        background-color: rgb(15,15,15);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+      }
+      #terms-content hr {
+        border: none;
+        border-top: 1px solid rgb(138,138,138);
+        margin: 30px 0;
+      }
+      #loading {
+        text-align: center;
+        padding: 40px;
+        color: rgb(190,190,190);
+      }
+      #error {
+        color: rgb(146,5,24);
+        padding: 20px;
+        text-align: center;
+      }
+      .back-link {
+        margin-bottom: 20px;
+      }
+      .back-link a {
+        color: #7a7a7a;
+        text-decoration: none;
+      }
+      .back-link a:hover {
+        color: rgb(236,221,223);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terms-content">
+      <div class="back-link">
+        <a href="index.html">← Back to Luma Tools</a>
+      </div>
+      <div id="loading">Loading terms of service...</div>
+      <div id="error" style="display: none;"></div>
+      <div id="rendered-content" style="display: none;"></div>
+    </div>
+
+    <!-- Marked.js for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      // Load and render the markdown file
+      async function loadTerms() {
+        try {
+          const response = await fetch('terms.md');
+          if (!response.ok) {
+            throw new Error('Failed to load terms.md');
+          }
+          const markdown = await response.text();
+          
+          // Render markdown to HTML
+          const html = marked.parse(markdown);
+          
+          // Display the rendered content
+          document.getElementById('loading').style.display = 'none';
+          const contentDiv = document.getElementById('rendered-content');
+          contentDiv.innerHTML = html;
+          contentDiv.style.display = 'block';
+        } catch (error) {
+          document.getElementById('loading').style.display = 'none';
+          const errorDiv = document.getElementById('error');
+          errorDiv.textContent = 'Error loading terms: ' + error.message;
+          errorDiv.style.display = 'block';
+        }
+      }
+
+      // Load terms when page loads
+      loadTerms();
+    </script>
+  </body>
+</html>
+
