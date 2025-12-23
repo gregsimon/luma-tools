@@ -23,7 +23,10 @@ Luma1 hardware and uses WebAudio to do processing and playback. See luma.js for 
 is currently hosted on firebase, but can be hosted anywhere since there are no server-side 
 dependencies.
 
-##FAQ
+## Testing
+This project has an automated End-to-End test suite using Playwright. See [testing.md](testing.md) for details on how to install and run the tests.
+
+## FAQ
 - **Will it run in Safari?** No, as Safari does not support WebMIDI.
 - **Will it run offline?** It was designed to do this and will support this mode in an upcoming release!
 
