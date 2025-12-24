@@ -6,6 +6,11 @@ function resizeCanvasToParent() {
   if (canvas && canvas.parentElement) {
     canvas.width = canvas.parentElement.offsetWidth;
   }
+  
+  var sbCanvas = document.getElementById("scrollbar_canvas");
+  if (sbCanvas && sbCanvas.parentElement) {
+    sbCanvas.width = sbCanvas.parentElement.offsetWidth;
+  }
 
   // slot canvases
   for (let i = 0; i < 10; i++) {
@@ -33,41 +38,65 @@ function drawEditorCanvas() {
   ctx.fillRect(0, 0, w, h);
 
   if (editorSampleData && editorSampleLength > 0) {
+    const visibleSamples = editorSampleLength / editorZoomLevel;
+    
+    // Clamp scroll position
+    editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
+
     ctx.strokeStyle = editor_waveform_fg;
-    drawWaveform(w, h, ctx, editorSampleData, editorSampleLength);
+    drawWaveform(w, h, ctx, editorSampleData, editorSampleLength, editorViewStart, visibleSamples);
+    
     const tab_side = 15;
+    const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
 
     ctx.fillStyle = drag_handle_color;
-    var offset = (w * editor_in_point) / editorSampleLength;
-    ctx.fillRect(offset, 0, 1, h);
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset + tab_side, 0);
-    ctx.lineTo(offset, tab_side);
-    ctx.lineTo(offset, 0);
-    ctx.closePath();
-    ctx.fill();
+    var offset = sampleToX(editor_in_point);
+    
+    // Only draw in-point if it's within the visible range
+    if (offset >= -tab_side && offset <= w) {
+      ctx.fillRect(offset, 0, 1, h);
+      ctx.beginPath();
+      ctx.moveTo(offset, 0);
+      ctx.lineTo(offset + tab_side, 0);
+      ctx.lineTo(offset, tab_side);
+      ctx.lineTo(offset, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
 
-    //draw gray on first part of sample
+    // draw gray on first part of sample (before in-point)
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = "rgb(0,0,0)";
-    ctx.fillRect(0, 0, offset, h);
+    let grayInWidth = Math.min(w, Math.max(0, offset));
+    if (grayInWidth > 0) {
+      ctx.fillRect(0, 0, grayInWidth, h);
+    }
     ctx.globalAlpha = 1;
 
     ctx.fillStyle = drag_handle_color;
-    offset = (w * editor_out_point) / editorSampleLength;
-    ctx.fillRect(offset - 1, 0, 1, h);
-    ctx.beginPath();
-    ctx.moveTo(offset - 1 - tab_side, h);
-    ctx.lineTo(offset, h - tab_side);
-    ctx.lineTo(offset, h);
-    ctx.closePath();
-    ctx.fill();
+    var out_offset = sampleToX(editor_out_point);
+    
+    // Only draw out-point if it's within the visible range
+    if (out_offset >= 0 && out_offset <= w + tab_side) {
+      ctx.fillRect(out_offset - 1, 0, 1, h);
+      ctx.beginPath();
+      ctx.moveTo(out_offset - 1 - tab_side, h);
+      ctx.lineTo(out_offset, h - tab_side);
+      ctx.lineTo(out_offset, h);
+      ctx.closePath();
+      ctx.fill();
+    }
 
+    // draw gray on last part of sample (after out-point)
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = "rgb(0,0,0)";
-    ctx.fillRect(offset, 0, w, h);
+    let grayOutStart = Math.max(0, Math.min(w, out_offset));
+    if (grayOutStart < w) {
+      ctx.fillRect(grayOutStart, 0, w - grayOutStart, h);
+    }
     ctx.globalAlpha = 1;
+    
+    drawScrollbar();
   } else {
     ctx.fillStyle = slot_waveform_fg;
     ctx.textAlign = "center";
@@ -79,7 +108,67 @@ function drawEditorCanvas() {
     }
     
     ctx.fillText(helpText, w / 2, h / 2);
+    
+    // Also clear scrollbar
+    const sbCanvas = document.getElementById("scrollbar_canvas");
+    if (sbCanvas) {
+      const sbCtx = sbCanvas.getContext("2d");
+      sbCtx.fillStyle = editor_waveform_bg;
+      sbCtx.fillRect(0, 0, sbCanvas.width, sbCanvas.height);
+    }
   }
+}
+
+function drawScrollbar() {
+  const canvas = document.getElementById("scrollbar_canvas");
+  if (!canvas) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = editor_waveform_bg;
+  ctx.fillRect(0, 0, w, h);
+
+  if (!editorSampleData || editorSampleLength <= 0) return;
+
+  // Draw background track
+  ctx.fillStyle = "rgb(60, 60, 60)";
+  ctx.fillRect(0, 2, w, h - 4);
+
+  // Calculate thumb position and width
+  const thumbXActual = (editorViewStart / editorSampleLength) * w;
+  const thumbWidthActual = (1.0 / editorZoomLevel) * w;
+
+  ctx.fillStyle = drag_handle_color;
+  ctx.fillRect(thumbXActual, 4, Math.max(2, thumbWidthActual), h - 8);
+}
+
+function zoomIn() {
+  if (!editorSampleData) return;
+  const oldVisibleSamples = editorSampleLength / editorZoomLevel;
+  const centerX = editorViewStart + oldVisibleSamples / 2;
+  
+  editorZoomLevel *= 1.2;
+  if (editorZoomLevel > 500) editorZoomLevel = 500; // Cap zoom
+  
+  const newVisibleSamples = editorSampleLength / editorZoomLevel;
+  editorViewStart = centerX - newVisibleSamples / 2;
+  
+  drawEditorCanvas();
+}
+
+function zoomOut() {
+  if (!editorSampleData) return;
+  const oldVisibleSamples = editorSampleLength / editorZoomLevel;
+  const centerX = editorViewStart + oldVisibleSamples / 2;
+
+  editorZoomLevel /= 1.2;
+  if (editorZoomLevel < 1.0) editorZoomLevel = 1.0;
+  
+  const newVisibleSamples = editorSampleLength / editorZoomLevel;
+  editorViewStart = centerX - newVisibleSamples / 2;
+  
+  drawEditorCanvas();
 }
 
 function drawSlotWaveforms() {
@@ -135,10 +224,12 @@ function drawSlotWaveformOnCanvas(
   ctx.fillText(name + " : " + title + " ", w, 24);
 }
 
-function drawWaveform(w, h, ctx, sampleData, sampleLength) {
+function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numSamples = -1) {
+  if (numSamples === -1) numSamples = sampleLength;
+  
   ctx.beginPath();
   for (var x = 0; x < w; x++) {
-    var sample_idx = Math.floor((sampleLength * x) / w);
+    var sample_idx = Math.floor(startSample + (numSamples * x) / w);
     if (sample_idx >= sampleLength) break;
     
     // Convert uLaw to linear for display
@@ -159,6 +250,8 @@ function drawWaveform(w, h, ctx, sampleData, sampleLength) {
 }
 
 let editorCanvasMouseIsDown = false;
+let scrollbarMouseIsDown = false;
+
 function onEditorCanvasMouseDown(event) {
   editorCanvasMouseIsDown = true;
   
@@ -171,9 +264,12 @@ function onEditorCanvasMouseDown(event) {
   
   if (editorSampleData == null) return;
   
-  // Calculate endpoint positions
-  const in_offset = (w * editor_in_point) / editorSampleLength;
-  const out_offset = (w * editor_out_point) / editorSampleLength;
+  const visibleSamples = editorSampleLength / editorZoomLevel;
+  const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
+
+  // Calculate endpoint positions in pixels
+  const in_offset = sampleToX(editor_in_point);
+  const out_offset = sampleToX(editor_out_point);
   
   // Check if clicking on in-point handle (triangle at top)
   if (y < tab_side && x >= in_offset && x <= in_offset + tab_side) {
@@ -188,6 +284,31 @@ function onEditorCanvasMouseDown(event) {
     draggingWhichEndpoint = "out";
     return;
   }
+
+  // Snap to point if clicked in gutters but not on handles
+  if (y < tab_side) {
+    let new_pt = editorViewStart + (visibleSamples * x) / w;
+    if (new_pt < editor_out_point) {
+      editor_in_point = Math.floor(Math.max(0, new_pt));
+      isDraggingEndpoint = true;
+      draggingWhichEndpoint = "in";
+      if (typeof updateStatusBar === "function") updateStatusBar();
+      drawEditorCanvas();
+    }
+    return;
+  }
+
+  if (y >= h - tab_side) {
+    let new_pt = editorViewStart + (visibleSamples * x) / w;
+    if (new_pt > editor_in_point) {
+      editor_out_point = Math.floor(Math.min(editorSampleLength - 1, new_pt));
+      isDraggingEndpoint = true;
+      draggingWhichEndpoint = "out";
+      if (typeof updateStatusBar === "function") updateStatusBar();
+      drawEditorCanvas();
+    }
+    return;
+  }
   
   // If not clicking on endpoints, check if it's in the middle area for waveform drag
   const edge = h * drag_gutter_pct;
@@ -197,32 +318,8 @@ function onEditorCanvasMouseDown(event) {
 }
 
 function onEditorCanvasMouseMove(event) {
-  if (editorCanvasMouseIsDown && isDraggingEndpoint) {
-    const x = event.offsetX;
-    const y = event.offsetY;
-    const canvas = document.getElementById("editor_canvas");
-    const w = canvas.width;
-
-    if (editorSampleData == null) return;
-
-    var new_pt = (editorSampleLength * x) / w;
-    if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
-
-    // Handle endpoint dragging
-    if (draggingWhichEndpoint === "in") {
-      if (new_pt < editor_out_point) {
-        editor_in_point = Math.floor(new_pt);
-        editor_in_point = Math.max(0, editor_in_point);
-      }
-    } else if (draggingWhichEndpoint === "out") {
-      if (new_pt > editor_in_point) {
-        editor_out_point = Math.floor(new_pt);
-        editor_out_point = Math.min(editorSampleLength - 1, editor_out_point);
-      }
-    }
-    if (typeof updateStatusBar === 'function') updateStatusBar();
-    drawEditorCanvas();
-  }
+  // Logic moved to window mousemove listener in luma_core.js
+  // to support dragging outside the canvas.
 }
 
 function onEditorCanvasMouseUp(event) {
@@ -232,10 +329,40 @@ function onEditorCanvasMouseUp(event) {
   isDraggingWaveform = false;
 }
 
+function onScrollbarMouseDown(event) {
+  scrollbarMouseIsDown = true;
+  onScrollbarMouseMove(event);
+}
+
+function onScrollbarMouseMove(event) {
+  if (scrollbarMouseIsDown) {
+    const canvas = document.getElementById("scrollbar_canvas");
+    const w = canvas.width;
+    const x = event.offsetX;
+    
+    const visibleSamples = editorSampleLength / editorZoomLevel;
+    const thumbWidthActual = (1.0 / editorZoomLevel) * w;
+    
+    // Center the thumb on the mouse click
+    let newStartRatio = (x - thumbWidthActual / 2) / w;
+    editorViewStart = newStartRatio * editorSampleLength;
+    
+    // Clamp
+    editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
+    
+    drawEditorCanvas();
+  }
+}
+
+function onScrollbarMouseUp(event) {
+  scrollbarMouseIsDown = false;
+}
+
 function resetRange() {
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
+  editorZoomLevel = 1.0;
+  editorViewStart = 0;
   if (typeof updateStatusBar === 'function') updateStatusBar();
   redrawAllWaveforms();
 }
-

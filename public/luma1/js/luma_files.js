@@ -221,6 +221,8 @@ function droppedFileLoadedWav(event) {
   editorSampleLength = numFrames;
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
+  editorZoomLevel = 1.0;
+  editorViewStart = 0;
 
   const picker = document.getElementById('sample_rate_picker');
   if (picker) {
@@ -278,6 +280,8 @@ function interpretBinaryFile() {
 
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
+  editorZoomLevel = 1.0;
+  editorViewStart = 0;
 
   trimBufferToFitLuma();
   const snInput = document.getElementById("sample_name");

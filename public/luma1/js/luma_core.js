@@ -11,6 +11,8 @@ let midiIn = null;
 let fileReader;
 let editor_in_point = 0;
 let editor_out_point = 0;
+let editorZoomLevel = 1.0;
+let editorViewStart = 0;
 let sampleRate = 12000; // Hz
 let sampleName = "untitled";
 let shiftDown = false;
@@ -317,6 +319,23 @@ function luma1_init() {
     // For file drops (no text/plain data), let event bubble up to parent div
   };
 
+  // setup scrollbar
+  const sbCanvas = document.getElementById("scrollbar_canvas");
+  if (sbCanvas) {
+    sbCanvas.onmousedown = (event) => {
+      onScrollbarMouseDown(event);
+    };
+    sbCanvas.onmousemove = (event) => {
+      onScrollbarMouseMove(event);
+    };
+    sbCanvas.onmouseup = (event) => {
+      onScrollbarMouseUp(event);
+    };
+    sbCanvas.onmouseleave = (event) => {
+      onScrollbarMouseUp(event);
+    };
+  }
+
   // tabs
   document.getElementById("sample_editor_tab_button").onclick = () => {
     switchTab(TAB_SAMPLE_EDITOR);
@@ -356,6 +375,10 @@ function luma1_init() {
     if (e.key === " ") {
       e.preventDefault(); // TODO this prevents space in the text edit field
       playAudio();
+    } else if (e.key === "=" || e.key === "+") {
+      zoomIn();
+    } else if (e.key === "-") {
+      zoomOut();
     } else if (e.shiftKey) {
       shiftDown = true;
     }
@@ -376,7 +399,21 @@ function luma1_init() {
       
       if (editorSampleData == null) return;
       
-      var new_pt = (editorSampleLength * x) / w;
+      const visibleSamples = editorSampleLength / editorZoomLevel;
+
+      // Auto-scroll when dragging near edges
+      const scrollEdge = 20; // pixels
+      if (x < scrollEdge) {
+        editorViewStart -= visibleSamples * 0.05;
+      } else if (x > w - scrollEdge) {
+        editorViewStart += visibleSamples * 0.05;
+      }
+      
+      // Clamp editorViewStart
+      editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
+
+      var new_pt = editorViewStart + (visibleSamples * x) / w;
+      
       if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
       
       if (draggingWhichEndpoint === "in") {
