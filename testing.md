@@ -55,6 +55,7 @@ npx playwright show-report
 - `smoke.spec.ts`: Basic page load and mode switching.
 - `drag_drop.spec.ts`: Moving waveforms between the editor and bank slots.
 - `midi_read.spec.ts`: Mocking MIDI hardware to test sample loading.
+- `midi_monitor.spec.ts`: Simulating MIDI input and verifying the monitor log and filters.
 - `editor_ui.spec.ts`: Selection handles, text input, and sample manipulation (Reverse/Select All).
 - `file_upload.spec.ts`: Dragging and dropping .wav and .bin files from your computer.
 - `audio_processing.spec.ts`: Integrity tests for audio manipulation (Reverse round-trip).
