@@ -58,5 +58,6 @@ npx playwright show-report
 - `editor_ui.spec.ts`: Selection handles, text input, and sample manipulation (Reverse/Select All).
 - `file_upload.spec.ts`: Dragging and dropping .wav and .bin files from your computer.
 - `audio_processing.spec.ts`: Integrity tests for audio manipulation (Reverse round-trip).
+- `clip_test.spec.ts`: Selecting a subset of a sample and dragging the clipped result to a slot.
 - `export_zip.spec.ts`: Validating the bank export process and ZIP content.
 
