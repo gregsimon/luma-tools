@@ -37,6 +37,10 @@ Now you can drag samples in from the desktop (WAV, PCM) into the editing area. S
 ## How it works
 The project is a client-side-only web application. It uses **WebMIDI** to communicate with the Luma-1 hardware, **Web Serial** to communicate with PicoROM/Luma-mu devices, and **WebAudio** for processing and playback. See `luma_core.js` and other `luma_*.js` files for implementation details. It is currently hosted on Firebase, but can be hosted anywhere since there are no server-side dependencies.
 
+Luma Tools also supports integration with your Google Drive account to use that
+storage as personal librarian for your samples and banks. This is optional and requires
+you have a Google account and log in accordingly.
+
 ## Testing
 This project has an automated End-to-End test suite using Playwright. See [testing.md](testing.md) for details on how to install and run the tests.
 
