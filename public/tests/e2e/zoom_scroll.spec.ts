@@ -141,5 +141,29 @@ test.describe('Waveform Zoom and Scroll', () => {
     });
     expect(finalViewStart).toBeGreaterThan(initialViewStart);
   });
+
+  test('high zoom separator lines visibility threshold', async ({ page }) => {
+    // Zoom in until pixelsPerSample >= 5
+    // pixelsPerSample = (canvasWidth * editorZoomLevel) / editorSampleLength
+    
+    const thresholdMet = await page.evaluate(async () => {
+      const canvas = document.getElementById('editor_canvas') as HTMLCanvasElement;
+      const w = canvas.width;
+      
+      // Keep zooming in until threshold is met
+      let attempts = 0;
+      // @ts-ignore
+      while (attempts < 50 && (w * editorZoomLevel / editorSampleLength) < 5) {
+        // @ts-ignore
+        zoomIn();
+        attempts++;
+      }
+      
+      // @ts-ignore
+      return (w * editorZoomLevel / editorSampleLength) >= 5;
+    });
+    
+    expect(thresholdMet).toBe(true);
+  });
 });
 

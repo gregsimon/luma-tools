@@ -227,6 +227,29 @@ function drawSlotWaveformOnCanvas(
 function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numSamples = -1) {
   if (numSamples === -1) numSamples = sampleLength;
   
+  const pixelsPerSample = w / numSamples;
+  
+  // Draw sample separator lines if zoomed in enough (at least 5 pixels per sample)
+  if (pixelsPerSample >= 5) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(214, 214, 214, 0.2)";
+    ctx.lineWidth = 1;
+    
+    const firstSample = Math.floor(startSample);
+    const lastSample = Math.ceil(startSample + numSamples);
+    
+    for (let s = firstSample; s <= lastSample; s++) {
+      const x = ((s - startSample) * w) / numSamples;
+      if (x >= 0 && x <= w) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  
   ctx.beginPath();
   for (var x = 0; x < w; x++) {
     var sample_idx = Math.floor(startSample + (numSamples * x) / w);
