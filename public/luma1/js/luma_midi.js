@@ -114,13 +114,13 @@ function onMIDIMessageReceived(event) {
       console.log(`CMD_RAM_BANK ${event.data.length} bytes`);
       var el = de("ram_editor");
       if (el) {
-        ram_buffer = data.slice(32);
+        ram_dump = data.slice(32);
         var format = {
           width: 16,
           html: false,
           format: "twos",
         };
-        el.innerText = hexy(ram_buffer, format);
+        el.innerText = hexy(ram_dump, format);
       }
     } else {
       console.log("unsupported Luma packet type=" + type);
@@ -289,10 +289,9 @@ function writeBankToDevice() {
   const bankId = de("bankId2").value;
 
   var buf = new Uint8Array(32);
-  buf[0] = CMD_UTIL | 0x08;
-  const rbId = de("ram_bankId");
-  buf[25] = rbId ? rbId.value : 0;
-  buf[26] = SX_RAM_BANK_NAME;
+  buf[0] = CMD_UTIL | CMD_REQUEST;
+  buf[25] = bankId;
+  buf[26] = SX_VOICE_BANK_NAME;
   const kMaxChars = 24;
   const bnInput = de("bank_name");
   let bName = (bnInput ? bnInput.value : "Untitled").slice(0, kMaxChars);
@@ -353,16 +352,28 @@ function readRAMfromDevice() {
   if (typeof audio_init === 'function') audio_init();
 
   var buf = new Uint8Array(32);
-  buf[0] = CMD_RAM_BANK | 0x08;
+  buf[0] = CMD_RAM_BANK | CMD_REQUEST;
   const rbId = de("ram_bankId");
-  buf[25] = rbId ? rbId.value : 0;
+  buf[25] = rbId ? rbId.value : 255;
 
   sendSysexToLuma(buf);
 }
 
 function writeRAMToDevice() {
   if (typeof audio_init === 'function') audio_init();
-  // TODO
+
+  if (!ram_dump) return;
+
+  var buf = new Uint8Array(32 + ram_dump.length);
+  buf[0] = CMD_RAM_BANK;
+  const rbId = de("ram_bankId");
+  buf[25] = rbId ? rbId.value : 255;
+
+  for (let i = 0; i < ram_dump.length; i++) {
+    buf[i + 32] = ram_dump[i];
+  }
+
+  sendSysexToLuma(buf);
 }
 
 function formatMidiLogString(event) {
