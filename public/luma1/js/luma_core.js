@@ -232,14 +232,24 @@ function luma1_init() {
     el.innerHTML = '';
     
     // Get the appropriate slot names and number of slots based on mode
-    const slotNamesArray = (mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
-    const numSlots = slotNamesArray.length;
-    
-    for (let i = 0; i < numSlots; i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.innerHTML = slotNamesArray[i];
-      el.appendChild(opt);
+    if (mode === "luma1") {
+      for (let i = 0; i < luma1_slot_names.length; i++) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.innerHTML = luma1_slot_names[i];
+        el.appendChild(opt);
+      }
+    } else {
+      // Luma-Mu mode: show in numeric order SLOT 1, SLOT 2, ...
+      // These indices correspond to the order: 7 (SLOT 1), 6 (SLOT 2), 1 (SLOT 3), 0 (SLOT 4), 2 (SLOT 5), 3 (SLOT 6), 5 (SLOT 7), 4 (SLOT 8)
+      const lumamu_picker_order = [7, 6, 1, 0, 2, 3, 5, 4];
+      for (let i = 0; i < lumamu_picker_order.length; i++) {
+        const slotIdx = lumamu_picker_order[i];
+        const opt = document.createElement("option");
+        opt.value = slotIdx;
+        opt.innerHTML = lumamu_slot_names[slotIdx];
+        el.appendChild(opt);
+      }
     }
   };
   
