@@ -6,8 +6,6 @@ test.describe('Luma-mu Stretch to 16k', () => {
     await page.goto('/');
     // Switch to Luma-mu mode
     await page.selectOption('#device_mode', 'lumamu');
-    // Enable "Stretch to 16k"
-    await page.check('#stretch_to_16k');
   });
 
   test('should stretch a small .wav file to 16k', async ({ page }) => {
@@ -46,6 +44,9 @@ test.describe('Luma-mu Stretch to 16k', () => {
       const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
       target.dispatchEvent(event);
     }, { buffer: Array.from(wavBuffer), fileName: 'small_ramp.wav' });
+
+    // Click the stretch button
+    await page.click('#stretch_to_16k');
 
     // 1. Verify length is stretched to 16384
     const editorLength = await page.evaluate(() => {
@@ -91,6 +92,9 @@ test.describe('Luma-mu Stretch to 16k', () => {
       target.dispatchEvent(event);
     }, { buffer: Array.from(binBuffer), fileName: 'small_ramp.bin' });
 
+    // Click the stretch button
+    await page.click('#stretch_to_16k');
+
     // 1. Verify length is stretched to 16384
     const editorLength = await page.evaluate(() => {
       // @ts-ignore
@@ -106,9 +110,7 @@ test.describe('Luma-mu Stretch to 16k', () => {
     expect(sampleData.length).toBe(16384);
   });
 
-  test('should NOT stretch when checkbox is unchecked', async ({ page }) => {
-    await page.uncheck('#stretch_to_16k');
-
+  test('should NOT stretch automatically and button should be enabled for small samples', async ({ page }) => {
     const binSize = 1024;
     const binBuffer = Buffer.alloc(binSize).fill(0x55);
 
@@ -127,7 +129,31 @@ test.describe('Luma-mu Stretch to 16k', () => {
       // @ts-ignore
       return editorSampleLength;
     });
+    // Should NOT have stretched yet
     expect(editorLength).toBe(1024);
+
+    // Button should be enabled
+    const isEnabled = await page.isEnabled('#stretch_to_16k');
+    expect(isEnabled).toBe(true);
+  });
+
+  test('button should be disabled for samples >= 16k', async ({ page }) => {
+    const binSize = 16384;
+    const binBuffer = Buffer.alloc(binSize).fill(0x55);
+
+    await page.evaluate(({ buffer, fileName }) => {
+      const data = new Uint8Array(buffer);
+      const file = new File([data], fileName, { type: 'application/octet-stream' });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      const target = document.querySelector('.editor_waveform');
+      if (!target) throw new Error('Drop target not found');
+      const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+    }, { buffer: Array.from(binBuffer), fileName: 'large_sample.bin' });
+
+    const isEnabled = await page.isEnabled('#stretch_to_16k');
+    expect(isEnabled).toBe(false);
   });
 });
 

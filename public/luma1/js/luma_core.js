@@ -500,6 +500,12 @@ function updateStatusBar() {
   // Calculate and display the number of selected samples
   const sampleCount = editor_out_point - editor_in_point + 1;
   document.getElementById("sample_count").textContent = sampleCount;
+
+  // Enable/disable stretch button
+  const stretchBtn = document.getElementById("stretch_to_16k");
+  if (stretchBtn) {
+    stretchBtn.disabled = !(current_mode === "lumamu" && editorSampleLength > 0 && editorSampleLength < 16384);
+  }
 }
 
 function loadSettings() {
