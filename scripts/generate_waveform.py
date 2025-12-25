@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--samples", type=int, default=16384, help="Number of samples (default: 16384)")
     parser.add_argument("--freq", type=float, default=440.0, help="Frequency of wave in Hz (for sine, default: 440.0)")
     parser.add_argument("--rate", type=int, default=24000, help="Sample rate in Hz (default: 24000)")
+    parser.add_argument("--phase", type=float, default=0.0, help="Phase offset in degrees (default: 0.0)")
     parser.add_argument("--encoding", choices=["linear", "ulaw"], default="ulaw", help="Encoding: 8-bit linear (unsigned) or 8-bit uLaw (default: ulaw)")
     parser.add_argument("--luma-invert", action="store_true", default=True, help="Invert u-law bits as Luma Tools expects for internal storage (default: True)")
     parser.add_argument("--no-luma-invert", action="store_false", dest="luma_invert", help="Do not invert u-law bits")
@@ -51,11 +52,18 @@ def main():
 
     args = parser.parse_args()
 
+    if args.type == "sine" and args.freq >= args.rate / 2:
+        print(f"Warning: Frequency ({args.freq} Hz) is >= half the sample rate ({args.rate} Hz).")
+        print("This will result in aliasing or silence due to the Nyquist limit.")
+        if args.freq == args.rate / 2 and args.phase == 0:
+            print("Specifically, at exactly half the sample rate with 0 phase, the result will be silence.")
+
     # Generate float samples [-1, 1]
     samples = []
+    phase_rad = math.radians(args.phase)
     for i in range(args.samples):
         if args.type == "sine":
-            val = math.sin(2 * math.pi * args.freq * i / args.rate)
+            val = math.sin(2 * math.pi * args.freq * i / args.rate + phase_rad)
         elif args.type == "noise":
             val = random.uniform(-1, 1)
         else: # zero
@@ -81,8 +89,6 @@ def main():
     # Save to file
     ext = os.path.splitext(args.output)[1].lower()
     if ext == ".wav":
-        # WAV files are always 8-bit unsigned PCM for 'linear' or 'ulaw' (interpreted as PCM bytes)
-        # in this script's context. Standard 8-bit WAV is unsigned PCM.
         with wave.open(args.output, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(1) # 8-bit
@@ -101,4 +107,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
