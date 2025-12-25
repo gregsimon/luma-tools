@@ -210,15 +210,24 @@ function droppedFileLoadedWav(event) {
     }
   }
 
-  const sampleData = new Uint8Array(numFrames);
-  for (let i = 0; i < numFrames; i++) {
-    const linear = Math.round(channelData[i] * 32767);
+  let processingData = channelData;
+  let processingFrames = numFrames;
+
+  const stretchCheckbox = document.getElementById("stretch_to_16k");
+  if (stretchCheckbox && stretchCheckbox.checked && numFrames < 16384 && numFrames > 0 && current_mode === "lumamu") {
+    processingData = stretchLinearBuffer(channelData, 16384);
+    processingFrames = 16384;
+  }
+
+  const sampleData = new Uint8Array(processingFrames);
+  for (let i = 0; i < processingFrames; i++) {
+    const linear = Math.round(processingData[i] * 32767);
     const ulaw = linear_to_ulaw(linear);
     sampleData[i] = ~ulaw;
   }
 
   editorSampleData = sampleData;
-  editorSampleLength = numFrames;
+  editorSampleLength = processingFrames;
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
   editorZoomLevel = 1.0;
@@ -276,6 +285,12 @@ function interpretBinaryFile() {
     editorSampleLength = editorSampleData.length;
   } else if (binaryFormat === "pcm_u8") {
     loadBIN_u8b_pcm(binaryFileOriginal);
+  }
+
+  const stretchCheckbox = document.getElementById("stretch_to_16k");
+  if (stretchCheckbox && stretchCheckbox.checked && editorSampleLength < 16384 && editorSampleLength > 0 && current_mode === "lumamu") {
+    editorSampleData = stretchULawBuffer(editorSampleData, 16384);
+    editorSampleLength = 16384;
   }
 
   editor_in_point = 0;

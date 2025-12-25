@@ -66,6 +66,52 @@ function cloneSampleData(fromSampleData, fromLength, startIndex = 0, endIndex = 
   return newSampleData;
 }
 
+// Stretch a linear float32 buffer to a target length using linear interpolation
+function stretchLinearBuffer(inputData, targetLength) {
+  const inputLength = inputData.length;
+  if (inputLength === targetLength) return inputData;
+  
+  const outputData = new Float32Array(targetLength);
+  for (let i = 0; i < targetLength; i++) {
+    const pos = i * (inputLength - 1) / (targetLength - 1);
+    const index = Math.floor(pos);
+    const frac = pos - index;
+    if (index >= inputLength - 1) {
+      outputData[i] = inputData[inputLength - 1];
+    } else {
+      outputData[i] = (1 - frac) * inputData[index] + frac * inputData[index + 1];
+    }
+  }
+  return outputData;
+}
+
+// Stretch a uLaw buffer to a target length
+function stretchULawBuffer(inputData, targetLength) {
+  const inputLength = inputData.length;
+  if (inputLength === targetLength) return inputData;
+
+  // Convert to linear
+  const linearData = new Float32Array(inputLength);
+  for (let i = 0; i < inputLength; i++) {
+    let ulaw = inputData[i];
+    ulaw = ~ulaw; // Invert from storage format
+    const linear = ulaw_to_linear(ulaw);
+    linearData[i] = linear / 32768.0;
+  }
+
+  // Stretch linear
+  const stretchedLinear = stretchLinearBuffer(linearData, targetLength);
+
+  // Convert back to u-law
+  const outputData = new Uint8Array(targetLength);
+  for (let i = 0; i < targetLength; i++) {
+    const linear = Math.round(stretchedLinear[i] * 32767);
+    const ulaw = linear_to_ulaw(linear);
+    outputData[i] = ~ulaw;
+  }
+  return outputData;
+}
+
 function playSlotAudio(id) {
   if (typeof audio_init === 'function') audio_init();
   if (actx == undefined) return;

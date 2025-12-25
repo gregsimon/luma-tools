@@ -101,6 +101,9 @@
           </select>
           Sample name:<input type='text' value="untitled" id='sample_name_mu'/>
           <input type='button' value="Export WAV..." onclick="exportSample()"/>
+          <label title="When dropping a sample < 16k, stretch it to 16k using linear interpolation">
+            <input type="checkbox" id="stretch_to_16k" /> Stretch to 16k
+          </label>
         </div>
       </div>
 
