@@ -76,9 +76,11 @@ function droppedFileLoadedZip(event) {
 
     // Wait for all files to load, then redraw waveforms once
     Promise.all(filePromises).then(function() {
+      currentDropZone = null;
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
       if (typeof updateStatusBar === 'function') updateStatusBar();
     }).catch(function(error) {
+      currentDropZone = null;
       console.error("Error loading bank files:", error);
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
     });
@@ -134,6 +136,7 @@ function droppedFileLoadedRomMu(event) {
     if (typeof resetRange === 'function') resetRange();
   }
   
+  currentDropZone = null;
   if (typeof resizeCanvasToParent === 'function') resizeCanvasToParent();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
   if (typeof updateStatusBar === 'function') updateStatusBar();
@@ -220,8 +223,29 @@ function droppedFileLoadedWav(event) {
     sampleData[i] = ~ulaw;
   }
 
-  editorSampleData = sampleData;
-  editorSampleLength = processingFrames;
+  if (currentDropZone === "start") {
+    const newBuffer = new Uint8Array(editorSampleLength + processingFrames);
+    newBuffer.set(sampleData);
+    if (editorSampleData) {
+      newBuffer.set(editorSampleData, processingFrames);
+    }
+    editorSampleData = newBuffer;
+    editorSampleLength += processingFrames;
+  } else if (currentDropZone === "end") {
+    const newBuffer = new Uint8Array(editorSampleLength + processingFrames);
+    if (editorSampleData) {
+      newBuffer.set(editorSampleData);
+    }
+    newBuffer.set(sampleData, editorSampleLength);
+    editorSampleData = newBuffer;
+    editorSampleLength += processingFrames;
+  } else {
+    // Center or default (replace)
+    editorSampleData = sampleData;
+    editorSampleLength = processingFrames;
+  }
+
+  currentDropZone = null;
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
   editorZoomLevel = 1.0;
@@ -244,6 +268,18 @@ function droppedFileLoadedWav(event) {
 function dropHandler(ev) {
   ev.preventDefault();
   if (typeof audio_init === 'function') audio_init();
+
+  const rect = ev.currentTarget.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const width = rect.width;
+
+  if (x < width / 4) {
+    currentDropZone = "start";
+  } else if (x > (width * 3) / 4) {
+    currentDropZone = "end";
+  } else {
+    currentDropZone = "center";
+  }
 
   [...ev.dataTransfer.items].forEach((item, i) => {
     if (item.kind === "file") {
@@ -271,16 +307,58 @@ function dropHandler(ev) {
 
 function dragOverHandler(ev) {
   ev.preventDefault();
+  const rect = ev.currentTarget.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const width = rect.width;
+
+  let newDropZone;
+  if (x < width / 4) {
+    newDropZone = "start";
+  } else if (x > (width * 3) / 4) {
+    newDropZone = "end";
+  } else {
+    newDropZone = "center";
+  }
+
+  if (newDropZone !== currentDropZone) {
+    currentDropZone = newDropZone;
+    if (typeof drawEditorCanvas === "function") drawEditorCanvas();
+  }
+}
+
+function dragLeaveHandler(ev) {
+  currentDropZone = null;
+  if (typeof drawEditorCanvas === "function") drawEditorCanvas();
 }
 
 function interpretBinaryFile() {
+  let newSampleData;
   if (binaryFormat === "ulaw_u8") {
-    editorSampleData = convert_8b_ulaw_to_bytes(binaryFileOriginal);
-    editorSampleLength = editorSampleData.length;
+    newSampleData = convert_8b_ulaw_to_bytes(binaryFileOriginal);
   } else if (binaryFormat === "pcm_u8") {
-    loadBIN_u8b_pcm(binaryFileOriginal);
+    newSampleData = loadBIN_u8b_pcm_data(binaryFileOriginal);
   }
 
+  if (newSampleData) {
+    if (currentDropZone === "start") {
+      const combined = new Uint8Array(editorSampleLength + newSampleData.length);
+      combined.set(newSampleData);
+      if (editorSampleData) combined.set(editorSampleData, newSampleData.length);
+      editorSampleData = combined;
+      editorSampleLength = combined.length;
+    } else if (currentDropZone === "end") {
+      const combined = new Uint8Array(editorSampleLength + newSampleData.length);
+      if (editorSampleData) combined.set(editorSampleData);
+      combined.set(newSampleData, editorSampleLength);
+      editorSampleData = combined;
+      editorSampleLength = combined.length;
+    } else {
+      editorSampleData = newSampleData;
+      editorSampleLength = newSampleData.length;
+    }
+  }
+
+  currentDropZone = null;
   editor_in_point = 0;
   editor_out_point = editorSampleLength - 1;
   editorZoomLevel = 1.0;
@@ -300,16 +378,21 @@ function convert_8b_ulaw_to_bytes(arraybuf) {
   return sampleData;
 }
 
-function loadBIN_u8b_pcm(arraybuf) {
+function loadBIN_u8b_pcm_data(arraybuf) {
   let dv = new DataView(arraybuf);
-  editorSampleLength = dv.byteLength;
-  editorSampleData = new Uint8Array(dv.byteLength);
+  let data = new Uint8Array(dv.byteLength);
   for (let i = 0; i < dv.byteLength; i++) {
     var sample = (dv.getUint8(i) - 128) / 128.0;
     const linear = Math.round(sample * 32767);
     const ulaw = linear_to_ulaw(linear);
-    editorSampleData[i] = ~ulaw;
+    data[i] = ~ulaw;
   }
+  return data;
+}
+
+function loadBIN_u8b_pcm(arraybuf) {
+  editorSampleData = loadBIN_u8b_pcm_data(arraybuf);
+  editorSampleLength = editorSampleData.length;
 }
 
 function trimBufferToFitLuma() {

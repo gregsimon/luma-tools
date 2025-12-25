@@ -463,6 +463,7 @@ async function downloadFromDrive(fileId, filename) {
     return;
   }
 
+  currentDropZone = null;
   const listContainer = document.getElementById("drive_file_list");
   const originalStatus = listContainer ? listContainer.innerHTML : "";
   if (listContainer) listContainer.innerHTML = `Downloading ${filename}...`;

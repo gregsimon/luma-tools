@@ -117,6 +117,37 @@ function drawEditorCanvas() {
       sbCtx.fillRect(0, 0, sbCanvas.width, sbCanvas.height);
     }
   }
+
+  // Draw drop zone overlay if dragging
+  if (currentDropZone) {
+    ctx.fillStyle = "rgba(46, 155, 214, 0.3)";
+    ctx.strokeStyle = drag_handle_color;
+    ctx.lineWidth = 2;
+    ctx.textAlign = "center";
+    ctx.font = "bold 20px condensed";
+
+    let text = "";
+    let rectX = 0;
+    let rectW = w;
+
+    if (currentDropZone === "start") {
+      rectW = w / 4;
+      text = "Insert at Beginning";
+    } else if (currentDropZone === "end") {
+      rectX = (w * 3) / 4;
+      rectW = w / 4;
+      text = "Append to End";
+    } else {
+      rectX = w / 4;
+      rectW = w / 2;
+      text = "Replace Entire Buffer";
+    }
+
+    ctx.fillRect(rectX, 0, rectW, h);
+    ctx.strokeRect(rectX, 0, rectW, h);
+    ctx.fillStyle = "white";
+    ctx.fillText(text, rectX + rectW / 2, h / 2);
+  }
 }
 
 function drawScrollbar() {

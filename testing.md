@@ -61,4 +61,5 @@ npx playwright show-report
 - `audio_processing.spec.ts`: Integrity tests for audio manipulation (Reverse round-trip).
 - `clip_test.spec.ts`: Selecting a subset of a sample and dragging the clipped result to a slot.
 - `export_zip.spec.ts`: Validating the bank export process and ZIP content.
+- `file_drop_zones.spec.ts`: Testing the smart insertion/appending/replacement logic when dropping files.
 

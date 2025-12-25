@@ -3,8 +3,8 @@
 // globals
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
 let actx; // AudioContext
-let editorSampleData; // Uint8Array in uLaw format (active sample)
-let editorSampleLength; // number of samples
+let editorSampleData = null; // Uint8Array in uLaw format (active sample)
+let editorSampleLength = 0; // number of samples
 let midiAccess = null;
 let midiOut = null;
 let midiIn = null;
@@ -43,6 +43,7 @@ const firebaseConfig = {
 let isDraggingEndpoint = false;
 let draggingWhichEndpoint = null; // "in" or "out"
 let isDraggingWaveform = false;
+let currentDropZone = null; // null, "start", "center", "end"
 
 // settings lets that are persisted locally on computer
 let settings_midiDeviceName = "";
