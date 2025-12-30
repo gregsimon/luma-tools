@@ -12,7 +12,7 @@ function bankIdForName(name) {
 
 function droppedFileLoadedZip(event) {
   var droppedZip = new JSZip();
-  droppedZip.loadAsync(fileReader.result).then(function (zip) {
+  droppedZip.loadAsync(event.target.result).then(function (zip) {
     var bank_path_prefix = "";
     var found_bank = false;
     for (const [key, value] of Object.entries(zip.files)) {
@@ -88,7 +88,7 @@ function droppedFileLoadedZip(event) {
 }
 
 function droppedFileLoadedBIN(event) {
-  binaryFileOriginal = fileReader.result;
+  binaryFileOriginal = event.target.result;
   const bf = document.getElementById("binaryFormat");
   if (bf) bf.removeAttribute("disabled");
   interpretBinaryFile();
@@ -99,12 +99,12 @@ function droppedFileLoadedRomMu(event) {
   const NUM_SLOTS = 8;
   const TOTAL_SIZE = SLOT_SIZE * NUM_SLOTS;
   
-  if (fileReader.result.byteLength !== TOTAL_SIZE) {
+  if (event.target.result.byteLength !== TOTAL_SIZE) {
     alert("Invalid ROM file size. Expected 131072 bytes (128k)");
     return;
   }
   
-  const romData = new Uint8Array(fileReader.result);
+  const romData = new Uint8Array(event.target.result);
   const slot_import_order = [7, 6, 1, 0, 2, 3, 5, 4];
   
   for (let i = 0; i < NUM_SLOTS; i++) {
@@ -146,7 +146,7 @@ function droppedFileLoadedWav(event) {
   const bf = document.getElementById("binaryFormat");
   if (bf) bf.setAttribute("disabled", true);
 
-  const wavFile = new wav(fileReader.result);
+  const wavFile = new wav(event.target.result);
   if (wavFile.readyState !== wavFile.DONE) {
     alert("Error loading WAV file: " + wavFile.error);
     return;
@@ -166,7 +166,7 @@ function droppedFileLoadedWav(event) {
   const numFrames = dataLength / (bitsPerSample / 8) / numChannels;
   const audioBuffer = actx.createBuffer(1, numFrames, sRate);
   const channelData = audioBuffer.getChannelData(0);
-  const dataView = new DataView(fileReader.result, dataOffset, dataLength);
+  const dataView = new DataView(event.target.result, dataOffset, dataLength);
 
   if (bitsPerSample === 8) {
     for (let i = 0; i < numFrames; i++) {
@@ -265,6 +265,184 @@ function droppedFileLoadedWav(event) {
   if (snInput) snInput.value = sampleName;
 }
 
+function droppedFileLoadedAif(event) {
+  const bf = document.getElementById("binaryFormat");
+  if (bf) bf.setAttribute("disabled", true);
+
+  const data = event.target.result;
+  console.log("Attempting to decode audio, buffer size:", data.byteLength);
+  
+  // Try our custom AIFF parser first for standard PCM files, 
+  // as it's more reliable than decodeAudioData in some browsers
+  const aiffFile = new aiff(data);
+  if (aiffFile.readyState === aiffFile.DONE && aiffFile.format === 'AIFF') {
+    console.log("Using custom AIFF parser");
+    const numChannels = aiffFile.numChannels;
+    const bitsPerSample = aiffFile.sampleSize;
+    const sRate = aiffFile.sampleRate;
+    const dataOffset = aiffFile.dataOffset;
+    const dataLength = aiffFile.dataLength;
+    const numFrames = aiffFile.numSampleFrames;
+
+    const audioBuffer = actx.createBuffer(1, numFrames, sRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const dataView = new DataView(data, dataOffset, dataLength);
+
+    if (bitsPerSample === 8) {
+      for (let i = 0; i < numFrames; i++) {
+        if (numChannels === 1) {
+          channelData[i] = dataView.getInt8(i) / 128.0;
+        } else {
+          const left = dataView.getInt8(i * 2);
+          const right = dataView.getInt8(i * 2 + 1);
+          channelData[i] = (left + right) / 2 / 128.0;
+        }
+      }
+    } else if (bitsPerSample === 16) {
+      for (let i = 0; i < numFrames; i++) {
+        if (numChannels === 1) {
+          channelData[i] = dataView.getInt16(i * 2, false) / 32768.0;
+        } else {
+          const left = dataView.getInt16(i * 4, false);
+          const right = dataView.getInt16(i * 4 + 2, false);
+          channelData[i] = ((left + right) / 2) / 32768.0;
+        }
+      }
+    } else if (bitsPerSample === 24) {
+      for (let i = 0; i < numFrames; i++) {
+        const offset = i * 3 * numChannels;
+        let left = (dataView.getUint8(offset) << 16) | (dataView.getUint8(offset + 1) << 8) | dataView.getUint8(offset + 2);
+        if (left & 0x800000) left |= ~0xFFFFFF;
+        if (numChannels === 1) {
+          channelData[i] = left / 8388608.0;
+        } else {
+          let right = (dataView.getUint8(offset + 3) << 16) | (dataView.getUint8(offset + 4) << 8) | dataView.getUint8(offset + 5);
+          if (right & 0x800000) right |= ~0xFFFFFF;
+          channelData[i] = ((left + right) / 2) / 8388608.0;
+        }
+      }
+    } else if (bitsPerSample === 32) {
+      for (let i = 0; i < numFrames; i++) {
+        if (numChannels === 1) {
+          channelData[i] = dataView.getInt32(i * 4, false) / 2147483648.0;
+        } else {
+          const left = dataView.getInt32(i * 8, false);
+          const right = dataView.getInt32(i * 8 + 4, false);
+          channelData[i] = ((left + right) / 2) / 2147483648.0;
+        }
+      }
+    }
+
+    processDecodedAudio(audioBuffer);
+    return;
+  }
+
+  // Fallback to decodeAudioData for AIFC or if custom parser fails
+  console.log("Falling back to decodeAudioData");
+  let decodeCtx;
+  try {
+    decodeCtx = new classAudioContext();
+  } catch (e) {
+    decodeCtx = actx;
+  }
+
+  const decodePromise = new Promise((resolve, reject) => {
+    try {
+      const res = decodeCtx.decodeAudioData(data.slice(0), resolve, reject);
+      if (res && typeof res.then === 'function') {
+        res.then(resolve).catch(reject);
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+
+  decodePromise.then(function(buffer) {
+    processDecodedAudio(buffer);
+    if (decodeCtx && decodeCtx !== actx && typeof decodeCtx.close === 'function') decodeCtx.close();
+  }).catch(function(error) {
+    console.error("Error decoding audio:", error);
+    if (decodeCtx && decodeCtx !== actx && typeof decodeCtx.close === 'function') decodeCtx.close();
+    
+    const view = new Uint8Array(data.slice(0, 12));
+    const magic = String.fromCharCode(view[0], view[1], view[2], view[3]);
+    const format = String.fromCharCode(view[8], view[9], view[10], view[11]);
+    
+    let msg = `Error decoding audio file. The format (${magic}/${format}) may be unsupported by your browser.`;
+    if (magic === "FORM" && format !== "AIFF" && format !== "AIFC") {
+      msg = `This file appears to be an IFF file but not a standard AIFF (format: ${format}).`;
+    }
+    alert(msg);
+  });
+}
+
+function processDecodedAudio(buffer) {
+  const processingFrames = buffer.length;
+  const sRate = buffer.sampleRate;
+
+  // Mix to mono if necessary
+  let channelData;
+  if (buffer.numberOfChannels > 1) {
+    channelData = new Float32Array(processingFrames);
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+    for (let i = 0; i < processingFrames; i++) {
+      channelData[i] = (left[i] + right[i]) / 2;
+    }
+  } else {
+    channelData = buffer.getChannelData(0);
+  }
+
+  // Convert to internal format (u-law bytes)
+  const sampleData = new Uint8Array(processingFrames);
+  for (let i = 0; i < processingFrames; i++) {
+    const linear = Math.round(Math.max(-1, Math.min(1, channelData[i])) * 32767);
+    const ulaw = linear_to_ulaw(linear);
+    sampleData[i] = ~ulaw;
+  }
+
+  if (currentDropZone === "start") {
+    const newBuffer = new Uint8Array(editorSampleLength + processingFrames);
+    newBuffer.set(sampleData);
+    if (editorSampleData) {
+      newBuffer.set(editorSampleData, processingFrames);
+    }
+    editorSampleData = newBuffer;
+    editorSampleLength += processingFrames;
+  } else if (currentDropZone === "end") {
+    const newBuffer = new Uint8Array(editorSampleLength + processingFrames);
+    if (editorSampleData) {
+      newBuffer.set(editorSampleData);
+    }
+    newBuffer.set(sampleData, editorSampleLength);
+    editorSampleData = newBuffer;
+    editorSampleLength += processingFrames;
+  } else {
+    // Center or default (replace)
+    editorSampleData = sampleData;
+    editorSampleLength = processingFrames;
+  }
+
+  currentDropZone = null;
+  editor_in_point = 0;
+  editor_out_point = editorSampleLength - 1;
+  editorZoomLevel = 1.0;
+  editorViewStart = 0;
+
+  const picker = document.getElementById('sample_rate_picker');
+  if (picker) {
+    if ([12000, 24000, 44100, 48000].includes(sRate)) {
+      picker.value = sRate.toString();
+    } else {
+      picker.value = "24000"; 
+    }
+  }
+
+  trimBufferToFitLuma();
+  const snInput = document.getElementById("sample_name");
+  if (snInput) snInput.value = sampleName;
+}
+
 function dropHandler(ev) {
   ev.preventDefault();
   if (typeof audio_init === 'function') audio_init();
@@ -285,19 +463,22 @@ function dropHandler(ev) {
     if (item.kind === "file") {
       const file = item.getAsFile();
       var name = `${file.name}`;
-      sampleName = name.slice(0, name.length - 4);
-      name = name.toLowerCase();
+      const lastDot = name.lastIndexOf('.');
+      const ext = lastDot !== -1 ? name.slice(lastDot).toLowerCase() : "";
+      sampleName = lastDot !== -1 ? name.slice(0, lastDot) : name;
 
       fileReader = new FileReader();
-      if (name.slice(-4) === ".bin") {
+      if (ext === ".bin") {
         if (current_mode === "lumamu" && file.size === 131072) {
           fileReader.onload = droppedFileLoadedRomMu;
         } else {
           fileReader.onload = droppedFileLoadedBIN;
         }
-      } else if (name.slice(-4) === ".wav")
+      } else if (ext === ".wav")
         fileReader.onload = droppedFileLoadedWav;
-      else if (name.slice(-4) === ".zip")
+      else if (ext === ".aif" || ext === ".aiff")
+        fileReader.onload = droppedFileLoadedAif;
+      else if (ext === ".zip")
         fileReader.onload = droppedFileLoadedZip;
 
       fileReader.readAsArrayBuffer(file);
