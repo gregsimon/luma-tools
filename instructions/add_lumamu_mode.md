@@ -21,7 +21,7 @@ swtichable using a combo box at the top to either Luma-1 or Luma-Mu. In this alt
 - displays the voice slots as 2 cols, 5 rows in the UI
 
 ## Luma-Mu Mode
-- 8 voice slots named SLOT 1 .. Slot 8
+- 8 voice slots named SLOT 0 .. Slot 7
 - no ability to read/ write samples from the hardware. Only export the entire bank as a ROM image
 - the bank name becomes the name of the .ROM file when exporting.
 - Displays the voice slots as 1 col, 8 rows in the UI

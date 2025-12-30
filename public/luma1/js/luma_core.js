@@ -97,14 +97,14 @@ const luma1_slot_names = [
 // Luma-Mu slot names (ordered strange to follow 
 // unaddressed ordering of drum bank names)
 const lumamu_slot_names = [
-  "SLOT 4", // 0 
-  "SLOT 3", // 1
-  "SLOT 5", // 2
-  "SLOT 6", // 3
-  "SLOT 8", // 4
-  "SLOT 7", // 5
-  "SLOT 2", // 6
-  "SLOT 1", // 7
+  "SLOT 3", // 0 
+  "SLOT 2", // 1
+  "SLOT 4", // 2
+  "SLOT 5", // 3
+  "SLOT 7", // 4
+  "SLOT 6", // 5
+  "SLOT 1", // 6
+  "SLOT 0", // 7
 ];
 
 // Current slot names based on mode
@@ -241,8 +241,8 @@ function luma1_init() {
         el.appendChild(opt);
       }
     } else {
-      // Luma-Mu mode: show in numeric order SLOT 1, SLOT 2, ...
-      // These indices correspond to the order: 7 (SLOT 1), 6 (SLOT 2), 1 (SLOT 3), 0 (SLOT 4), 2 (SLOT 5), 3 (SLOT 6), 5 (SLOT 7), 4 (SLOT 8)
+      // Luma-Mu mode: show in numeric order SLOT 0, SLOT 1, ...
+      // These indices correspond to the order: 7 (SLOT 0), 6 (SLOT 1), 1 (SLOT 2), 0 (SLOT 3), 2 (SLOT 4), 3 (SLOT 5), 5 (SLOT 6), 4 (SLOT 7)
       const lumamu_picker_order = [7, 6, 1, 0, 2, 3, 5, 4];
       for (let i = 0; i < lumamu_picker_order.length; i++) {
         const slotIdx = lumamu_picker_order[i];

@@ -96,7 +96,7 @@ async function readFromPicoROMClicked() {
 
         bank[idx].sampleData = new Uint8Array(chunk);
         bank[idx].sampleLength = chunk.length;
-        bank[idx].name = `Slot ${idx + 1}`; // Provide a default name
+        bank[idx].name = `Slot ${i}`; // Provide a default name
         bank[idx].original_binary = chunk.buffer;
     }
 

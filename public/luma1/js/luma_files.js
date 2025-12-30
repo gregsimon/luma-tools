@@ -114,7 +114,7 @@ function droppedFileLoadedRomMu(event) {
     
     bank[slotIndex] = {
       id: slotIndex,
-      name: `Slot ${slotIndex + 1}`,
+      name: `Slot ${i}`,
       sample_rate: 24000,
       original_binary: slotData.buffer,
       sampleData: slotData,
@@ -698,7 +698,12 @@ function exportBankAsZip() {
     const slot_name = exportSlotNames[i];
     let sample_name_base = trim_filename_ext(bank[i].name);
     if (!sample_name_base || sample_name_base === "") {
-      sample_name_base = `sample_${i + 1}`;
+      if (current_mode === "lumamu") {
+        const match = slot_name.match(/SLOT (\d+)/);
+        sample_name_base = match ? `sample_${match[1]}` : `sample_${i}`;
+      } else {
+        sample_name_base = `sample_${i + 1}`;
+      }
     }
     if (bank[i].original_binary != null && bank[i].original_binary.byteLength > 0) {
       zip.folder(slot_name).file(sample_name_base + ".bin", bank[i].original_binary);

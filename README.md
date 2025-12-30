@@ -17,7 +17,7 @@ Luma-tools supports two different hardware devices. You can switch between them 
 - **Features:** Supports naming samples and banks, bank management, and real-time communication.
 
 ### Luma-mu Mode
-- **Slots:** 8 voice slots (SLOT 1 to SLOT 8).
+- **Slots:** 8 voice slots (SLOT 0 to SLOT 7).
 - **Connectivity:** No direct MIDI sample transfer. Instead, it supports exporting the entire bank as a ROM image.
 - **PicoROM Support:** Can directly program a PicoROM device connected via USB, or read banks from it.
 - **Features:** Bank names are used as filenames for ROM exports.
