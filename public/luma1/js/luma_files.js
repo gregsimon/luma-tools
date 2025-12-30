@@ -445,6 +445,17 @@ function processDecodedAudio(buffer) {
 
 function dropHandler(ev) {
   ev.preventDefault();
+
+  // If drag is internal (started from editor or slot), disable side zones.
+  // Internal drags have "text/plain" (the slot ID) but no "Files".
+  // External drags always have "Files", and might also have "text/plain".
+  const types = ev.dataTransfer ? Array.from(ev.dataTransfer.types) : [];
+  if (types.includes("text/plain") && !types.includes("Files")) {
+    currentDropZone = null;
+    if (typeof drawEditorCanvas === "function") drawEditorCanvas();
+    return;
+  }
+
   if (typeof audio_init === 'function') audio_init();
 
   const rect = ev.currentTarget.getBoundingClientRect();
@@ -488,6 +499,18 @@ function dropHandler(ev) {
 
 function dragOverHandler(ev) {
   ev.preventDefault();
+
+  // If drag is internal (started from editor or slot), disable side zones.
+  // Internal drags have "text/plain" (the slot ID) but no "Files".
+  const types = ev.dataTransfer ? Array.from(ev.dataTransfer.types) : [];
+  if (types.includes("text/plain") && !types.includes("Files")) {
+    if (currentDropZone !== null) {
+      currentDropZone = null;
+      if (typeof drawEditorCanvas === "function") drawEditorCanvas();
+    }
+    return;
+  }
+
   const rect = ev.currentTarget.getBoundingClientRect();
   const x = ev.clientX - rect.left;
   const width = rect.width;
@@ -754,6 +777,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
   }
 
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+  currentDropZone = null;
 }
 
 function stretchTo16kClicked() {
