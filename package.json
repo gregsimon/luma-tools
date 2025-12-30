@@ -1,0 +1,19 @@
+{
+  "name": "luma-tools",
+  "version": "1.0.0",
+  "description": "Luma Tools for MIDI and Audio processing",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "firebase-tools": "^13.16.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "http-server": "^14.1.1",
+    "jszip": "^3.10.1"
+  }
+}

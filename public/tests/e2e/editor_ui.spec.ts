@@ -54,7 +54,7 @@ test('editor selection and basic functions', async ({ page }) => {
   });
   expect(firstBytes).toEqual([0, 1, 2, 3]);
 
-  await page.click('input[value="Reverse"]');
+  await page.selectOption('#function_picker', 'Reverse');
   
   // Check first few bytes after reverse (should be the end of the original array reversed)
   firstBytes = await page.evaluate(() => {

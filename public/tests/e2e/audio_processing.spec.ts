@@ -28,7 +28,7 @@ test('audio processing: reverse integrity', async ({ page }) => {
   expect(currentData).toEqual(originalData);
 
   // 3. Reverse the sample
-  await page.click('input[value="Reverse"]');
+  await page.selectOption('#function_picker', 'Reverse');
 
   // 4. Check that it is reversed
   currentData = await page.evaluate(() => {
@@ -41,7 +41,7 @@ test('audio processing: reverse integrity', async ({ page }) => {
   expect(currentData[255]).toBe(0);
 
   // 5. Reverse again
-  await page.click('input[value="Reverse"]');
+  await page.selectOption('#function_picker', 'Reverse');
 
   // 6. Check that it is back to original
   currentData = await page.evaluate(() => {
