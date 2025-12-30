@@ -74,12 +74,18 @@
           &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
           (<span id='sample_count'>0</span> samples)
           <input type='button' value="Select All" onclick="resetRange()"/>
-          <input type='button' value="Reverse" onclick="reverseSampleBuffer()"/>
           &nbsp;Playback@<select id='sample_rate_picker'>
             <option value="12000">12000 Hz</option>
             <option value="24000" selected>24000 Hz</option>
             <option value="44100">44100 Hz</option>
             <option value="48000">48000 Hz</option>
+          </select>&nbsp;
+          <select id='function_picker' onchange='handleFunctionPicker(this)'>
+            <option value="" disabled selected>func()</option>
+            <option value="Crop">Crop</option>
+            <option value="Delete Selection">Delete Selection</option>
+            <option value="Zero Range">Zero Range</option>
+            <option value="Reverse">Reverse</option>
           </select>&nbsp;
           <input type='button' value="Preview" onclick="playAudio()"/>
         </div>

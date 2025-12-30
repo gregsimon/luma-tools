@@ -202,3 +202,78 @@ function reverseSampleBuffer() {
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
 
+function cropSample() {
+  if (!editorSampleData || editorSampleLength === 0) return;
+  
+  const start = Math.max(0, editor_in_point);
+  const end = Math.min(editorSampleLength - 1, editor_out_point);
+  
+  if (start > end) return;
+  
+  const newLength = end - start + 1;
+  const newSampleData = new Uint8Array(newLength);
+  newSampleData.set(editorSampleData.subarray(start, end + 1));
+  
+  editorSampleData = newSampleData;
+  editorSampleLength = newLength;
+  
+  if (typeof resetRange === 'function') resetRange();
+}
+
+function deleteSelection() {
+  if (!editorSampleData || editorSampleLength === 0) return;
+
+  const start = Math.max(0, editor_in_point);
+  const end = Math.min(editorSampleLength - 1, editor_out_point);
+
+  if (start > end) return;
+
+  const removeLength = end - start + 1;
+  const newLength = editorSampleLength - removeLength;
+
+  if (newLength === 0) {
+    editorSampleData = new Uint8Array(0);
+    editorSampleLength = 0;
+  } else {
+    const newSampleData = new Uint8Array(newLength);
+    // Copy part before selection
+    if (start > 0) {
+      newSampleData.set(editorSampleData.subarray(0, start));
+    }
+    // Copy part after selection
+    if (end < editorSampleLength - 1) {
+      newSampleData.set(editorSampleData.subarray(end + 1), start);
+    }
+    editorSampleData = newSampleData;
+    editorSampleLength = newLength;
+  }
+
+  if (typeof resetRange === 'function') resetRange();
+}
+
+function zeroRange() {
+  if (!editorSampleData || editorSampleLength === 0) return;
+
+  const start = Math.max(0, editor_in_point);
+  const end = Math.min(editorSampleLength - 1, editor_out_point);
+
+  if (start > end) return;
+
+  for (let i = start; i <= end; i++) {
+    editorSampleData[i] = 0;
+  }
+
+  if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+}
+
+function handleFunctionPicker(selectElement) {
+  const value = selectElement.value;
+  if (value === "Crop") cropSample();
+  else if (value === "Delete Selection") deleteSelection();
+  else if (value === "Zero Range") zeroRange();
+  else if (value === "Reverse") reverseSampleBuffer();
+  
+  // Reset the picker to the label
+  selectElement.selectedIndex = 0;
+}
+
