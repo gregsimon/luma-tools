@@ -3,6 +3,7 @@
 // globals
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
 let actx; // AudioContext
+let playingSound = null; // Currently playing AudioBufferSourceNode
 let editorSampleData = null; // Uint8Array in uLaw format (active sample)
 let editorSampleLength = 0; // number of samples
 let midiAccess = null;
@@ -471,6 +472,7 @@ function luma1_init() {
 }
 
 function switchTab(newTab) {
+  if (typeof stopPlayingSound === 'function') stopPlayingSound();
   de("sample_editor_tab").style.display = "none";
   de("pattern_editor_tab").style.display = "none";
   de("midi_monitor_tab").style.display = "none";

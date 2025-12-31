@@ -112,6 +112,17 @@ function stretchULawBuffer(inputData, targetLength) {
   return outputData;
 }
 
+function stopPlayingSound() {
+  if (playingSound) {
+    try {
+      playingSound.stop();
+    } catch (e) {
+      console.log("Error stopping sound:", e);
+    }
+    playingSound = null;
+  }
+}
+
 function playSlotAudio(id) {
   if (typeof audio_init === 'function') audio_init();
   if (actx == undefined) return;
@@ -119,6 +130,11 @@ function playSlotAudio(id) {
   // disable focus since it may double-trigger if "Preview" is selected and
   // the spacebar is pressed.
   document.activeElement.blur();
+
+  if (playingSound) {
+    stopPlayingSound();
+    return;
+  }
 
   // Get the selected sample rate for playback
   const playbackSampleRate = getSelectedSampleRate();
@@ -133,6 +149,11 @@ function playSlotAudio(id) {
 
   // convert end points into seconds for playback.
   theSound.start(0, 0, audioBuffer.length / playbackSampleRate);
+
+  playingSound = theSound;
+  playingSound.onended = () => {
+    playingSound = null;
+  };
 }
 
 function playAudio() {
@@ -142,6 +163,11 @@ function playAudio() {
   // disable focus since it may double-trigger if "Preview" is selected and
   // the spacebar is pressed.
   document.activeElement.blur();
+
+  if (playingSound) {
+    stopPlayingSound();
+    return;
+  }
 
   // Get the selected sample rate for playback
   const playbackSampleRate = getSelectedSampleRate();
@@ -169,6 +195,11 @@ function playAudio() {
     // duration (seconds) of the sample to play
     (editor_out_point - editor_in_point+1) / audioBuffer.sampleRate,
   );
+
+  playingSound = theSound;
+  playingSound.onended = () => {
+    playingSound = null;
+  };
 }
 
 function generateRamp() {
