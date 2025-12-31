@@ -144,13 +144,13 @@ test('file drop zones: buffer concatenation logic', async ({ page }) => {
   expect(data).toEqual([0, 0, 0]);
 });
 
-test('file drop zones: max sample size limit', async ({ page }) => {
+test('file drop zones: max sample size limit (now limitless in editor)', async ({ page }) => {
   await page.goto('/');
 
   // Initialize with a large buffer close to the limit (32768 for luma1)
   await page.evaluate(() => {
     // @ts-ignore
-    current_mode = "luma1"; // Max 32768
+    current_mode = "luma1"; // Previously max 32768
     const size = 32760;
     // @ts-ignore
     editorSampleData = new Uint8Array(size).fill(1);
@@ -162,7 +162,7 @@ test('file drop zones: max sample size limit', async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
     currentDropZone = "end";
-    const newSample = new Uint8Array(20).fill(2); // total 32780 > 32768
+    const newSample = new Uint8Array(20).fill(2); // total 32780
     const processingFrames = 20;
 
     // @ts-ignore
@@ -179,7 +179,7 @@ test('file drop zones: max sample size limit', async ({ page }) => {
     // @ts-ignore
     editorSampleLength = editorLength + processingFrames;
 
-    // Call trimBufferToFitLuma() which should enforce the limit
+    // Call trimBufferToFitLuma() which should NO LONGER enforce the limit
     // @ts-ignore
     if (typeof trimBufferToFitLuma === 'function') trimBufferToFitLuma();
   });
@@ -188,13 +188,14 @@ test('file drop zones: max sample size limit', async ({ page }) => {
     // @ts-ignore
     return editorSampleLength;
   });
-  expect(finalLength).toBe(32768);
+  // Should now be 32780, not 32768
+  expect(finalLength).toBe(32780);
 
   const lastSamples = await page.evaluate(() => {
     // @ts-ignore
-    return Array.from(editorSampleData.slice(32760, 32768));
+    return Array.from(editorSampleData.slice(32760, 32780));
   });
-  // Should be the first 8 samples of the new 20-sample block
-  expect(lastSamples).toEqual([2, 2, 2, 2, 2, 2, 2, 2]);
+  // Should contain all 20 of the new samples
+  expect(lastSamples).toEqual(new Array(20).fill(2));
 });
 

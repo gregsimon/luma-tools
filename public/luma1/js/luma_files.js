@@ -600,19 +600,9 @@ function loadBIN_u8b_pcm(arraybuf) {
 }
 
 function trimBufferToFitLuma() {
-  const max = getMaxSampleSize();
-  if (editorSampleLength > max) {
-    const newSampleData = new Uint8Array(max);
-    newSampleData.set(editorSampleData.subarray(0, max));
-    editorSampleData = newSampleData;
-    editorSampleLength = max;
-    editor_in_point = 0;
-    editor_out_point = editorSampleLength - 1;
-  } else {
-    editor_in_point = 0;
-    editor_out_point = editorSampleLength - 1;
-  }
-
+  // We no longer truncate to max size here. 
+  // The editor now allows longer samples to be loaded.
+  
   if (typeof resizeCanvasToParent === 'function') resizeCanvasToParent();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
   if (typeof updateStatusBar === 'function') updateStatusBar();
@@ -755,10 +745,16 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
   if (srcId == dstId) return;
 
   if (srcId == 255) {
-    const numSamples = editor_out_point - editor_in_point + 1;
-    bank[dstId].sampleData = cloneSampleData(editorSampleData, editorSampleLength, editor_in_point, editor_out_point + 1);
+    // Copying from editor to a slot. 
+    // Slots have a hard limit based on the current mode.
+    const max = getMaxSampleSize();
+    let numSamples = editor_out_point - editor_in_point + 1;
+    if (numSamples > max) numSamples = max;
+
+    bank[dstId].sampleData = cloneSampleData(editorSampleData, editorSampleLength, editor_in_point, editor_in_point + numSamples);
     bank[dstId].sampleLength = numSamples;
-    const snInput = document.getElementById("sample_name");
+    
+    const snInput = (current_mode === "luma1") ? document.getElementById("sample_name") : document.getElementById("sample_name_mu");
     bank[dstId].name = snInput ? snInput.value : "untitled";
     bank[dstId].original_binary = cloneArrayBuffer(binaryFileOriginal);
   } else if (dstId == 255) {

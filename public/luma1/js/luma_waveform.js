@@ -43,12 +43,32 @@ function drawEditorCanvas() {
     // Clamp scroll position
     editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
 
+    const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
+
+    // Draw max slot size indicator (transparent green block)
+    // This shows how much of the sample (starting at the in-point) 
+    // will be copied to a slot based on the current device mode.
+    const slotSize = getMaxSampleSize();
+    const greenEndPoint = editor_in_point + slotSize;
+    const inX = sampleToX(editor_in_point);
+    const endX = sampleToX(greenEndPoint);
+    
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = "rgb(0, 255, 0)";
+    
+    const blockStart = Math.max(0, inX);
+    const blockEnd = Math.min(w, endX);
+    if (blockEnd > blockStart) {
+      ctx.fillRect(blockStart, 0, blockEnd - blockStart, h);
+    }
+    ctx.restore();
+
     ctx.strokeStyle = editor_waveform_fg;
     drawWaveform(w, h, ctx, editorSampleData, editorSampleLength, editorViewStart, visibleSamples);
     
     const tab_side = 15;
-    const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
-
+    
     ctx.fillStyle = drag_handle_color;
     var offset = sampleToX(editor_in_point);
     
