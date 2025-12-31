@@ -118,7 +118,7 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
       currentDriveFolderId = rootId;
     }
 
-    const query = encodeURIComponent(`'${currentDriveFolderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.aif' or name contains '.aiff' or name contains '.flac' or name contains '.zip' or mimeType = 'application/vnd.google-apps.folder') and trashed = false`);
+    const query = encodeURIComponent(`'${currentDriveFolderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.mp3' or name contains '.aif' or name contains '.aiff' or name contains '.flac' or name contains '.zip' or mimeType = 'application/vnd.google-apps.folder') and trashed = false`);
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=folder,name&fields=files(id, name, mimeType)`,
       {
@@ -497,6 +497,12 @@ async function downloadFromDrive(fileId, filename) {
 
       if (lowerFilename.endsWith(".wav")) {
         if (typeof droppedFileLoadedWav === 'function') droppedFileLoadedWav();
+      } else if (lowerFilename.endsWith(".mp3")) {
+        if (typeof droppedFileLoadedMp3 === 'function') droppedFileLoadedMp3();
+      } else if (lowerFilename.endsWith(".aif") || lowerFilename.endsWith(".aiff")) {
+        if (typeof droppedFileLoadedAif === 'function') droppedFileLoadedAif();
+      } else if (lowerFilename.endsWith(".flac")) {
+        if (typeof droppedFileLoadedFlac === 'function') droppedFileLoadedFlac();
       } else {
         if (typeof droppedFileLoadedBIN === 'function') droppedFileLoadedBIN();
       }

@@ -48,7 +48,7 @@ function droppedFileLoadedZip(event) {
               bank[bankId].name = filename;
               const fileext = filename.slice(-4).toLowerCase();
               const fileext5 = filename.slice(-5).toLowerCase();
-              if (fileext === ".wav" || fileext === ".aif" || fileext5 === ".aiff") {
+              if (fileext === ".wav" || fileext === ".aif" || fileext === ".mp3" || fileext5 === ".aiff") {
                 return new Promise(function(resolve) {
                   actx.decodeAudioData(data, function (buf) {
                     const sampleData = createBytesFromAudioBuffer(buf);
@@ -295,6 +295,23 @@ function droppedFileLoadedFlac(event) {
   });
 }
 
+function droppedFileLoadedMp3(event) {
+  const bf = document.getElementById("binaryFormat");
+  if (bf) bf.setAttribute("disabled", true);
+
+  const data = event.target.result;
+  actx.decodeAudioData(data, function(buffer) {
+    if (buffer) {
+      processDecodedAudio(buffer);
+    } else {
+      alert("Error decoding MP3 file.");
+    }
+  }, function(error) {
+    console.error("Error decoding MP3:", error);
+    alert("Error decoding MP3 file: " + error.message);
+  });
+}
+
 function droppedFileLoadedAif(event) {
   const bf = document.getElementById("binaryFormat");
   if (bf) bf.setAttribute("disabled", true);
@@ -521,6 +538,8 @@ function dropHandler(ev) {
         fileReader.onload = droppedFileLoadedAif;
       else if (ext === ".flac")
         fileReader.onload = droppedFileLoadedFlac;
+      else if (ext === ".mp3")
+        fileReader.onload = droppedFileLoadedMp3;
       else if (ext === ".zip")
         fileReader.onload = droppedFileLoadedZip;
 

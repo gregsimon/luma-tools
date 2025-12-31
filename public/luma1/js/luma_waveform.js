@@ -122,9 +122,9 @@ function drawEditorCanvas() {
     ctx.textAlign = "center";
     ctx.font = "24px condensed";
     
-    let helpText = "Drag a .bin, .wav, .aif, .flac, or .zip archive here to get started.";
+    let helpText = "Drag a .bin, .wav, .mp3, .aif, .flac, or .zip archive here to get started.";
     if (current_mode === "lumamu") {
-      helpText = "Drag a .bin (ROM file), .wav, .aif, .flac, or .zip archive here to get started.";
+      helpText = "Drag a .bin (ROM file), .wav, .mp3, .aif, .flac, or .zip archive here to get started.";
     }
     
     ctx.fillText(helpText, w / 2, h / 2);
