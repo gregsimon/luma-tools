@@ -118,7 +118,7 @@ async function listDriveFiles(targetFolderId = null, folderName = null) {
       currentDriveFolderId = rootId;
     }
 
-    const query = encodeURIComponent(`'${currentDriveFolderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.zip' or mimeType = 'application/vnd.google-apps.folder') and trashed = false`);
+    const query = encodeURIComponent(`'${currentDriveFolderId}' in parents and (name contains '.bin' or name contains '.wav' or name contains '.aif' or name contains '.aiff' or name contains '.flac' or name contains '.zip' or mimeType = 'application/vnd.google-apps.folder') and trashed = false`);
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=folder,name&fields=files(id, name, mimeType)`,
       {

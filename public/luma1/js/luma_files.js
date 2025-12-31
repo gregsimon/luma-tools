@@ -46,8 +46,9 @@ function droppedFileLoadedZip(event) {
           (function (bankId, filename) {
             var filePromise = droppedZip.file(value.name).async("ArrayBuffer").then(function (data) {
               bank[bankId].name = filename;
-              const fileext = filename.slice(-4);
-              if (fileext === ".wav") {
+              const fileext = filename.slice(-4).toLowerCase();
+              const fileext5 = filename.slice(-5).toLowerCase();
+              if (fileext === ".wav" || fileext === ".aif" || fileext5 === ".aiff") {
                 return new Promise(function(resolve) {
                   actx.decodeAudioData(data, function (buf) {
                     const sampleData = createBytesFromAudioBuffer(buf);
@@ -58,6 +59,19 @@ function droppedFileLoadedZip(event) {
                   }, function(error) {
                     console.error("Error decoding audio:", error);
                     resolve(); // Resolve anyway to not block other files
+                  });
+                });
+              } else if (fileext5 === ".flac") {
+                return new Promise(function(resolve) {
+                  const flacDecoder = new flac(data);
+                  flacDecoder.decode(function(buf) {
+                    if (buf) {
+                      const sampleData = createBytesFromAudioBuffer(buf);
+                      bank[bankId].sampleData = sampleData;
+                      bank[bankId].sampleLength = buf.length;
+                      bank[bankId].sample_rate = buf.sampleRate;
+                    }
+                    resolve();
                   });
                 });
               } else if (fileext === ".bin") {
@@ -263,6 +277,22 @@ function droppedFileLoadedWav(event) {
   trimBufferToFitLuma();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
+}
+
+function droppedFileLoadedFlac(event) {
+  const bf = document.getElementById("binaryFormat");
+  if (bf) bf.setAttribute("disabled", true);
+
+  const data = event.target.result;
+  const flacDecoder = new flac(data);
+  
+  flacDecoder.decode(function(buffer) {
+    if (buffer) {
+      processDecodedAudio(buffer);
+    } else {
+      alert("Error decoding FLAC file. Your browser might not support this format or the file is corrupt.");
+    }
+  });
 }
 
 function droppedFileLoadedAif(event) {
@@ -485,10 +515,12 @@ function dropHandler(ev) {
         } else {
           fileReader.onload = droppedFileLoadedBIN;
         }
-      } else if (ext === ".wav")
+      }       else if (ext === ".wav")
         fileReader.onload = droppedFileLoadedWav;
       else if (ext === ".aif" || ext === ".aiff")
         fileReader.onload = droppedFileLoadedAif;
+      else if (ext === ".flac")
+        fileReader.onload = droppedFileLoadedFlac;
       else if (ext === ".zip")
         fileReader.onload = droppedFileLoadedZip;
 

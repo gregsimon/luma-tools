@@ -616,14 +616,14 @@ function updateUIForMode(mode) {
   if (helpTextElement) {
     if (mode === "luma1") {
       helpTextElement.innerHTML = 
-        "Drag a binary file (8-bit PCM or uLaw), Wav file, or a zip archive of a bank onto top editor above.<br>" +
+        "Drag a binary file (8-bit PCM or uLaw), Wav, AIFF, or FLAC file, or a zip archive of a bank onto top editor above.<br>" +
         "Press \"Spacebar\" to playback sample in browser<br>" +
         "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
         "Drag waveforms between slots in the staging area, they can also be dragged to and from the editor<br>" +
         "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
     } else {
       helpTextElement.innerHTML = 
-        "Drag a ROM file (.bin), Wav file, or a zip archive of a bank onto top editor above.<br>" +
+        "Drag a ROM file (.bin), Wav, AIFF, or FLAC file, or a zip archive of a bank onto top editor above.<br>" +
         "ROM files should be 131072 bytes (128k) containing 8 slots of sample data.<br>" +
         "Press \"Spacebar\" to playback sample in browser<br>" +
         "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
