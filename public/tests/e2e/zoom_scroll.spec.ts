@@ -165,5 +165,53 @@ test.describe('Waveform Zoom and Scroll', () => {
     
     expect(thresholdMet).toBe(true);
   });
+
+  test('zoom in anchored to mouse position', async ({ page }) => {
+    const canvas = page.locator('#editor_canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas not found');
+
+    // Move mouse to 1/4 of the canvas width
+    const targetX = box.x + box.width / 4;
+    const targetY = box.y + box.height / 2;
+    await page.mouse.move(targetX, targetY);
+
+    // Initial state: zoom 1.0, viewStart 0
+    let state = await page.evaluate(() => {
+      // @ts-ignore
+      return { zoom: editorZoomLevel, start: editorViewStart };
+    });
+    expect(state.zoom).toBe(1.0);
+    expect(state.start).toBe(0);
+
+    // Zoom in using '+' key
+    await page.keyboard.press('+');
+
+    // The zoom center should be 1/4 into the sample (2500 for a 10000 sample)
+    // New zoom level should be 1.2
+    // Visible samples = 10000 / 1.2 = 8333.33
+    // zoomCenter (2500) = newViewStart + (1/4) * newVisibleSamples
+    // newViewStart = 2500 - (1/4) * 8333.33 = 2500 - 2083.33 = 416.66
+    
+    state = await page.evaluate(() => {
+      // @ts-ignore
+      return { zoom: editorZoomLevel, start: editorViewStart };
+    });
+    
+    expect(state.zoom).toBeCloseTo(1.2);
+    expect(state.start).toBeCloseTo(416.66, -1);
+
+    // Zoom out using '-' key
+    await page.keyboard.press('-');
+    
+    state = await page.evaluate(() => {
+      // @ts-ignore
+      return { zoom: editorZoomLevel, start: editorViewStart };
+    });
+
+    // Should return to roughly original state
+    expect(state.zoom).toBeCloseTo(1.0);
+    expect(state.start).toBeCloseTo(0, 0);
+  });
 });
 

@@ -14,6 +14,7 @@ let editor_in_point = 0;
 let editor_out_point = 0;
 let editorZoomLevel = 1.0;
 let editorViewStart = 0;
+let editorMouseX = -1; // Current mouse X on editor canvas, -1 if not over canvas
 let sampleRate = 12000; // Hz
 let sampleName = "untitled";
 let shiftDown = false;
@@ -307,6 +308,7 @@ function luma1_init() {
     if (!isDraggingEndpoint) {
       onEditorCanvasMouseUp(event);
     }
+    editorMouseX = -1;
   };
   canvas.ondragstart = (ev) => {
     // Only allow waveform dragging if not dragging endpoints and we're in waveform drag mode

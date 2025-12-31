@@ -196,28 +196,48 @@ function drawScrollbar() {
 
 function zoomIn() {
   if (!editorSampleData) return;
+  const canvas = document.getElementById("editor_canvas");
+  if (!canvas) return;
+  const w = canvas.width;
+  
   const oldVisibleSamples = editorSampleLength / editorZoomLevel;
-  const centerX = editorViewStart + oldVisibleSamples / 2;
+  
+  let mouseRatio = 0.5;
+  if (editorMouseX >= 0 && editorMouseX <= w) {
+    mouseRatio = editorMouseX / w;
+  }
+  
+  const zoomCenterSample = editorViewStart + mouseRatio * oldVisibleSamples;
   
   editorZoomLevel *= 1.2;
   if (editorZoomLevel > 500) editorZoomLevel = 500; // Cap zoom
   
   const newVisibleSamples = editorSampleLength / editorZoomLevel;
-  editorViewStart = centerX - newVisibleSamples / 2;
+  editorViewStart = zoomCenterSample - mouseRatio * newVisibleSamples;
   
   drawEditorCanvas();
 }
 
 function zoomOut() {
   if (!editorSampleData) return;
+  const canvas = document.getElementById("editor_canvas");
+  if (!canvas) return;
+  const w = canvas.width;
+
   const oldVisibleSamples = editorSampleLength / editorZoomLevel;
-  const centerX = editorViewStart + oldVisibleSamples / 2;
+
+  let mouseRatio = 0.5;
+  if (editorMouseX >= 0 && editorMouseX <= w) {
+    mouseRatio = editorMouseX / w;
+  }
+
+  const zoomCenterSample = editorViewStart + mouseRatio * oldVisibleSamples;
 
   editorZoomLevel /= 1.2;
   if (editorZoomLevel < 1.0) editorZoomLevel = 1.0;
   
   const newVisibleSamples = editorSampleLength / editorZoomLevel;
-  editorViewStart = centerX - newVisibleSamples / 2;
+  editorViewStart = zoomCenterSample - mouseRatio * newVisibleSamples;
   
   drawEditorCanvas();
 }
@@ -392,8 +412,7 @@ function onEditorCanvasMouseDown(event) {
 }
 
 function onEditorCanvasMouseMove(event) {
-  // Logic moved to window mousemove listener in luma_core.js
-  // to support dragging outside the canvas.
+  editorMouseX = event.offsetX;
 }
 
 function onEditorCanvasMouseUp(event) {
