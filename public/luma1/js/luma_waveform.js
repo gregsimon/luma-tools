@@ -115,6 +115,22 @@ function drawEditorCanvas() {
       ctx.fillRect(grayOutStart, 0, w - grayOutStart, h);
     }
     ctx.globalAlpha = 1;
+
+    // Draw playback cursor if playing editor sound
+    if (playingSound && playingSound.isEditorSound && typeof actx !== 'undefined' && actx && typeof getSelectedSampleRate === 'function') {
+      const elapsed = actx.currentTime - playbackStartTime;
+      const currentSample = (playingSound.playbackOffset + elapsed) * getSelectedSampleRate();
+      const cursorX = sampleToX(currentSample);
+      
+      if (cursorX >= 0 && cursorX <= w) {
+        ctx.strokeStyle = "rgb(255, 255, 255)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cursorX, 0);
+        ctx.lineTo(cursorX, h);
+        ctx.stroke();
+      }
+    }
     
     drawScrollbar();
   } else {

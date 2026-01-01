@@ -121,6 +121,21 @@ function stopPlayingSound() {
     }
     playingSound = null;
   }
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+}
+
+function updatePlaybackCursor() {
+  if (playingSound && playingSound.isEditorSound) {
+    if (typeof drawEditorCanvas === 'function') drawEditorCanvas();
+    animationFrameId = requestAnimationFrame(updatePlaybackCursor);
+  } else {
+    animationFrameId = null;
+    if (typeof drawEditorCanvas === 'function') drawEditorCanvas();
+  }
 }
 
 function playSlotAudio(id) {
@@ -151,8 +166,12 @@ function playSlotAudio(id) {
   theSound.start(0, 0, audioBuffer.length / playbackSampleRate);
 
   playingSound = theSound;
+  playingSound.isEditorSound = false;
   playingSound.onended = () => {
-    playingSound = null;
+    if (playingSound === theSound) {
+      playingSound = null;
+      if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+    }
   };
 }
 
@@ -186,20 +205,36 @@ function playAudio() {
   console.log("start at " + editor_in_point / playbackSampleRate + " seconds");
   console.log("total duration = " + (editor_out_point - editor_in_point+1) / playbackSampleRate + " seconds");
   
+  const duration = (editor_out_point - editor_in_point+1) / audioBuffer.sampleRate;
+  const offset = editor_in_point / audioBuffer.sampleRate;
+
   // convert end points into seconds for playback.
   theSound.start(
     // when (seconds) playback should start (immediately)
     0,
     // offset (seconds) into the buffer where playback starts
-    editor_in_point / audioBuffer.sampleRate, 
+    offset, 
     // duration (seconds) of the sample to play
-    (editor_out_point - editor_in_point+1) / audioBuffer.sampleRate,
+    duration,
   );
 
   playingSound = theSound;
+  playingSound.isEditorSound = true;
+  playbackStartTime = actx.currentTime;
+  playingSound.playbackOffset = offset;
   playingSound.onended = () => {
-    playingSound = null;
+    if (playingSound === theSound) {
+      playingSound = null;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+    }
   };
+
+  // Start animation loop for playback cursor
+  updatePlaybackCursor();
 }
 
 function generateRamp() {

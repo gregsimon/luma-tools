@@ -4,6 +4,8 @@
 const classAudioContext = window.AudioContext || window.webkitAudioContext;
 let actx; // AudioContext
 let playingSound = null; // Currently playing AudioBufferSourceNode
+let playbackStartTime = 0; // actx.currentTime when playback started
+let animationFrameId = null; // ID for requestAnimationFrame
 let editorSampleData = null; // Uint8Array in uLaw format (active sample)
 let editorSampleLength = 0; // number of samples
 let midiAccess = null;

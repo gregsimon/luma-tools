@@ -45,6 +45,14 @@ test.describe('Luma-mu Stretch to 16k', () => {
       target.dispatchEvent(event);
     }, { buffer: Array.from(wavBuffer), fileName: 'small_ramp.wav' });
 
+    // Wait for the file to be loaded
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        // @ts-ignore
+        return editorSampleLength;
+      });
+    }).toBe(1000);
+
     // Click the stretch button
     await page.click('#stretch_to_16k');
 
@@ -92,6 +100,14 @@ test.describe('Luma-mu Stretch to 16k', () => {
       target.dispatchEvent(event);
     }, { buffer: Array.from(binBuffer), fileName: 'small_ramp.bin' });
 
+    // Wait for the file to be loaded
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        // @ts-ignore
+        return editorSampleLength;
+      });
+    }).toBe(1024);
+
     // Click the stretch button
     await page.click('#stretch_to_16k');
 
@@ -125,6 +141,14 @@ test.describe('Luma-mu Stretch to 16k', () => {
       target.dispatchEvent(event);
     }, { buffer: Array.from(binBuffer), fileName: 'no_stretch.bin' });
 
+    // Wait for the file to be loaded and editorSampleLength to be updated
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        // @ts-ignore
+        return editorSampleLength;
+      });
+    }).toBe(1024);
+
     const editorLength = await page.evaluate(() => {
       // @ts-ignore
       return editorSampleLength;
@@ -151,6 +175,14 @@ test.describe('Luma-mu Stretch to 16k', () => {
       const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
       target.dispatchEvent(event);
     }, { buffer: Array.from(binBuffer), fileName: 'large_sample.bin' });
+
+    // Wait for the file to be loaded
+    await expect.poll(async () => {
+      return await page.evaluate(() => {
+        // @ts-ignore
+        return editorSampleLength;
+      });
+    }).toBe(16384);
 
     const isEnabled = await page.isEnabled('#stretch_to_16k');
     expect(isEnabled).toBe(false);
