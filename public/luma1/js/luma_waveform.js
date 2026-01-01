@@ -339,22 +339,36 @@ function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numS
   
   ctx.beginPath();
   for (var x = 0; x < w; x++) {
-    var sample_idx = Math.floor(startSample + (numSamples * x) / w);
-    if (sample_idx >= sampleLength) break;
+    const s0 = startSample + (x * numSamples) / w;
+    const s1 = startSample + ((x + 1) * numSamples) / w;
     
-    // Convert uLaw to linear for display
-    let ulaw = sampleData[sample_idx];
-    ulaw = ~ulaw; // Invert from storage format
-    const linear = ulaw_to_linear(ulaw);
-    var d = (linear / 32768.0) + 1; // Convert to [0, 2]
-    d /= 2; // Convert to [0, 1]
-    d *= h; // Convert to [0, h]
+    const firstSample = Math.max(0, Math.floor(s0));
+    const lastSample = Math.max(firstSample, Math.floor(s1));
+    
+    if (firstSample >= sampleLength) break;
 
-    if (x > 0) {
-      ctx.lineTo(x, d);
-    } else {
-      ctx.moveTo(x, d);
+    let min = 1.0;
+    let max = -1.0;
+
+    for (let s = firstSample; s <= Math.min(lastSample, sampleLength - 1); s++) {
+      let ulaw = sampleData[s];
+      ulaw = ~ulaw; // Invert from storage format
+      const linear = ulaw_to_linear(ulaw);
+      const d = linear / 32768.0;
+      if (d < min) min = d;
+      if (d > max) max = d;
     }
+
+    // Convert [-1, 1] to [0, h]
+    const yMin = ((min + 1) / 2) * h;
+    const yMax = ((max + 1) / 2) * h;
+
+    if (x === 0) {
+      ctx.moveTo(x, yMin);
+    }
+    
+    ctx.lineTo(x, yMin);
+    ctx.lineTo(x, yMax);
   }
   ctx.stroke();
 }
