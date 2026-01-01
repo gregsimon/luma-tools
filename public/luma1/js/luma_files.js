@@ -48,17 +48,76 @@ function droppedFileLoadedZip(event) {
               bank[bankId].name = filename;
               const fileext = filename.slice(-4).toLowerCase();
               const fileext5 = filename.slice(-5).toLowerCase();
-              if (fileext === ".wav" || fileext === ".aif" || fileext === ".mp3" || fileext5 === ".aiff") {
+              if (fileext === ".wav") {
+                const wavFile = new wav(data);
+                if (wavFile.readyState === wavFile.DONE) {
+                  const sRate = wavFile.sampleRate;
+                  const numChannels = wavFile.numChannels;
+                  const bitsPerSample = wavFile.bitsPerSample;
+                  const dataOffset = wavFile.dataOffset;
+                  const dataLength = wavFile.dataLength;
+                  const numFrames = dataLength / (bitsPerSample / 8) / numChannels;
+                  
+                  const audioBuffer = actx.createBuffer(1, numFrames, sRate);
+                  const channelData = audioBuffer.getChannelData(0);
+                  const dataView = new DataView(data, dataOffset, dataLength);
+                  
+                  if (bitsPerSample === 8) {
+                    for (let i = 0; i < numFrames; i++) {
+                      if (numChannels === 1) channelData[i] = (dataView.getUint8(i) - 128) / 128.0;
+                      else channelData[i] = ((dataView.getUint8(i * 2) - 128) + (dataView.getUint8(i * 2 + 1) - 128)) / 2 / 128.0;
+                    }
+                  } else if (bitsPerSample === 16) {
+                    for (let i = 0; i < numFrames; i++) {
+                      if (numChannels === 1) channelData[i] = dataView.getInt16(i * 2, true) / 32768.0;
+                      else channelData[i] = (dataView.getInt16(i * 4, true) + dataView.getInt16(i * 4 + 2, true)) / 2 / 32768.0;
+                    }
+                  } else if (bitsPerSample === 24) {
+                    for (let i = 0; i < numFrames; i++) {
+                      const offset = i * 3 * numChannels;
+                      let left = dataView.getUint8(offset) | (dataView.getUint8(offset + 1) << 8) | (dataView.getUint8(offset + 2) << 16);
+                      if (left & 0x800000) left |= ~0xFFFFFF;
+                      if (numChannels === 1) channelData[i] = left / 8388608.0;
+                      else {
+                        let right = dataView.getUint8(offset + 3) | (dataView.getUint8(offset + 4) << 8) | (dataView.getUint8(offset + 5) << 16);
+                        if (right & 0x800000) right |= ~0xFFFFFF;
+                        channelData[i] = (left + right) / 2 / 8388608.0;
+                      }
+                    }
+                  } else if (bitsPerSample === 32) {
+                    for (let i = 0; i < numFrames; i++) {
+                      if (numChannels === 1) channelData[i] = dataView.getInt32(i * 4, true) / 2147483648.0;
+                      else channelData[i] = (dataView.getInt32(i * 8, true) + dataView.getInt32(i * 8 + 4, true)) / 2 / 2147483648.0;
+                    }
+                  }
+                  
+                  bank[bankId].sampleData = createBytesFromAudioBuffer(audioBuffer);
+                  bank[bankId].sampleLength = numFrames;
+                  bank[bankId].sample_rate = sRate;
+                  return Promise.resolve();
+                }
+              }
+
+              if (fileext === ".aif" || fileext === ".mp3" || fileext5 === ".aiff") {
                 return new Promise(function(resolve) {
-                  actx.decodeAudioData(data, function (buf) {
+                  // Use a temporary AudioContext to avoid resampling to 12000Hz
+                  let decodeCtx;
+                  try {
+                    decodeCtx = new classAudioContext();
+                  } catch (e) {
+                    decodeCtx = actx;
+                  }
+                  decodeCtx.decodeAudioData(data, function (buf) {
                     const sampleData = createBytesFromAudioBuffer(buf);
                     bank[bankId].sampleData = sampleData;
                     bank[bankId].sampleLength = buf.length;
                     bank[bankId].sample_rate = buf.sampleRate;
+                    if (decodeCtx && decodeCtx !== actx && typeof decodeCtx.close === 'function') decodeCtx.close();
                     resolve();
                   }, function(error) {
-                    console.error("Error decoding audio:", error);
-                    resolve(); // Resolve anyway to not block other files
+                    console.error("Error decoding audio for slot", bankId, error);
+                    if (decodeCtx && decodeCtx !== actx && typeof decodeCtx.close === 'function') decodeCtx.close();
+                    resolve();
                   });
                 });
               } else if (fileext5 === ".flac") {
@@ -91,6 +150,19 @@ function droppedFileLoadedZip(event) {
     // Wait for all files to load, then redraw waveforms once
     Promise.all(filePromises).then(function() {
       currentDropZone = null;
+
+      // Update sample rate picker if we found at least one audio file with a standard rate
+      const firstAudioSlot = bank.find(s => s.sampleData && s.sample_rate);
+      if (firstAudioSlot) {
+        const picker = document.getElementById('sample_rate_picker');
+        if (picker) {
+          const sRate = firstAudioSlot.sample_rate;
+          if ([12000, 24000, 44100, 48000].includes(sRate)) {
+            picker.value = sRate.toString();
+          }
+        }
+      }
+
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
       if (typeof updateStatusBar === 'function') updateStatusBar();
     }).catch(function(error) {
@@ -808,6 +880,7 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     const snInput = (current_mode === "luma1") ? document.getElementById("sample_name") : document.getElementById("sample_name_mu");
     bank[dstId].name = snInput ? snInput.value : "untitled";
     bank[dstId].original_binary = cloneArrayBuffer(binaryFileOriginal);
+    bank[dstId].sample_rate = getSelectedSampleRate();
   } else if (dstId == 255) {
     editorSampleData = cloneSampleData(bank[srcId].sampleData, bank[srcId].sampleLength);
     editorSampleLength = bank[srcId].sampleLength;
@@ -815,12 +888,21 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     const snInput = document.getElementById("sample_name");
     if (snInput) snInput.value = sampleName;
     binaryFileOriginal = cloneArrayBuffer(bank[srcId].original_binary);
+    
+    // Update sample rate picker from slot
+    const sRate = bank[srcId].sample_rate;
+    const picker = document.getElementById('sample_rate_picker');
+    if (picker && sRate && [12000, 24000, 44100, 48000].includes(sRate)) {
+      picker.value = sRate.toString();
+    }
+    
     if (typeof resetRange === 'function') resetRange();
   } else {
     bank[dstId].sampleData = cloneSampleData(bank[srcId].sampleData, bank[srcId].sampleLength);
     bank[dstId].sampleLength = bank[srcId].sampleLength;
     bank[dstId].name = bank[srcId].name;
     bank[dstId].original_binary = cloneArrayBuffer(bank[srcId].original_binary);
+    bank[dstId].sample_rate = bank[srcId].sample_rate;
   }
 
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();

@@ -10,18 +10,16 @@ test.describe('MP3 Codec Tests', () => {
     const numFrames = 1000;
     const sampleRate = 44100;
     
-    // We'll mock actx.decodeAudioData before dropping the file
+    // We'll mock AudioContext.prototype.decodeAudioData before dropping the file
     await page.evaluate(({ numFrames, sampleRate }) => {
       // @ts-ignore
       if (typeof audio_init === 'function') audio_init();
       
       // @ts-ignore
-      const originalDecode = actx.decodeAudioData;
-      // @ts-ignore
-      actx.decodeAudioData = (data, successCallback, errorCallback) => {
-        // Create a mock AudioBuffer
+      AudioContext.prototype.decodeAudioData = function(data, successCallback, errorCallback) {
+        // Create a mock AudioBuffer using the context it was called on
         // @ts-ignore
-        const mockBuffer = actx.createBuffer(1, numFrames, sampleRate);
+        const mockBuffer = this.createBuffer(1, numFrames, sampleRate);
         const channelData = mockBuffer.getChannelData(0);
         // Fill with a simple ramp
         for (let i = 0; i < numFrames; i++) {
@@ -86,7 +84,7 @@ test.describe('MP3 Codec Tests', () => {
       if (typeof audio_init === 'function') audio_init();
 
       // @ts-ignore
-      actx.decodeAudioData = (data, successCallback, errorCallback) => {
+      AudioContext.prototype.decodeAudioData = function(data, successCallback, errorCallback) {
         if (errorCallback) {
           errorCallback(new Error('Mock Decode Error'));
         }
@@ -114,7 +112,7 @@ test.describe('MP3 Codec Tests', () => {
   });
 
   test('MP3 in ZIP archive', async ({ page }) => {
-    // We'll mock actx.decodeAudioData for this as well
+    // We'll mock AudioContext.prototype.decodeAudioData for this as well
     const numFrames = 500;
     const sampleRate = 24000;
 
@@ -122,9 +120,9 @@ test.describe('MP3 Codec Tests', () => {
       // @ts-ignore
       if (typeof audio_init === 'function') audio_init();
       // @ts-ignore
-      actx.decodeAudioData = (data, success, error) => {
+      AudioContext.prototype.decodeAudioData = function(data, success, error) {
         // @ts-ignore
-        const buf = actx.createBuffer(1, numFrames, sampleRate);
+        const buf = this.createBuffer(1, numFrames, sampleRate);
         if (success) success(buf);
         return Promise.resolve(buf);
       };

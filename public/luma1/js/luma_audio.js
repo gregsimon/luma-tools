@@ -151,6 +151,13 @@ function playSlotAudio(id) {
     return;
   }
 
+  // Update the sample rate picker to match the slot's sample rate if it's standard
+  const slotRate = bank[id].sample_rate;
+  const picker = document.getElementById('sample_rate_picker');
+  if (picker && slotRate && [12000, 24000, 44100, 48000].includes(slotRate)) {
+    picker.value = slotRate.toString();
+  }
+
   // Get the selected sample rate for playback
   const playbackSampleRate = getSelectedSampleRate();
 
