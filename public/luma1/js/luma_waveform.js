@@ -309,6 +309,11 @@ function drawSlotWaveformOnCanvas(
   ctx.textAlign = "right";
   ctx.font = "24px condensed";
   ctx.fillText(name + " : " + title + " ", w, 24);
+
+  if (sampleData && sampleLength > 0) {
+    let sizeText = (sampleLength % 1024 === 0) ? (sampleLength / 1024) + "k" : sampleLength.toString();
+    ctx.fillText(sizeText + " ", w, h - 10);
+  }
 }
 
 function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numSamples = -1) {
