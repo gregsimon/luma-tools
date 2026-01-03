@@ -77,5 +77,10 @@ test('clip-test: select subset of sample and drag to slot', async ({ page }) => 
   expect(slotData).not.toBeNull();
   
   const expectedSubset = originalData.slice(50, 150); // index 50 to 149
-  expect(slotData).toEqual(expectedSubset);
+  // In Luma-1 mode, samples are padded to the nearest hardware size (minimum 2048)
+  const expectedPadded = new Array(2048).fill(0x00);
+  for (let i = 0; i < expectedSubset.length; i++) {
+    expectedPadded[i] = expectedSubset[i];
+  }
+  expect(slotData).toEqual(expectedPadded);
 });

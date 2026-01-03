@@ -156,7 +156,16 @@ test.describe('MP3 Codec Tests', () => {
       // @ts-ignore
       return bank[0].sampleLength;
     });
-    expect(slotLength).toBe(numFrames);
+    // In Luma-1 mode, samples are padded to the nearest hardware size (minimum 2048)
+    expect(slotLength).toBe(2048);
+
+    // Verify padding is 0x00
+    const lastByte = await page.evaluate(() => {
+      // @ts-ignore
+      const data = bank[0].sampleData;
+      return data[data.length - 1];
+    });
+    expect(lastByte).toBe(0x00);
   });
 });
 

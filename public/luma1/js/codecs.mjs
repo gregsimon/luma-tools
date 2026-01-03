@@ -91,30 +91,39 @@ function top_bit(bits) {
   return i;
 }
 
+
 // SysEx conversion functions (from codecs.mjs)
 // Converts an 8-bit ArrayBuffer into a 7-bit SysEx array.
 function pack_sysex(src) {
-  let in_idx = 0;
-  let out_idx = 0;
-  const len = src.length;
-  const dst = [];
+  var in_idx = 0;
+   var out_idx = 0;
+   var b7s;
+    var len = src.length;
+   var dst = new Array(len*2);
+  
+    do {
+      b7s = 0;
+      for (yyy = 1; yyy != 8; yyy++) {
+        b7s <<= 1; // 0 in low bit
+        w = src[in_idx++];
+  
+        if (w & 0x80)
+          b7s |= 1;
+  
+        w &= 0x7f;
+  
+        dst[out_idx+yyy] = w;
+  
+        if (in_idx >= len)
+         break;
+        }
 
-  while (in_idx < len) {
-    let b7s = 0;
-    const chunk_start = out_idx;
-    out_idx++; // space for sign byte
-    
-    for (let i = 0; i < 7; i++) {
-      if (in_idx >= len) break;
-      const w = src[in_idx++];
-      if (w & 0x80) {
-        b7s |= (1 << (6 - i));
-      }
-      dst[out_idx++] = w & 0x7f;
-    }
-    dst[chunk_start] = b7s;
-  }
-  return dst;
+    dst[out_idx] = b7s;
+    out_idx += yyy;
+
+  } while (in_idx < len);
+
+  dst.splice(out_idx);
 }
 
 // Converts a 7-bit SysEx Array into an 8-bit binary array.
