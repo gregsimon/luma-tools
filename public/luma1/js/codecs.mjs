@@ -92,31 +92,33 @@ function top_bit(bits) {
 }
 
 
-// SysEx conversion functions (from codecs.mjs)
 // Converts an 8-bit ArrayBuffer into a 7-bit SysEx array.
 function pack_sysex(src) {
   var in_idx = 0;
-   var out_idx = 0;
-   var b7s;
-    var len = src.length;
-   var dst = new Array(len*2);
-  
-    do {
-      b7s = 0;
-      for (yyy = 1; yyy != 8; yyy++) {
-        b7s <<= 1; // 0 in low bit
-        w = src[in_idx++];
-  
-        if (w & 0x80)
-          b7s |= 1;
-  
-        w &= 0x7f;
-  
-        dst[out_idx+yyy] = w;
-  
-        if (in_idx >= len)
-         break;
-        }
+  var out_idx = 0;
+  var b7s;
+  var w;
+  var yyy;
+
+  var len = src.length;
+  var dst = new Array(len);
+
+  do {
+    b7s = 0;
+    for (yyy = 1; yyy != 8; yyy++) {
+      b7s <<= 1; // 0 in low bit
+      w = src[in_idx++];
+
+      if (w & 0x80)
+        b7s |= 1;
+
+      w &= 0x7f;
+
+      dst[out_idx+yyy] = w;
+
+      if (in_idx >= len)
+        break;
+    }
 
     dst[out_idx] = b7s;
     out_idx += yyy;
@@ -124,34 +126,40 @@ function pack_sysex(src) {
   } while (in_idx < len);
 
   dst.splice(out_idx);
+  return dst;
 }
 
 // Converts a 7-bit SysEx Array into an 8-bit binary array.
 function unpack_sysex(src) {
-  const len = src.length;
-  const out_block = [];
-  let in_idx = 0;
+  var in_size = src.length;
+  var in_idx = 0;
+  var out_idx = 0;
+  var out_block = new Uint8Array(src.length); // slightly larger than needed
+  var buffer = new Uint8Array(7);
 
-  while (in_idx < len) {
-    const signbyte = src[in_idx++];
-    const remaining = len - in_idx;
-    const chunk_size = Math.min(7, remaining);
+  // [ <sign byte> <7 data bytes> ]
+  while (in_size > 0) {
+    var signbyte = src[in_idx++];
+    var bytes_to_count = Math.min(7, in_size - 1);
     
-    const buffer = new Uint8Array(chunk_size);
-    for (let i = 0; i < chunk_size; i++) {
+    for (var i = 0; i < bytes_to_count; i++) {
       buffer[i] = src[in_idx++];
-      if (signbyte & (1 << (6 - i))) {
-        buffer[i] |= 0x80;
-      }
-      out_block.push(buffer[i]);
     }
 
-    // If we're not at the end, we should have processed exactly 7 data bytes
-    // and are now at the start of the next chunk (sign byte).
-    // If we were at the end, chunk_size might be less than 7.
+    for (var i = 0; i < bytes_to_count; i++) {
+      if (signbyte & (1 << (bytes_to_count - 1 - i))) {
+        buffer[i] |= 0x80;
+      }
+    }
+
+    // append buffer to out_block
+    for (var i = 0; i < bytes_to_count; i++) {
+      out_block[out_idx++] = buffer[i];
+    }
+    in_size -= (bytes_to_count + 1);
   }
 
-  return out_block;
+  return out_block.slice(0, out_idx);
 }
 
 function arrayToArrayBuffer(buf) {  
