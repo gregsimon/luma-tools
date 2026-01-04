@@ -130,37 +130,33 @@ function pack_sysex(src) {
 }
 
 // Converts a 7-bit SysEx Array into an 8-bit binary array.
-function unpack_sysex(src) {
-  var in_size = src.length;
+function unpack_sysex(src) { // src is a Uint8Array
+  //console.log(src);
+  var out_block = new Uint8Array(src.length);
   var in_idx = 0;
   var out_idx = 0;
-  var out_block = new Uint8Array(src.length); // slightly larger than needed
-  var buffer = new Uint8Array(7);
 
-  // [ <sign byte> <7 data bytes> ]
-  while (in_size > 0) {
+  while (in_idx < src.length) {
     var signbyte = src[in_idx++];
-    var bytes_to_count = Math.min(7, in_size - 1);
-    
-    for (var i = 0; i < bytes_to_count; i++) {
-      buffer[i] = src[in_idx++];
-    }
+    var num_bytes_to_read = Math.min(7, src.length - in_idx);
 
-    for (var i = 0; i < bytes_to_count; i++) {
-      if (signbyte & (1 << (bytes_to_count - 1 - i))) {
-        buffer[i] |= 0x80;
+    for (var i = 0; i < num_bytes_to_read; i++) {
+      var val = src[in_idx++];
+      // The bits in signbyte are shifted in from the right:
+      // bit (num_bytes_to_read - 1 - i) of signbyte is the 7th bit of the i-th byte.
+      var bit_pos = num_bytes_to_read - 1 - i;
+      if ((signbyte >> bit_pos) & 1) {
+        val |= 0x80;
       }
+      out_block[out_idx++] = val;
+      
     }
-
-    // append buffer to out_block
-    for (var i = 0; i < bytes_to_count; i++) {
-      out_block[out_idx++] = buffer[i];
-    }
-    in_size -= (bytes_to_count + 1);
   }
 
+  console.log("unpacked sysex " + src.length + " -> " + out_idx);
   return out_block.slice(0, out_idx);
 }
+
 
 function arrayToArrayBuffer(buf) {  
   var ab = new ArrayBuffer(buf.length);

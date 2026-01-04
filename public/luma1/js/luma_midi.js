@@ -45,8 +45,11 @@ function onMIDIMessageReceived(event) {
     // Unpack the Sysex to figure out what we received.
     const decoder = new TextDecoder();
     console.log(`event.data MIDI In = ${event.data.length} bytes`);
+    const dataToBeUnpacked = event.data.slice(2, event.data.length - 1)
+    console.log(`event.data = ${event.data}`);
+    console.log(`dataToBeUnpacked = ${dataToBeUnpacked}`);
     var data = Uint8Array.from(
-      unpack_sysex(event.data.slice(2, event.data.length - 1)),
+      unpack_sysex(dataToBeUnpacked),
     );
     var type = data[0];
     if (type == CMD_SAMPLE || type == (CMD_SAMPLE | CMD_REQUEST) || 
