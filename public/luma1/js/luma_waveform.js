@@ -45,15 +45,16 @@ function drawEditorCanvas() {
 
     const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
 
-    // Draw max slot size indicator (transparent green block)
+    // Draw max slot size indicators (transparent green block with limit lines)
     // This shows how much of the sample (starting at the in-point) 
     // will be copied to a slot based on the current device mode.
-    const slotSize = getMaxSampleSize();
-    const greenEndPoint = editor_in_point + slotSize;
+    const maxLimit = getMaxSampleSize();
     const inX = sampleToX(editor_in_point);
-    const endX = sampleToX(greenEndPoint);
+    const endX = sampleToX(editor_in_point + maxLimit);
     
     ctx.save();
+    
+    // 1. Draw the overall transparent green block for the max limit
     ctx.globalAlpha = 0.15;
     ctx.fillStyle = "rgb(0, 255, 0)";
     
@@ -62,6 +63,33 @@ function drawEditorCanvas() {
     if (blockEnd > blockStart) {
       ctx.fillRect(blockStart, 0, blockEnd - blockStart, h);
     }
+
+    // 2. Draw vertical lines and labels for 2k, 4k, 8k, 16k, and 32k
+    const limits = [2048, 4096, 8192, 16384, 32768];
+    ctx.strokeStyle = "rgb(0, 255, 0)";
+    ctx.fillStyle = "rgb(0, 255, 0)";
+    ctx.font = "10px InterstateRegular, sans-serif";
+    ctx.textAlign = "right";
+    
+    limits.forEach(limit => {
+      if (limit > maxLimit) return;
+      
+      const limitX = sampleToX(editor_in_point + limit);
+      if (limitX >= 0 && limitX <= w) {
+        // Draw vertical line
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.moveTo(limitX, 0);
+        ctx.lineTo(limitX, h);
+        ctx.stroke();
+        
+        // Draw label
+        ctx.globalAlpha = 0.8;
+        const label = (limit / 1024) + "k";
+        ctx.fillText(label, limitX - 2, 12);
+      }
+    });
+    
     ctx.restore();
 
     ctx.strokeStyle = editor_waveform_fg;
