@@ -27,6 +27,7 @@ function droppedFileLoadedZip(event) {
 
     if (found_bank == false) {
       alert("Zip archive contains no folder with the file BANKNAME.TXT");
+      finishImporting();
       return;
     }
 
@@ -166,10 +167,12 @@ function droppedFileLoadedZip(event) {
 
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
       if (typeof updateStatusBar === 'function') updateStatusBar();
+      finishImporting();
     }).catch(function(error) {
       currentDropZone = null;
       console.error("Error loading bank files:", error);
       if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+      finishImporting();
     });
   });
 }
@@ -188,6 +191,7 @@ function droppedFileLoadedRomMu(event) {
   
   if (event.target.result.byteLength !== TOTAL_SIZE) {
     alert("Invalid ROM file size. Expected 131072 bytes (128k)");
+    finishImporting();
     return;
   }
   
@@ -227,6 +231,7 @@ function droppedFileLoadedRomMu(event) {
   if (typeof resizeCanvasToParent === 'function') resizeCanvasToParent();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
   if (typeof updateStatusBar === 'function') updateStatusBar();
+  finishImporting();
 }
 
 function droppedFileLoadedWav(event) {
@@ -236,6 +241,7 @@ function droppedFileLoadedWav(event) {
   const wavFile = new wav(event.target.result);
   if (wavFile.readyState !== wavFile.DONE) {
     alert("Error loading WAV file: " + wavFile.error);
+    finishImporting();
     return;
   }
     
@@ -247,6 +253,7 @@ function droppedFileLoadedWav(event) {
   
   if (numChannels !== 1 && numChannels !== 2) {
     alert(`Unsupported channel count: ${numChannels}. Only mono and stereo are supported.`);
+    finishImporting();
     return;
   }
 
@@ -350,6 +357,7 @@ function droppedFileLoadedWav(event) {
   trimBufferToFitLuma();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
+  finishImporting();
 }
 
 function droppedFileLoadedFlac(event) {
@@ -364,6 +372,7 @@ function droppedFileLoadedFlac(event) {
       processDecodedAudio(buffer);
     } else {
       alert("Error decoding FLAC file. Your browser might not support this format or the file is corrupt.");
+      finishImporting();
     }
   });
 }
@@ -378,10 +387,12 @@ function droppedFileLoadedMp3(event) {
       processDecodedAudio(buffer);
     } else {
       alert("Error decoding MP3 file.");
+      finishImporting();
     }
   }, function(error) {
     console.error("Error decoding MP3:", error);
     alert("Error decoding MP3 file: " + error.message);
+    finishImporting();
   });
 }
 
@@ -493,6 +504,7 @@ function droppedFileLoadedAif(event) {
       msg = `This file appears to be an IFF file but not a standard AIFF (format: ${format}).`;
     }
     alert(msg);
+    finishImporting();
   });
 }
 
@@ -561,6 +573,7 @@ function processDecodedAudio(buffer) {
   trimBufferToFitLuma();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
+  finishImporting();
 }
 
 function dropHandler(ev) {
@@ -598,6 +611,9 @@ function dropHandler(ev) {
       const ext = lastDot !== -1 ? name.slice(lastDot).toLowerCase() : "";
       sampleName = lastDot !== -1 ? name.slice(0, lastDot) : name;
 
+      isImporting = true;
+      if (typeof drawEditorCanvas === "function") drawEditorCanvas();
+
       fileReader = new FileReader();
       if (ext === ".bin") {
         if (current_mode === "lumamu" && file.size === 131072) {
@@ -616,7 +632,16 @@ function dropHandler(ev) {
       else if (ext === ".zip")
         fileReader.onload = droppedFileLoadedZip;
 
-      fileReader.readAsArrayBuffer(file);
+      if (fileReader.onload) {
+        fileReader.onerror = function() {
+          console.error("FileReader error");
+          finishImporting();
+        };
+        fileReader.readAsArrayBuffer(file);
+      } else {
+        isImporting = false;
+        if (typeof drawEditorCanvas === "function") drawEditorCanvas();
+      }
     }
   });
 }
@@ -695,6 +720,7 @@ function interpretBinaryFile() {
   trimBufferToFitLuma();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
+  finishImporting();
 }
 
 function convert_8b_ulaw_to_bytes(arraybuf) {
@@ -730,6 +756,11 @@ function trimBufferToFitLuma() {
   if (typeof resizeCanvasToParent === 'function') resizeCanvasToParent();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
   if (typeof updateStatusBar === 'function') updateStatusBar();
+}
+
+function finishImporting() {
+  isImporting = false;
+  if (typeof redrawAllWaveforms === "function") redrawAllWaveforms();
 }
 
 function changeBinFormat(event) {

@@ -37,6 +37,15 @@ function drawEditorCanvas() {
   ctx.fillStyle = editor_waveform_bg;
   ctx.fillRect(0, 0, w, h);
 
+  if (isImporting) {
+    ctx.fillStyle = editor_waveform_fg;
+    ctx.font = "20px InterstateRegular, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Importing...", w / 2, h / 2);
+    return;
+  }
+
   if (editorSampleData && editorSampleLength > 0) {
     const visibleSamples = editorSampleLength / editorZoomLevel;
     

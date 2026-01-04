@@ -7,6 +7,7 @@ let playingSound = null; // Currently playing AudioBufferSourceNode
 let playbackStartTime = 0; // actx.currentTime when playback started
 let animationFrameId = null; // ID for requestAnimationFrame
 let editorSampleData = null; // Uint8Array in uLaw format (active sample)
+let isImporting = false;
 let editorSampleLength = 0; // number of samples
 let midiAccess = null;
 let midiOut = null;
