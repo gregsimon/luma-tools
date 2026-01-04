@@ -94,8 +94,9 @@ async function readFromPicoROMClicked() {
         const offset = i * SLOT_SIZE;
         const chunk = rom.slice(offset, offset + SLOT_SIZE);
 
-        bank[idx].sampleData = new Uint8Array(chunk);
-        bank[idx].sampleLength = chunk.length;
+        const paddedData = applyHardwarePadding(new Uint8Array(chunk));
+        bank[idx].sampleData = paddedData;
+        bank[idx].sampleLength = paddedData.length;
         bank[idx].name = `Slot ${i}`; // Provide a default name
         bank[idx].original_binary = chunk.buffer;
     }

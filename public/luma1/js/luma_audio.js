@@ -20,6 +20,27 @@ function getMaxSampleSize() {
   return (current_mode === "lumamu") ? 16384 : 32768;
 }
 
+// Get padded sample size for Luma-1 hardware
+function getPaddedSampleSize(numSamples) {
+  if (current_mode !== "luma1") return numSamples;
+  const MIN_SIZE = 2048;
+  const HARDWARE_SIZE = 1024;
+  if (numSamples <= MIN_SIZE) return MIN_SIZE;
+  return Math.ceil(numSamples / HARDWARE_SIZE) * HARDWARE_SIZE;
+}
+
+// Apply Luma-1 hardware padding to a Uint8Array
+function applyHardwarePadding(sampleData) {
+  if (current_mode !== "luma1") return sampleData;
+  const paddedSize = getPaddedSampleSize(sampleData.length);
+  if (paddedSize === sampleData.length) return sampleData;
+  
+  const paddedData = new Uint8Array(paddedSize);
+  paddedData.set(sampleData);
+  // Uint8Array is initialized with 0x00, which is u-law silence in our inverted format
+  return paddedData;
+}
+
 // Create AudioBuffer from byte array for playback
 function createAudioBufferFromBytes(sampleData, sampleRate = 24000) {
   if (!sampleData || sampleData.length === 0) return null;

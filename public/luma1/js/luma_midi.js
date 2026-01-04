@@ -70,8 +70,9 @@ function onMIDIMessageReceived(event) {
       var ulaw_data_ab = arrayToArrayBuffer(ulaw_data);
 
       if (reading_banks) {
-        bank[reading_banks_current_slot].sampleData = new Uint8Array(ulaw_data_ab);
-        bank[reading_banks_current_slot].sampleLength = ulaw_data_ab.byteLength;
+        const paddedData = applyHardwarePadding(new Uint8Array(ulaw_data_ab));
+        bank[reading_banks_current_slot].sampleData = paddedData;
+        bank[reading_banks_current_slot].sampleLength = paddedData.length;
         const snInput = document.getElementById("sample_name");
         bank[reading_banks_current_slot].name = snInput ? snInput.value : "untitled";
         bank[reading_banks_current_slot].original_binary = cloneArrayBuffer(ulaw_data_ab);

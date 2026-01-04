@@ -91,8 +91,8 @@ function droppedFileLoadedZip(event) {
                     }
                   }
                   
-                  bank[bankId].sampleData = createBytesFromAudioBuffer(audioBuffer);
-                  bank[bankId].sampleLength = numFrames;
+                  bank[bankId].sampleData = applyHardwarePadding(createBytesFromAudioBuffer(audioBuffer));
+                  bank[bankId].sampleLength = bank[bankId].sampleData.length;
                   bank[bankId].sample_rate = sRate;
                   return Promise.resolve();
                 }
@@ -108,9 +108,9 @@ function droppedFileLoadedZip(event) {
                     decodeCtx = actx;
                   }
                   decodeCtx.decodeAudioData(data, function (buf) {
-                    const sampleData = createBytesFromAudioBuffer(buf);
+                    const sampleData = applyHardwarePadding(createBytesFromAudioBuffer(buf));
                     bank[bankId].sampleData = sampleData;
-                    bank[bankId].sampleLength = buf.length;
+                    bank[bankId].sampleLength = sampleData.length;
                     bank[bankId].sample_rate = buf.sampleRate;
                     if (decodeCtx && decodeCtx !== actx && typeof decodeCtx.close === 'function') decodeCtx.close();
                     resolve();
@@ -125,9 +125,9 @@ function droppedFileLoadedZip(event) {
                   const flacDecoder = new flac(data);
                   flacDecoder.decode(function(buf) {
                     if (buf) {
-                      const sampleData = createBytesFromAudioBuffer(buf);
+                      const sampleData = applyHardwarePadding(createBytesFromAudioBuffer(buf));
                       bank[bankId].sampleData = sampleData;
-                      bank[bankId].sampleLength = buf.length;
+                      bank[bankId].sampleLength = sampleData.length;
                       bank[bankId].sample_rate = buf.sampleRate;
                     }
                     resolve();
@@ -135,8 +135,9 @@ function droppedFileLoadedZip(event) {
                 });
               } else if (fileext === ".bin") {
                 bank[bankId].original_binary = cloneArrayBuffer(data);
-                bank[bankId].sampleData = convert_8b_ulaw_to_bytes(data);
-                bank[bankId].sampleLength = data.byteLength;
+                const sampleData = applyHardwarePadding(convert_8b_ulaw_to_bytes(data));
+                bank[bankId].sampleData = sampleData;
+                bank[bankId].sampleLength = sampleData.length;
                 return Promise.resolve();
               }
               return Promise.resolve();
@@ -874,8 +875,8 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
     let numSamples = editor_out_point - editor_in_point + 1;
     if (numSamples > max) numSamples = max;
 
-    bank[dstId].sampleData = cloneSampleData(editorSampleData, editorSampleLength, editor_in_point, editor_in_point + numSamples);
-    bank[dstId].sampleLength = numSamples;
+    bank[dstId].sampleData = applyHardwarePadding(cloneSampleData(editorSampleData, editorSampleLength, editor_in_point, editor_in_point + numSamples));
+    bank[dstId].sampleLength = bank[dstId].sampleData.length;
     
     const snInput = (current_mode === "luma1") ? document.getElementById("sample_name") : document.getElementById("sample_name_mu");
     bank[dstId].name = snInput ? snInput.value : "untitled";
