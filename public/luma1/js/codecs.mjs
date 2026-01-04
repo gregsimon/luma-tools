@@ -122,6 +122,7 @@ function pack_sysex(src) {
 
     dst[out_idx] = b7s;
     out_idx += yyy;
+    //out_idx += (yyy == 8) ? 8 : yyy + 1;
 
   } while (in_idx < len);
 
