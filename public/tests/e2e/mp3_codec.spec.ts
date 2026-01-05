@@ -107,6 +107,7 @@ test.describe('MP3 Codec Tests', () => {
     });
 
     // Check if alert was called
+    await page.waitForFunction(() => (window as any).alertCalledWith !== null);
     const alertMsg = await page.evaluate(() => (window as any).alertCalledWith);
     expect(alertMsg).toContain('Error decoding MP3 file');
   });
