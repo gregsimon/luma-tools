@@ -355,6 +355,7 @@ function droppedFileLoadedWav(event) {
   }
 
   trimBufferToFitLuma();
+  updateBinaryFileOriginal();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
   finishImporting();
@@ -571,6 +572,7 @@ function processDecodedAudio(buffer) {
   }
 
   trimBufferToFitLuma();
+  updateBinaryFileOriginal();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
   finishImporting();
@@ -718,6 +720,7 @@ function interpretBinaryFile() {
   editorViewStart = 0;
 
   trimBufferToFitLuma();
+  updateBinaryFileOriginal();
   const snInput = document.getElementById("sample_name");
   if (snInput) snInput.value = sampleName;
   finishImporting();
@@ -955,6 +958,7 @@ function stretchTo16kClicked() {
   editorViewStart = 0;
 
   trimBufferToFitLuma(); // This will redraw and update status bar
+  updateBinaryFileOriginal();
 }
 
 function downloadRAMBuffer() {

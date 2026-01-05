@@ -87,6 +87,15 @@ function cloneSampleData(fromSampleData, fromLength, startIndex = 0, endIndex = 
   return newSampleData;
 }
 
+function updateBinaryFileOriginal() {
+  if (editorSampleData) {
+    // Use slice() to get a copy of the data and its buffer
+    binaryFileOriginal = editorSampleData.slice().buffer;
+  } else {
+    binaryFileOriginal = null;
+  }
+}
+
 // Stretch a linear float32 buffer to a target length using linear interpolation
 function stretchLinearBuffer(inputData, targetLength) {
   const inputLength = inputData.length;
@@ -283,6 +292,7 @@ function generateRamp() {
   }
 
   if (typeof resetRange === 'function') resetRange();
+  updateBinaryFileOriginal();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
 
@@ -293,6 +303,7 @@ function reverseSampleBuffer() {
     editorSampleData[i] = editorSampleData[len - 1 - i];
     editorSampleData[len - 1 - i] = temp;
   }
+  updateBinaryFileOriginal();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
 
@@ -312,6 +323,7 @@ function cropSample() {
   editorSampleLength = newLength;
   
   if (typeof resetRange === 'function') resetRange();
+  updateBinaryFileOriginal();
 }
 
 function deleteSelection() {
@@ -343,6 +355,7 @@ function deleteSelection() {
   }
 
   if (typeof resetRange === 'function') resetRange();
+  updateBinaryFileOriginal();
 }
 
 function zeroRange() {
@@ -357,6 +370,7 @@ function zeroRange() {
     editorSampleData[i] = 0;
   }
 
+  updateBinaryFileOriginal();
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
 
