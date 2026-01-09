@@ -212,6 +212,10 @@ function onMidiSuccessCallback(access) {
 
     buf[26] = SX_SERIAL_NUMBER;
     sendSysexToLuma(buf);
+
+    buf[26] = SX_VOICE_BANK_NAME;
+    buf[25] = 0xff; // currently active bank
+    sendSysexToLuma(buf);
   }
 }
 
@@ -293,7 +297,7 @@ function writeBankToDevice() {
   const bankId = de("bankId2").value;
 
   var buf = new Uint8Array(32);
-  buf[0] = CMD_UTIL | CMD_REQUEST;
+  buf[0] = CMD_UTIL;
   buf[25] = bankId;
   buf[26] = SX_VOICE_BANK_NAME;
   const kMaxChars = 24;
@@ -321,6 +325,12 @@ function readBankfromDevice() {
   reading_banks = true;
   reading_banks_id = document.getElementById("bankId2").value;
   reading_banks_current_slot = 0;
+
+  var buf = new Uint8Array(32);
+  buf[0] = CMD_UTIL | CMD_REQUEST;
+  buf[25] = reading_banks_id;
+  buf[26] = SX_VOICE_BANK_NAME;
+  sendSysexToLuma(buf);
 
   readNextSampleInBank();
 }
