@@ -488,23 +488,25 @@ async function downloadFromDrive(fileId, filename) {
     fileReader = { result: arrayBuffer }; 
 
     const lowerFilename = filename.toLowerCase();
+    const dummyEvent = { target: fileReader };
+
     if (lowerFilename.endsWith(".zip")) {
       if (typeof switchTab === 'function') switchTab(TAB_SAMPLE_EDITOR);
-      if (typeof droppedFileLoadedZip === 'function') droppedFileLoadedZip();
+      if (typeof droppedFileLoadedZip === 'function') droppedFileLoadedZip(dummyEvent);
       console.log(`Loaded Bank ${filename} from Google Drive into Staging Slots.`);
     } else {
       if (typeof switchTab === 'function') switchTab(TAB_SAMPLE_EDITOR);
 
       if (lowerFilename.endsWith(".wav")) {
-        if (typeof droppedFileLoadedWav === 'function') droppedFileLoadedWav();
+        if (typeof droppedFileLoadedWav === 'function') droppedFileLoadedWav(dummyEvent);
       } else if (lowerFilename.endsWith(".mp3")) {
-        if (typeof droppedFileLoadedMp3 === 'function') droppedFileLoadedMp3();
+        if (typeof droppedFileLoadedMp3 === 'function') droppedFileLoadedMp3(dummyEvent);
       } else if (lowerFilename.endsWith(".aif") || lowerFilename.endsWith(".aiff")) {
-        if (typeof droppedFileLoadedAif === 'function') droppedFileLoadedAif();
+        if (typeof droppedFileLoadedAif === 'function') droppedFileLoadedAif(dummyEvent);
       } else if (lowerFilename.endsWith(".flac")) {
-        if (typeof droppedFileLoadedFlac === 'function') droppedFileLoadedFlac();
+        if (typeof droppedFileLoadedFlac === 'function') droppedFileLoadedFlac(dummyEvent);
       } else {
-        if (typeof droppedFileLoadedBIN === 'function') droppedFileLoadedBIN();
+        if (typeof droppedFileLoadedBIN === 'function') droppedFileLoadedBIN(dummyEvent);
       }
       console.log(`Loaded ${filename} from Google Drive into the Editor.`);
     }
