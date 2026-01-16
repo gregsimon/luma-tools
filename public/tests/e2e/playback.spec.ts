@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Playback Toggle Behavior', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
     
     // Mock AudioContext to avoid issues with real audio hardware and user gesture requirements
     await page.evaluate(() => {

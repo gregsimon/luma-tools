@@ -37,7 +37,7 @@ test('load sample from device via MIDI', async ({ page }) => {
     localStorage.setItem('midiDeviceName', 'Mock Luma Device');
   });
 
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // Verify MIDI is "connected" (app should have auto-selected our mock device)
   const midiDeviceName = await page.evaluate(() => {

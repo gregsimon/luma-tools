@@ -93,7 +93,7 @@ test.describe('AIFF Codec Comprehensive Tests', () => {
   }
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
   });
 
   test('8-bit Mono AIFF', async ({ page }) => {

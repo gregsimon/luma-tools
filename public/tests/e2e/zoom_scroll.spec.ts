@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Waveform Zoom and Scroll', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
     
     // Initialize editor with some data
     const sampleSize = 10000;

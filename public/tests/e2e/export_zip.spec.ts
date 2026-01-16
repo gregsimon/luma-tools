@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
 
 test('export bank as zip', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Initialize audio and populate bank with fake data
   await page.evaluate(() => {

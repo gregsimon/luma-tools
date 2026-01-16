@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx http-server public/luma1 -p 8080',
+    command: 'npx http-server public -p 8080',
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
   },

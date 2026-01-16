@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import * as fs from 'fs';
 
 test('binaryFileOriginal synchronizes with editor modifications and merges', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Load initial sample and verify binaryFileOriginal
   await page.evaluate(() => {

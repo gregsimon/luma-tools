@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('editor selection and basic functions', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Initialize editor with some data
   const sampleSize = 4096;

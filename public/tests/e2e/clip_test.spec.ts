@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('clip-test: select subset of sample and drag to slot', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Initialize editor with a known test sample (0 to 199)
   const sampleSize = 200;

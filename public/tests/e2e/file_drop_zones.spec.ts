@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('file drop zones: start, center, and end detection', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   const editorWaveform = page.locator('.editor_waveform');
   const box = await editorWaveform.boundingBox();
@@ -65,7 +65,7 @@ test('file drop zones: start, center, and end detection', async ({ page }) => {
 });
 
 test('file drop zones: buffer concatenation logic', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // Initialize with [1, 2, 3]
   await page.evaluate(() => {
@@ -145,7 +145,7 @@ test('file drop zones: buffer concatenation logic', async ({ page }) => {
 });
 
 test('file drop zones: max sample size limit (now limitless in editor)', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // Initialize with a large buffer close to the limit (32768 for luma1)
   await page.evaluate(() => {

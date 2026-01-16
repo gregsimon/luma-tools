@@ -72,7 +72,7 @@ test.describe('FLAC Codec Comprehensive Tests', () => {
   }
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
   });
 
   test('Minimal FLAC Dropping', async ({ page }) => {

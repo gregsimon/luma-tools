@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Luma-mu Stretch to 16k', () => {
   
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
     // Switch to Luma-mu mode
     await page.selectOption('#device_mode', 'lumamu');
   });

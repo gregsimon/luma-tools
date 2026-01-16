@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('audio processing: reverse integrity', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Generate and load a unique test sample (0, 1, 2, ..., 255)
   const sampleSize = 256;

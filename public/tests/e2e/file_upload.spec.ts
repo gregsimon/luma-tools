@@ -5,7 +5,7 @@ import * as path from 'path';
 test.describe('File Upload via Drag and Drop', () => {
   
   test('drag and drop a .wav file', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
 
     // 1. Create a buffer representing a valid minimal 8-bit mono PCM WAV file
     // 24000 Hz, 8-bit, 100 samples of silence
@@ -60,7 +60,7 @@ test.describe('File Upload via Drag and Drop', () => {
   });
 
   test('drag and drop a .bin file', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
 
     // 1. Create a dummy binary file (1024 bytes)
     const binSize = 1024;
@@ -107,7 +107,7 @@ test.describe('File Upload via Drag and Drop', () => {
     const logs: string[] = [];
     page.on('console', msg => logs.push(`[${msg.type()}] ${msg.text()}`));
 
-    await page.goto('/');
+    await page.goto('/luma1/');
 
     // Create a valid minimal AIFF buffer (16-bit PCM, Big Endian)
     const numSamples = 100;

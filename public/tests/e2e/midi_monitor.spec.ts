@@ -23,7 +23,7 @@ test('midi monitor: message logging and filtering', async ({ page }) => {
     localStorage.setItem('midiDeviceName', 'Mock MIDI Input');
   });
 
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 2. Navigate to MIDI Monitor tab
   await page.click('#midi_monitor_tab_button');

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('drag from editor to slot 1 and back', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/luma1/');
 
   // 1. Initialize editor with some dummy data so we can drag it
   await page.evaluate(() => {

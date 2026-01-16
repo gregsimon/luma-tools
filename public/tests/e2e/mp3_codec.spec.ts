@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('MP3 Codec Tests', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
   });
 
   test('MP3 file drop and mock decode', async ({ page }) => {

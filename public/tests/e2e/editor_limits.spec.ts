@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Editor Limits', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
   });
 
   test('should allow loading samples larger than 32768 in Luma-1 mode', async ({ page }) => {

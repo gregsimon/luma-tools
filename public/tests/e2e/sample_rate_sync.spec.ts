@@ -23,7 +23,7 @@ function createWavBuffer(sampleRate: number, numSamples: number = 100) {
 test.describe('Sample Rate Picker Synchronization', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
     // Initialize audio context to avoid undefined issues
     await page.evaluate(() => {
         // @ts-ignore

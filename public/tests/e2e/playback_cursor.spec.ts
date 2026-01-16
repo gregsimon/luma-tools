@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Playback Cursor Line', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/luma1/');
     
     // Mock AudioContext and initialize editor data
     await page.evaluate(() => {
