@@ -34,6 +34,18 @@ function droppedFileLoadedZip(event) {
     // Collect all file loading promises
     var filePromises = [];
 
+    // Read bank name from BANKNAME.TXT
+    var bankNamePromise = droppedZip.file(bank_path_prefix + "BANKNAME.TXT").async("string").then(function (content) {
+      const name = content.trim();
+      if (name) {
+        bank_name = name;
+        const bankNameField = (current_mode === "luma1") ? "bank_name" : "bank_name_mu";
+        const bnInput = document.getElementById(bankNameField);
+        if (bnInput) bnInput.value = name;
+      }
+    });
+    filePromises.push(bankNamePromise);
+
     for (const [key, value] of Object.entries(zip.files)) {
       if (!value.dir) {
         if (value.name.slice(0, bank_path_prefix.length) != bank_path_prefix) {
