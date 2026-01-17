@@ -26,7 +26,7 @@ test('editor selection and basic functions', async ({ page }) => {
 
   await inPointInput.fill('100');
   await inPointInput.dispatchEvent('input');
-  
+
   await outPointInput.fill('2000');
   await outPointInput.dispatchEvent('input');
 
@@ -37,8 +37,8 @@ test('editor selection and basic functions', async ({ page }) => {
   expect(state.in).toBe(100);
   expect(state.out).toBe(2000);
 
-  // 3. Test "Select All" Button
-  await page.click('input[value="Select All"]');
+  // 3. Test "Select Max Range" Button
+  await page.click('input[value="Select Max Range"]');
   state = await page.evaluate(() => {
     // @ts-ignore
     return { in: editor_in_point, out: editor_out_point };
@@ -55,7 +55,7 @@ test('editor selection and basic functions', async ({ page }) => {
   expect(firstBytes).toEqual([0, 1, 2, 3]);
 
   await page.selectOption('#function_picker', 'Reverse');
-  
+
   // Check first few bytes after reverse (should be the end of the original array reversed)
   firstBytes = await page.evaluate(() => {
     // @ts-ignore
@@ -90,7 +90,7 @@ test('editor selection and basic functions', async ({ page }) => {
   await page.mouse.move(box.x + box.width / 4, box.y + 2);
   await page.mouse.down();
   // Drag to somewhere near 2048
-  await page.mouse.move(box.x + box.width / 2 + 50, box.y + 2); 
+  await page.mouse.move(box.x + box.width / 2 + 50, box.y + 2);
   await page.mouse.up();
   await page.keyboard.up('Shift');
 

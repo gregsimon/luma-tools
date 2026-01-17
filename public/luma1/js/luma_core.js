@@ -140,7 +140,7 @@ function de(id) {
 
 // Initialize the application.
 function luma1_init() {
-  
+
   // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
@@ -181,7 +181,7 @@ function luma1_init() {
   // Initialize with Luma-1 mode
   current_mode = "luma1";
   slot_names = luma1_slot_names;
-  
+
   // wire up the slot waveforms
   // Always initialize 10 slots for both modes
   for (let i = 0; i < 10; i++) {
@@ -236,7 +236,7 @@ function luma1_init() {
   const populate_slot_select = (el, mode) => {
     // Clear existing options
     el.innerHTML = '';
-    
+
     // Get the appropriate slot names and number of slots based on mode
     if (mode === "luma1") {
       for (let i = 0; i < luma1_slot_names.length; i++) {
@@ -258,14 +258,14 @@ function luma1_init() {
       }
     }
   };
-  
+
   // Initialize both slot selectors
   populate_slot_select(document.getElementById("slotId"), "luma1");
   populate_slot_select(document.getElementById("slotId_mu"), "lumamu");
 
   // Add event listener for mode change
   document.getElementById("device_mode").addEventListener("change", changeDeviceMode);
-  
+
   // Add event handlers for sample offset text fields
   document.getElementById("in_point").addEventListener("input", (e) => {
     const value = parseInt(e.target.value) || 0;
@@ -279,7 +279,7 @@ function luma1_init() {
       redrawAllWaveforms();
     }
   });
-  
+
   document.getElementById("out_point").addEventListener("input", (e) => {
     const value = parseInt(e.target.value) || 0;
     if (editorSampleData) {
@@ -319,7 +319,7 @@ function luma1_init() {
       ev.preventDefault();
       return;
     }
-    
+
     ev.dataTransfer.setData("text/plain", 255); // start drag
   };
   canvas.ondragover = (ev) => {
@@ -363,7 +363,7 @@ function luma1_init() {
   document.getElementById("midi_monitor_tab_button").onclick = () => {
     switchTab(TAB_MIDI_MONITOR);
   };
-  
+
   if (ENABLE_LIBRARIAN) {
     document.getElementById("librarian_tab_button").onclick = () => {
       switchTab(TAB_LIBRARIAN);
@@ -405,7 +405,7 @@ function luma1_init() {
       shiftDown = false;
     }
   });
-  
+
   // Global mouse events for endpoint dragging
   window.addEventListener("mousemove", (event) => {
     if (isDraggingEndpoint && editorCanvasMouseIsDown) {
@@ -413,9 +413,9 @@ function luma1_init() {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const w = canvas.width;
-      
+
       if (editorSampleData == null) return;
-      
+
       const visibleSamples = editorSampleLength / editorZoomLevel;
 
       // Auto-scroll when dragging near edges
@@ -425,14 +425,14 @@ function luma1_init() {
       } else if (x > w - scrollEdge) {
         editorViewStart += visibleSamples * 0.05;
       }
-      
+
       // Clamp editorViewStart
       editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
 
       var new_pt = editorViewStart + (visibleSamples * x) / w;
-      
+
       if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
-      
+
       if (draggingWhichEndpoint === "in") {
         if (new_pt < editor_out_point) {
           editor_in_point = Math.floor(new_pt);
@@ -448,7 +448,7 @@ function luma1_init() {
       drawEditorCanvas();
     }
   });
-  
+
   window.addEventListener("mouseup", (event) => {
     if (isDraggingEndpoint) {
       onEditorCanvasMouseUp(event);
@@ -474,6 +474,11 @@ function luma1_init() {
 
   slot_names = (current_mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
   updateUIForMode(current_mode);
+
+  // Initialize tooltips
+  if (window.LumaTooltips) {
+    window.LumaTooltips.init('en');
+  }
 }
 
 function switchTab(newTab) {
@@ -504,7 +509,7 @@ function switchTab(newTab) {
 function updateStatusBar() {
   document.getElementById("in_point").value = editor_in_point;
   document.getElementById("out_point").value = editor_out_point;
-  
+
   // Calculate and display the number of selected samples
   const sampleCount = editor_out_point - editor_in_point + 1;
   document.getElementById("sample_count").textContent = sampleCount;
@@ -539,13 +544,13 @@ function saveSettings() {
 function changeDeviceMode() {
   const modeSelect = document.getElementById("device_mode");
   current_mode = modeSelect.value;
-  
+
   // Update slot names based on mode
   slot_names = (current_mode === "luma1") ? luma1_slot_names : lumamu_slot_names;
-  
+
   // Update UI elements based on mode
   updateUIForMode(current_mode);
-  
+
   // Save settings
   saveSettings();
 }
@@ -553,7 +558,7 @@ function changeDeviceMode() {
 // Function to update UI elements based on mode
 function updateUIForMode(mode) {
   const slotContainer = document.getElementById("slot_container");
-  
+
   if (mode === "luma1") {
     // Show Luma-1 specific elements
     slotContainer.className = "luma1_layout";
@@ -568,10 +573,10 @@ function updateUIForMode(mode) {
     } else {
       document.getElementById("librarian_tab_button").style.display = "none";
     }
-    
+
     // Update title
     document.title = "Luma-1 Tools";
-    
+
     // Show all 10 slots for Luma-1
     for (let i = 0; i < 10; i++) {
       const slotElement = document.getElementById("canvas_slot_" + i);
@@ -593,13 +598,13 @@ function updateUIForMode(mode) {
     } else {
       document.getElementById("librarian_tab_button").style.display = "none";
     }
-    
+
     // If we're in a tab that's not available in Luma-Mu mode, switch to sample editor
     if (document.getElementById("pattern_editor_tab").style.display !== "none" ||
-        document.getElementById("midi_monitor_tab").style.display !== "none") {
+      document.getElementById("midi_monitor_tab").style.display !== "none") {
       switchTab(TAB_SAMPLE_EDITOR);
     }
-    
+
     // Hide slots 8 and 9 for Luma-Mu (only shows 0-7)
     for (let i = 0; i < 10; i++) {
       const slotElement = document.getElementById("canvas_slot_" + i);
@@ -611,23 +616,23 @@ function updateUIForMode(mode) {
         }
       }
     }
-    
+
     // Update title
     document.title = "Luma-Mu Tools";
   }
-  
+
   // Update help text based on mode
   const helpTextElement = document.getElementById("help_text");
   if (helpTextElement) {
     if (mode === "luma1") {
-      helpTextElement.innerHTML = 
+      helpTextElement.innerHTML =
         "Drag a binary file (8-bit PCM or uLaw), Wav, AIFF, or FLAC file, or a zip archive of a bank onto top editor above.<br>" +
         "Press \"Spacebar\" to playback sample in browser<br>" +
         "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
         "Drag waveforms between slots in the staging area, they can also be dragged to and from the editor<br>" +
         "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
     } else {
-      helpTextElement.innerHTML = 
+      helpTextElement.innerHTML =
         "Drag a ROM file (.bin), Wav, AIFF, or FLAC file, or a zip archive of a bank onto top editor above.<br>" +
         "ROM files should be 131072 bytes (128k) containing 8 slots of sample data.<br>" +
         "Press \"Spacebar\" to playback sample in browser<br>" +
@@ -636,7 +641,7 @@ function updateUIForMode(mode) {
         "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
     }
   }
-  
+
   // Redraw waveforms to update labels
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }

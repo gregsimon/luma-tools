@@ -1,248 +1,276 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="css/luma.css">
-    <script src="js/WavAudioEncoder.min.js"></script>
-    <script src="js/codecs.mjs"></script>
-    <script src="js/jszip.min.js"></script>
-    <script src="js/picorom.js"></script>
-    <script src="js/wav.js"></script>
-    <script src="js/aiff.js"></script>
-    <script src="js/flac.js"></script>
-    <!-- Firebase Compat (Non-ESM) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="js/luma_core.js"></script>
-    <script src="js/luma_audio.js"></script>
-    <script src="js/luma_waveform.js"></script>
-    <script src="js/luma_midi.js"></script>
-    <script src="js/luma_files.js"></script>
-    <script src="js/luma_librarian.js"></script>
-    <script src="js/luma_picorom.js"></script>
-    <script src="js/hexy.js"></script>
-    <title>Luma Tools</title>
-  </head>
-  <body onload='luma1_init()'>
 
-    <!-- Tab bar -->
-    <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
-      <div style="display:flex; flex-flow: row nowrap;">
-        <div style="margin-right:20px; display:flex; align-items:center;">
-          Mode:&nbsp;<select id='device_mode' onchange='changeDeviceMode();'>
-            <option value="luma1">Luma-1</option>
-            <option value="lumamu">Luma-Mu</option>
-          </select>
-        </div>
-        <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
-        <div class="tab_button" id="pattern_editor_tab_button">Pattern Editor</div>
-        <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
-        <div class="tab_button" id="librarian_tab_button">Librarian</div>
-      </div>
-      <div style="display:flex; align-items:center; margin-bottom:4px;">
-        <div id="user_info" style="margin-right: 15px; display: none; align-items: center;">
-          <span id="user_name" style="margin-right: 8px; font-size: 14px;"></span>
-          <input type="button" value="Logout" onclick="logout()" />
-        </div>
-        <input type="button" id="login_button" value="Login with Google" onclick="login()" />
-        &nbsp;&nbsp;
-        MIDI Device: <select id='midi_out_device' onchange='changeMidiOut();'>
-          <!--<option value="">No MIDI connection</option>-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/luma.css">
+  <script src="js/WavAudioEncoder.min.js"></script>
+  <script src="js/codecs.mjs"></script>
+  <script src="js/jszip.min.js"></script>
+  <script src="js/picorom.js"></script>
+  <script src="js/wav.js"></script>
+  <script src="js/aiff.js"></script>
+  <script src="js/flac.js"></script>
+  <!-- Firebase Compat (Non-ESM) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/luma_core.js"></script>
+  <script src="js/luma_audio.js"></script>
+  <script src="js/luma_waveform.js"></script>
+  <script src="js/luma_midi.js"></script>
+  <script src="js/luma_files.js"></script>
+  <script src="js/luma_librarian.js"></script>
+  <script src="js/luma_picorom.js"></script>
+  <script src="js/hexy.js"></script>
+  <script src="js/tooltips.js"></script>
+  <title>Luma Tools</title>
+</head>
+
+<body onload='luma1_init()'>
+
+  <!-- Tab bar -->
+  <div style="display:flex; flex-flow: row nowrap; justify-content: space-between;">
+    <div style="display:flex; flex-flow: row nowrap;">
+      <div style="margin-right:20px; display:flex; align-items:center;">
+        Mode:&nbsp;<select id='device_mode' onchange='changeDeviceMode();' data-tooltip="device_mode">
+          <option value="luma1">Luma-1</option>
+          <option value="lumamu">Luma-Mu</option>
         </select>
+      </div>
+      <div class="tab_button" id="sample_editor_tab_button">Sample Editor</div>
+      <div class="tab_button" id="pattern_editor_tab_button">Pattern Editor</div>
+      <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
+      <div class="tab_button" id="librarian_tab_button">Librarian</div>
+    </div>
+    <div style="display:flex; align-items:center; margin-bottom:4px;">
+      <div id="user_info" style="margin-right: 15px; display: none; align-items: center;">
+        <span id="user_name" style="margin-right: 8px; font-size: 14px;"></span>
+        <input type="button" value="Logout" onclick="logout()" />
+      </div>
+      <input type="button" id="login_button" value="Login with Google" onclick="login()" data-tooltip="btn_login" />
+      &nbsp;&nbsp;
+      MIDI Device: <select id='midi_out_device' onchange='changeMidiOut();' data-tooltip="midi_out_device">
+        <!--<option value="">No MIDI connection</option>-->
+      </select>
+    </div>
+  </div>
+
+  <!-- SAMPLE EDITOR page -->
+  <div id="sample_editor_tab" class="main_section">
+    <div class="editor_waveform" ondragover="dragOverHandler(event);" ondragleave="dragLeaveHandler(event);"
+      ondrop='dropHandler(event);'>
+      <canvas id="editor_canvas" width="700px" height="240px" data-tooltip="canvas_editor"></canvas>
+      <canvas id="scrollbar_canvas" width="700px" height="20px" style="cursor: pointer;"
+        data-tooltip="canvas_scrollbar"></canvas>
+    </div>
+
+    <div style="display:flex; flex-flow: row nowrap;
+          justify-content: space-between; padding-top:8px; ">
+
+      <div>
+
+        <select id='binaryFormat' onchange='changeBinFormat();' data-tooltip="select_binary_format">
+          <option value="ulaw_u8">UInt8 uLaw</option>
+          <option value="pcm_u8">UInt8 PCM</option>
+        </select>
+        Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'
+          data-tooltip="input_in_point" />
+        &mdash;<input class='numeric' type='text' value="0" id='out_point' data-tooltip="input_out_point" />
+        (<span id='sample_count'>0</span> samples)
+        <input type='button' value="Select Max Range" onclick="resetRange()" data-tooltip="select_function" />
+        &nbsp;Playback@<select id='sample_rate_picker' data-tooltip="select_sample_rate">
+          <option value="12000">12000 Hz</option>
+          <option value="24000" selected>24000 Hz</option>
+          <option value="44100">44100 Hz</option>
+          <option value="48000">48000 Hz</option>
+        </select>&nbsp;
+        <select id='function_picker' onchange='handleFunctionPicker(this)' data-tooltip="select_function">
+          <option value="" disabled selected>Tools</option>
+          <option value="Crop">Crop</option>
+          <option value="Delete Selection">Delete Selection</option>
+          <option value="Zero Range">Zero Range</option>
+          <option value="Reverse">Reverse</option>
+        </select>&nbsp;
+        <input type='button' value="Preview" onclick="playAudio()" />
+      </div>
+      <img src="images/lumatools_logo.png" />
+    </div>
+    <br>
+    <div style="flex-direction: row;">
+      <div id="luma1_sample_controls">
+        <input type='button' value="Read Sample from Device" onclick="readSampleFromDevice()"
+          data-tooltip="btn_read_sample" />
+        Which slot: <select id='slotId' data-tooltip="select_slot_id">
+        </select>
+        Which bank:
+        <select id='bankId' data-tooltip="select_bank_id"></select>
+        Sample name:<input type='text' value="untitled" id='sample_name' data-tooltip="input_sample_name" />
+        <input type='button' value="Export WAV..." onclick="exportSample()" data-tooltip="btn_export_wav" />
+        <input type='button' value="Write Sample to Device" class="red_button" onclick='writeSampleToDevice()'
+          data-tooltip="btn_write_sample" />
+      </div>
+      <div id="lumamu_sample_controls" style="display:none;">
+        Which slot: <select id='slotId_mu' data-tooltip="select_slot_id">
+        </select>
+        Sample name:<input type='text' value="untitled" id='sample_name_mu' data-tooltip="input_sample_name" />
+        <input type='button' value="Export WAV..." onclick="exportSample()" data-tooltip="btn_export_wav" />
+        <input type="button" id="stretch_to_16k" value="Stretch to 16k" onclick="stretchTo16kClicked()"
+          title="Stretch sample to 16k using linear interpolation" data-tooltip="btn_stretch_16k" />
       </div>
     </div>
 
-    <!-- SAMPLE EDITOR page -->
-    <div id="sample_editor_tab" class = "main_section">
-      <div class="editor_waveform" 
-            ondragover="dragOverHandler(event);"
-            ondragleave="dragLeaveHandler(event);"
-            ondrop='dropHandler(event);'>
-            <canvas id="editor_canvas" width="700px" height="240px"></canvas>
-            <canvas id="scrollbar_canvas" width="700px" height="20px" style="cursor: pointer;"></canvas>
-      </div>
-
-      <div style="display:flex; flex-flow: row nowrap;
-          justify-content: space-between; padding-top:8px; ">
-        
-          <div>
-         
-          <select id='binaryFormat' onchange='changeBinFormat();'>
-            <option value="ulaw_u8">UInt8 uLaw</option>
-            <option value="pcm_u8">UInt8 PCM</option>
-          </select>
-          Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'/>
-          &mdash;<input class='numeric' type='text' value="0" id='out_point'/>
-          (<span id='sample_count'>0</span> samples)
-          <input type='button' value="Select All" onclick="resetRange()"/>
-          &nbsp;Playback@<select id='sample_rate_picker'>
-            <option value="12000">12000 Hz</option>
-            <option value="24000" selected>24000 Hz</option>
-            <option value="44100">44100 Hz</option>
-            <option value="48000">48000 Hz</option>
-          </select>&nbsp;
-          <select id='function_picker' onchange='handleFunctionPicker(this)'>
-            <option value="" disabled selected>Tools</option>
-            <option value="Crop">Crop</option>
-            <option value="Delete Selection">Delete Selection</option>
-            <option value="Zero Range">Zero Range</option>
-            <option value="Reverse">Reverse</option>
-          </select>&nbsp;
-          <input type='button' value="Preview" onclick="playAudio()"/>
-        </div>
-          <img src="images/lumatools_logo.png"/>        
-      </div>
-      <br>
-      <div style="flex-direction: row;">
-        <div id="luma1_sample_controls">
-          <input type='button' value="Read Sample from Device" onclick="readSampleFromDevice()"/>
-          Which slot: <select id='slotId'>
-          </select>
-          Which bank:
-          <select id='bankId'></select>
-          Sample name:<input type='text' value="untitled" id='sample_name'/>
-          <input type='button' value="Export WAV..." onclick="exportSample()"/>
-          <input type='button' value="Write Sample to Device" class="red_button" onclick='writeSampleToDevice()' />          
-        </div>
-        <div id="lumamu_sample_controls" style="display:none;">
-          Which slot: <select id='slotId_mu'>
-          </select>
-          Sample name:<input type='text' value="untitled" id='sample_name_mu'/>
-          <input type='button' value="Export WAV..." onclick="exportSample()"/>
-          <input type="button" id="stretch_to_16k" value="Stretch to 16k" onclick="stretchTo16kClicked()" title="Stretch sample to 16k using linear interpolation" />
-        </div>
-      </div>
-
-      <div class="waveform_slots">
-        <hr>
-        Voice Bank Manager
-        <ul id="slot_container" class="luma1_layout">
-          <li><canvas id="canvas_slot_7" ></canvas></li>
-          <li><canvas id="canvas_slot_6" ></canvas></li>
-          <li><canvas id="canvas_slot_1" ></canvas></li>
-          <li><canvas id="canvas_slot_0" ></canvas></li>
-          <li><canvas id="canvas_slot_2" ></canvas></li>
-
-          <li><canvas id="canvas_slot_8" ></canvas></li>
-          <li><canvas id="canvas_slot_3" ></canvas></li>
-          <li><canvas id="canvas_slot_9" ></canvas></li>
-          <li><canvas id="canvas_slot_5" ></canvas></li>
-          <li><canvas id="canvas_slot_4" ></canvas></li>
-        </ul>
-        <div id="luma1_controls">
-          <input type='button' value="Read Bank From Device" onclick="readBankfromDevice()"/>
-          Which bank: <select id='bankId2'></select>
-          Bank name: <input type='text' value='Untitled' id='bank_name'/>
-          <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
-          <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRom()"/>
-          <input type='button' class="red_button" value="Write Bank To Device" onclick="writeBankToDevice()"/>
-        </div>
-        <div id="lumamu_controls" style="display:none;">
-          Bank name: <input type='text' value='Untitled' id='bank_name_mu'/>
-          <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"/>
-          <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRomMu()"/>
-          <input type='button' value="Read Bank from PicoROM..." onclick="readFromPicoROMClicked()"/>
-          <input type='button' value="Program PicoROM..." onclick="uploadToPicoROMClicked()" class="red_button"/>
-        </div>
-          
-      </div>
-
-      <div style="flex-direction: row;">
-        <hr>
-        <div id="help_text">
-              Drag a binary file (8-bit PCM or uLaw), Wav, MP3, AIFF, FLAC file, or a zip archive of a bank onto top editor above.
-          <br>Press "Spacebar" to playback sample in browser
-          <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples) 
-          <br>Drag waveforms between slots in the staging area, they can also be dragged to and from the editor
-          <br>The "STAGING" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.
-        </div>
-      </div>
-    </div> <!-- sample editor -->
-
-      <!-- PATTERN EDITOR page -->
-    <div id="pattern_editor_tab" class="main_section" style="display:none;">
-      <input type='button' value="Read RAM from Device" onclick="readRAMfromDevice()"/>
-      From bank:
-      <select id='ram_bankId'></select>
-      <input type='button' class="red_button" value="Write RAM To Device" onclick="writeRAMToDevice()"/>
-      |
-      <input type='button' value="Download" onclick="downloadRAMBuffer()"/>
+    <div class="waveform_slots">
       <hr>
-      <div id="ram_editor"></div>
+      Voice Bank Manager
+      <ul id="slot_container" class="luma1_layout">
+        <li><canvas id="canvas_slot_7" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_6" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_1" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_0" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_2" data-tooltip="canvas_slot"></canvas></li>
+
+        <li><canvas id="canvas_slot_8" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_3" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_9" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_5" data-tooltip="canvas_slot"></canvas></li>
+        <li><canvas id="canvas_slot_4" data-tooltip="canvas_slot"></canvas></li>
+      </ul>
+      <div id="luma1_controls">
+        <input type='button' value="Read Bank From Device" onclick="readBankfromDevice()"
+          data-tooltip="btn_read_bank" />
+        Which bank: <select id='bankId2' data-tooltip="select_bank_id"></select>
+        Bank name: <input type='text' value='Untitled' id='bank_name' data-tooltip="input_bank_name" />
+        <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"
+          data-tooltip="btn_export_bank_zip" />
+        <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRom()"
+          data-tooltip="btn_export_bank_rom" />
+        <input type='button' class="red_button" value="Write Bank To Device" onclick="writeBankToDevice()"
+          data-tooltip="btn_write_bank" />
+      </div>
+      <div id="lumamu_controls" style="display:none;">
+        Bank name: <input type='text' value='Untitled' id='bank_name_mu' data-tooltip="input_bank_name" />
+        <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"
+          data-tooltip="btn_export_bank_zip" />
+        <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRomMu()"
+          data-tooltip="btn_export_bank_rom" />
+        <input type='button' value="Read Bank from PicoROM..." onclick="readFromPicoROMClicked()"
+          data-tooltip="btn_read_picorom" />
+        <input type='button' value="Program PicoROM..." onclick="uploadToPicoROMClicked()" class="red_button"
+          data-tooltip="btn_program_picorom" />
+      </div>
+
+    </div>
+
+    <div style="flex-direction: row;">
+      <hr>
+      <div id="help_text">
+        Drag a binary file (8-bit PCM or uLaw), Wav, MP3, AIFF, FLAC file, or a zip archive of a bank onto top editor
+        above.
+        <br>Press "Spacebar" to playback sample in browser
+        <br>Hold "Shift" while dragging endpoints to lock cursor to 1k (1024 samples)
+        <br>Drag waveforms between slots in the staging area, they can also be dragged to and from the editor
+        <br>The "STAGING" bank represents the samples currently loaded into the cards, the numbered banks are banks
+        stored on the internal SD card.
+      </div>
+    </div>
+  </div> <!-- sample editor -->
+
+  <!-- PATTERN EDITOR page -->
+  <div id="pattern_editor_tab" class="main_section" style="display:none;">
+    <input type='button' value="Read RAM from Device" onclick="readRAMfromDevice()" data-tooltip="btn_read_ram" />
+    From bank:
+    <select id='ram_bankId' data-tooltip="select_ram_bank_id"></select>
+    <input type='button' class="red_button" value="Write RAM To Device" onclick="writeRAMToDevice()"
+      data-tooltip="btn_write_ram" />
+    |
+    <input type='button' value="Download" onclick="downloadRAMBuffer()" data-tooltip="btn_download_ram" />
+    <hr>
+    <div id="ram_editor"></div>
   </div>
 
-    <!-- MIDI MONITOR page -->
-    <div id="midi_monitor_tab" class="main_section" style="display:none;">
-      <div style="display: flex; flex-direction: column;
+  <!-- MIDI MONITOR page -->
+  <div id="midi_monitor_tab" class="main_section" style="display:none;">
+    <div style="display: flex; flex-direction: column;
             justify-content: space-between;">
-        
-          <div>
-            <input type="button" value="Clear" id="log_clear"/>
-            |
-            <input type="checkbox" id="show_sysex"/>Show Sysex
-            |
 
-          </div>
-          <textarea  id="midi_log"></textarea>        
+      <div>
+        <input type="button" value="Clear" id="log_clear" data-tooltip="btn_clear_log" />
+        |
+        <input type="checkbox" id="show_sysex" data-tooltip="checkbox_show_sysex" />Show Sysex
+        |
+
       </div>
-    </div> <!-- MIDI Monitor-->
+      <textarea id="midi_log"></textarea>
+    </div>
+  </div> <!-- MIDI Monitor-->
 
-    <!-- LIBRARIAN page -->
-    <div id="librarian_tab" class="main_section" style="display:none;">
-      <div id="librarian_auth_notice" style="text-align: center; padding: 40px 20px;">
-        <div style="max-width: 600px; margin: 0 auto 30px auto; text-align: left; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
-          <strong>How the Librarian works:</strong>
-          <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds. All files are organized within a folder named <code style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of your Drive.</p>
-          <ul style="margin: 8px 0; padding-left: 20px;">
-            <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
-            <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
-            <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
-          </ul>
-        </div>
-        <p>Please login to access your personal sound library.</p>
-        <input type="button" value="Login with Google" onclick="login()" />
+  <!-- LIBRARIAN page -->
+  <div id="librarian_tab" class="main_section" style="display:none;">
+    <div id="librarian_auth_notice" style="text-align: center; padding: 40px 20px;">
+      <div
+        style="max-width: 600px; margin: 0 auto 30px auto; text-align: left; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
+        <strong>How the Librarian works:</strong>
+        <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds.
+          All files are organized within a folder named <code
+            style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of
+          your Drive.</p>
+        <ul style="margin: 8px 0; padding-left: 20px;">
+          <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
+          <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
+          <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
+        </ul>
       </div>
-      <div id="librarian_content" style="display: none;">
-        <div style="margin-bottom: 20px; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
-          <strong>How it works:</strong>
-          <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds. All files are organized within a folder named <code style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of your Drive.</p>
-          <ul style="margin: 8px 0; padding-left: 20px;">
-            <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
-            <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
-            <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
-          </ul>
-        </div>
-        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-          <input type="button" value="Refresh List from Google Drive" onclick="listDriveFiles()" />
-          <input type="button" value="Upload Editor Sample" onclick="uploadToDrive()" />
-          <input type="button" value="Upload Bank" onclick="uploadBankToDrive()" />
-        </div>
-        <div id="drive_file_list" style="border: 1px solid #444; padding: 10px; min-height: 100px; background: #222; overflow-y: auto; max-height: 400px;">
-          Click "List Sounds" to see your files...
-        </div>
+      <p>Please login to access your personal sound library.</p>
+      <input type="button" value="Login with Google" onclick="login()" />
+    </div>
+    <div id="librarian_content" style="display: none;">
+      <div style="margin-bottom: 20px; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
+        <strong>How it works:</strong>
+        <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds.
+          All files are organized within a folder named <code
+            style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of
+          your Drive.</p>
+        <ul style="margin: 8px 0; padding-left: 20px;">
+          <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
+          <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
+          <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
+        </ul>
       </div>
-    </div> <!-- Librarian-->
+      <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+        <input type="button" value="Refresh List from Google Drive" onclick="listDriveFiles()"
+          data-tooltip="btn_librarian_refresh" />
+        <input type="button" value="Upload Editor Sample" onclick="uploadToDrive()"
+          data-tooltip="btn_librarian_upload_sample" />
+        <input type="button" value="Upload Bank" onclick="uploadBankToDrive()"
+          data-tooltip="btn_librarian_upload_bank" />
+      </div>
+      <div id="drive_file_list"
+        style="border: 1px solid #444; padding: 10px; min-height: 100px; background: #222; overflow-y: auto; max-height: 400px;">
+        Click "List Sounds" to see your files...
+      </div>
+    </div>
+  </div> <!-- Librarian-->
 
 
-    <!-- FOOTER -->
-    <div>
-      <hr>
-      <a href="mailto:gregsimon@gmail.com">Feedback</a>
-      |
-      <a href="policy.html">Privacy Policy</a>
-      |
-      <a href="terms.html">Terms of Service</a>
-      |
-      <a href="https://github.com/gregsimon/luma-tools">GitHub</a>
-      |
-      Luma-1 firmware <span id="firmware_version">??</span>
-      |
-      SN: <span id="serial_number">??</span>
-      |
-      Luma-Tools deployed on: <span id="deployed_date"></span>
-    </div> 
+  <!-- FOOTER -->
+  <div>
+    <hr>
+    <a href="mailto:gregsimon@gmail.com">Feedback</a>
+    |
+    <a href="policy.html">Privacy Policy</a>
+    |
+    <a href="terms.html">Terms of Service</a>
+    |
+    <a href="https://github.com/gregsimon/luma-tools">GitHub</a>
+    |
+    Luma-1 firmware <span id="firmware_version">??</span>
+    |
+    SN: <span id="serial_number">??</span>
+    |
+    Luma-Tools deployed on: <span id="deployed_date"></span>
+  </div>
 
-  </body>
+</body>
+
 </html>
-

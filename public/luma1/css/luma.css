@@ -3,39 +3,48 @@
   src: url("../fonts/InterstateRegularCondense.otf");
 }
 
-* { 
+* {
   font-family: 'condensed';
 }
 
-body, html {
-  background-color: rgb(24,24,24);
-  color:rgb(190,190,190);
-  height:100%;
+body,
+html {
+  background-color: rgb(24, 24, 24);
+  color: rgb(190, 190, 190);
+  height: 100%;
 }
 
-a { text-decoration:none; }
-a:link { color:#7a7a7a; }
-a:visited { color:#7a7a7a; }
+a {
+  text-decoration: none;
+}
+
+a:link {
+  color: #7a7a7a;
+}
+
+a:visited {
+  color: #7a7a7a;
+}
 
 input {
-  background-color:rgb(15,15,15);
-  color:rgb(236,221,223);
-  border: 1px solid rgb(138,138,138);
+  background-color: rgb(15, 15, 15);
+  color: rgb(236, 221, 223);
+  border: 1px solid rgb(138, 138, 138);
 }
 
 select {
-  background-color:rgb(15,15,15);
-  color:rgb(236,221,223);
+  background-color: rgb(15, 15, 15);
+  color: rgb(236, 221, 223);
 }
 
 .red_button {
-  background-color: rgb(146,5,24);
-  color: rgb(236,221,223);
+  background-color: rgb(146, 5, 24);
+  color: rgb(236, 221, 223);
 }
 
 #dragsrc {
-  border:none;
-  background-color:#9a9a9a;
+  border: none;
+  background-color: #9a9a9a;
 }
 
 #pattern_editor_tab {
@@ -56,9 +65,9 @@ select {
 
 #ram_editor {
   font-family: fixed-width;
-  background-color:#292929;
+  background-color: #292929;
   color: white;
-  font-family:monospace, monospace;
+  font-family: monospace, monospace;
   border: none;
   padding: 10px;
   margin: 10px;
@@ -74,9 +83,9 @@ select {
 
 #midi_log {
   font-family: fixed-width;
-  background-color:#292929;
+  background-color: #292929;
   color: white;
-  font-family:monospace, monospace;
+  font-family: monospace, monospace;
   border: none;
   padding: 10px;
   margin: 10px;
@@ -92,7 +101,7 @@ select {
   padding-left: 10px;
   padding-right: 10px;
   margin-right: 10px;
-  border-bottom:none;
+  border-bottom: none;
   user-select: none;
 }
 
@@ -107,30 +116,30 @@ select {
 /* Luma-1 layout: 2 columns, 5 rows */
 .luma1_layout li {
   flex: 0 0 49%;
-  border:1px solid rgb(51,51,51);
-  display:flex;
-  height:100px;
+  border: 1px solid rgb(51, 51, 51);
+  display: flex;
+  height: 100px;
 }
 
 /* Luma-Mu layout: 2 columns, 4 rows */
 .lumamu_layout li {
   flex: 0 0 49%;
-  border:1px solid rgb(51,51,51);
-  display:flex;
-  height:100px;
+  border: 1px solid rgb(51, 51, 51);
+  display: flex;
+  height: 100px;
 }
 
-.waveform_slots canvas {  
-  height:100%;
-  width:100%;
+.waveform_slots canvas {
+  height: 100%;
+  width: 100%;
 }
 
 .fine_print {
   font-size: 10pt;
 }
 
-.main_section { 
-  margin:0px;
+.main_section {
+  margin: 0px;
   display: flex;
   flex-direction: column;
   padding: 0px;
@@ -138,16 +147,41 @@ select {
 
 .editor_waveform {
   display: block;
-  border:1px solid rgb(51,51,51);
-  background-color: rgb(41,41,41);
+  border: 1px solid rgb(51, 51, 51);
+  background-color: rgb(41, 41, 41);
   width: 100%;
   height: 260px;
-  }
-
-.numeric {
-  width:48px;
-  border:none;
-  background-color: rgb(24,24,24);
-  color:rgb(236,221,223);
 }
 
+.numeric {
+  width: 48px;
+  border: none;
+  background-color: rgb(24, 24, 24);
+  color: rgb(236, 221, 223);
+}
+
+
+/* Tooltip Styles */
+#global-tooltip {
+  position: absolute;
+  z-index: 10000;
+  /* High z-index to sit on top of everything */
+  pointer-events: none;
+  /* CRITICAL: Allows clicks to pass through to underlying elements */
+
+  background-color: rgba(20, 20, 20, 0.95);
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: 'condensed', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  max-width: 250px;
+  white-space: pre-wrap;
+  /* Allows \n to act as line break */
+
+  /* Smooth implementation */
+  transition: opacity 0.1s;
+}
