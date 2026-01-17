@@ -24,6 +24,7 @@
   <script src="js/luma_picorom.js"></script>
   <script src="js/hexy.js"></script>
   <script src="js/tooltips.js"></script>
+  <script src="js/luma_firmware.js"></script>
   <title>Luma Tools</title>
 </head>
 
@@ -42,6 +43,7 @@
       <div class="tab_button" id="pattern_editor_tab_button">Pattern Editor</div>
       <div class="tab_button" id="midi_monitor_tab_button">MIDI Monitor</div>
       <div class="tab_button" id="librarian_tab_button">Librarian</div>
+      <div class="tab_button" id="firmware_tab_button">Firmware</div>
     </div>
     <div style="display:flex; align-items:center; margin-bottom:4px;">
       <div id="user_info" style="margin-right: 15px; display: none; align-items: center;">
@@ -251,6 +253,34 @@
       </div>
     </div>
   </div> <!-- Librarian-->
+
+  <!-- FIRMWARE page -->
+  <div id="firmware_tab" class="main_section" style="display:none;">
+    <div style="padding: 20px; max-width: 600px;">
+      <h2>Firmware Management</h2>
+
+      <div style="background-color: #333; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="margin-bottom: 10px;">
+          <strong>Device Version:</strong> <span id="current_firmware_version_tab">Scanning...</span>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <strong>Latest Online:</strong> <span id="latest_firmware_version">Unknown</span>
+        </div>
+
+        <input type="button" id="check_firmware_btn" value="Check for Updates" onclick="checkLatestFirmware()" />
+
+        <div id="firmware_status" style="margin-top: 15px; min-height: 20px; font-weight: bold;">
+          <!-- Status messages will appear here -->
+        </div>
+      </div>
+
+      <div class="info_box" style="font-size: 0.9em; color: #ccc;">
+        <p>Checking against the official GitHub repository.<br>
+          <a href="https://github.com/joebritt/luma1/tree/main/TeensyCode" target="_blank">Visit Repository</a>
+        </p>
+      </div>
+    </div>
+  </div>
 
 
   <!-- FOOTER -->

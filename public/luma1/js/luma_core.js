@@ -59,6 +59,7 @@ const TAB_PATTERN_EDITOR = 1;
 const TAB_MIDI_MONITOR = 2;
 const TAB_UTILITIES = 3;
 const TAB_LIBRARIAN = 4;
+const TAB_FIRMWARE = 5;
 
 // send/receive device command IDs
 const CMD_SAMPLE = 0x00;
@@ -372,6 +373,10 @@ function luma1_init() {
     document.getElementById("librarian_tab_button").style.display = "none";
   }
 
+  document.getElementById("firmware_tab_button").onclick = () => {
+    switchTab(TAB_FIRMWARE);
+  };
+
   // MIDI log
   document.getElementById("midi_log").readonly = true;
   document.getElementById("log_clear").onclick = () => {
@@ -487,6 +492,7 @@ function switchTab(newTab) {
   de("pattern_editor_tab").style.display = "none";
   de("midi_monitor_tab").style.display = "none";
   de("librarian_tab").style.display = "none";
+  de("firmware_tab").style.display = "none";
   switch (newTab) {
     case TAB_SAMPLE_EDITOR:
       de("sample_editor_tab").style.display = "block";
@@ -502,6 +508,9 @@ function switchTab(newTab) {
       break;
     case TAB_LIBRARIAN:
       de("librarian_tab").style.display = "block";
+      break;
+    case TAB_FIRMWARE:
+      de("firmware_tab").style.display = "block";
       break;
   }
 }
@@ -568,6 +577,7 @@ function updateUIForMode(mode) {
     document.getElementById("lumamu_sample_controls").style.display = "none";
     document.getElementById("pattern_editor_tab_button").style.display = "block";
     document.getElementById("midi_monitor_tab_button").style.display = "block";
+    document.getElementById("firmware_tab_button").style.display = "block";
     if (ENABLE_LIBRARIAN) {
       document.getElementById("librarian_tab_button").style.display = "block";
     } else {
@@ -593,6 +603,7 @@ function updateUIForMode(mode) {
     document.getElementById("lumamu_sample_controls").style.display = "block";
     document.getElementById("pattern_editor_tab_button").style.display = "none";
     document.getElementById("midi_monitor_tab_button").style.display = "none";
+    document.getElementById("firmware_tab_button").style.display = "none";
     if (ENABLE_LIBRARIAN) {
       document.getElementById("librarian_tab_button").style.display = "block";
     } else {
@@ -601,7 +612,8 @@ function updateUIForMode(mode) {
 
     // If we're in a tab that's not available in Luma-Mu mode, switch to sample editor
     if (document.getElementById("pattern_editor_tab").style.display !== "none" ||
-      document.getElementById("midi_monitor_tab").style.display !== "none") {
+      document.getElementById("midi_monitor_tab").style.display !== "none" ||
+      document.getElementById("firmware_tab").style.display !== "none") {
       switchTab(TAB_SAMPLE_EDITOR);
     }
 
