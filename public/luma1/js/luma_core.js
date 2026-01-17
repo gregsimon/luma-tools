@@ -27,7 +27,8 @@ let bank = []; // Hold the state of each slot
 let bank_name = "Untitled";
 let current_mode = "luma1"; // Current device mode: luma1 or lumamu
 const drag_gutter_pct = 0.1;
-let luma_firmware_version = "";
+// allow mocking
+var luma_firmware_version = window.luma_firmware_version || "";
 let luma_serial_number = "";
 let throttle_midi_send_ms = 0;
 let ram_dump = null;
@@ -483,6 +484,11 @@ function luma1_init() {
   // Initialize tooltips
   if (window.LumaTooltips) {
     window.LumaTooltips.init('en');
+  }
+
+  // Auto-check firmware if in Luma-1 mode
+  if (current_mode === "luma1" && typeof checkLatestFirmware === 'function') {
+    checkLatestFirmware();
   }
 }
 

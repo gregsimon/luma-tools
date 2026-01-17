@@ -3,6 +3,8 @@
 
 const GITHUB_API_URL = "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode";
 
+let availableFirmwareVersions = []; // Store the fetched versions
+
 async function checkLatestFirmware() {
   const firmwareStatusDiv = document.getElementById("firmware_status");
   const checkBtn = document.getElementById("check_firmware_btn");
@@ -43,15 +45,29 @@ async function checkLatestFirmware() {
     let latestDirName = "";
     let latestUrl = "";
 
+    // Reset global list
+    availableFirmwareVersions = [];
+
     prebuiltDirs.forEach(dir => {
       // Name format: "Prebuilt X.XXX"
       const versionPart = dir.name.substring(9).trim();
+
+      // Store for dropdown
+      availableFirmwareVersions.push({
+        version: versionPart,
+        name: dir.name,
+        url: dir.url // Use API URL for direct fetching
+      });
+
       if (compareFirmwareVersions(versionPart, latestVersion) > 0) {
         latestVersion = versionPart;
         latestDirName = dir.name;
         latestUrl = dir.html_url;
       }
     });
+
+    // Populate the dropdown
+    populateFirmwareDropdown();
 
     if (latestVersionSpan) {
       latestVersionSpan.innerText = latestVersion;
@@ -101,4 +117,75 @@ function compareFirmwareVersions(v1, v2) {
   if (f1 > f2) return 1;
   if (f1 < f2) return -1;
   return 0;
+}
+
+function populateFirmwareDropdown() {
+  const select = document.getElementById("firmware_version_select");
+  if (!select) return;
+
+  // Clear existing options
+  select.innerHTML = '<option value="">-- Select Version --</option>';
+
+  // Sort versions descending (newest first)
+  availableFirmwareVersions.sort((a, b) => compareFirmwareVersions(b.version, a.version));
+
+  availableFirmwareVersions.forEach(fw => {
+    const opt = document.createElement("option");
+    opt.value = fw.url;
+    opt.innerText = `${fw.version} (${fw.name})`;
+    select.appendChild(opt);
+  });
+}
+
+function updateDownloadLink() {
+  const select = document.getElementById("firmware_version_select");
+  const btn = document.getElementById("download_selected_firmware_btn");
+  if (!select || !btn) return;
+
+  btn.disabled = select.value === "";
+}
+
+async function downloadSelectedFirmware() {
+  const select = document.getElementById("firmware_version_select");
+  const btn = document.getElementById("download_selected_firmware_btn");
+  if (!select || select.value === "" || !btn) return;
+
+  const apiUrl = select.value;
+  const originalText = btn.value;
+
+  btn.disabled = true;
+  btn.value = "Finding hex file...";
+
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error("Failed to fetch directory info");
+
+    const files = await response.json();
+    const hexFile = files.find(f => f.name.endsWith(".hex")); // robust search
+
+    if (hexFile && hexFile.download_url) {
+      // Force download by fetching blob and creating anchor
+      btn.value = "Downloading...";
+      const fileResp = await fetch(hexFile.download_url);
+      if (!fileResp.ok) throw new Error("Failed to download file");
+
+      const blob = await fileResp.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = hexFile.name; // Use original filename
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } else {
+      alert("No .hex file found in this version folder.");
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Error finding firmware file.");
+  } finally {
+    btn.disabled = false;
+    btn.value = originalText;
+  }
 }

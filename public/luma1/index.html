@@ -267,6 +267,16 @@
           <strong>Latest Online:</strong> <span id="latest_firmware_version">Unknown</span>
         </div>
 
+        <div style="margin-bottom: 20px; border-top: 1px solid #555; padding-top: 15px;">
+          <label for="firmware_version_select">Select Version:</label>
+          <select id="firmware_version_select" onchange="updateDownloadLink()" style="margin-left: 10px; width: 200px;">
+            <option value="">-- Check for Updates First --</option>
+          </select>
+          <br><br>
+          <input type="button" id="download_selected_firmware_btn" value="Download Selected Version" disabled
+            onclick="downloadSelectedFirmware()" />
+        </div>
+
         <input type="button" id="check_firmware_btn" value="Check for Updates" onclick="checkLatestFirmware()" />
 
         <div id="firmware_status" style="margin-top: 15px; min-height: 20px; font-weight: bold;">
