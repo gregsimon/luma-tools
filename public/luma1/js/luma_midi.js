@@ -39,15 +39,15 @@ function onMIDIMessageReceived(event) {
   }
 
   console.log(`onMIDIMessageReceived ${event.data.length} bytes`);
-  console.log(`last byte is ${event.data[event.data.length - 1].toString(16)}`);
+  //console.log(`last byte is ${event.data[event.data.length - 1].toString(16)}`);
 
   if (event.data[0] == 0xf0) {
     // Unpack the Sysex to figure out what we received.
     const decoder = new TextDecoder();
-    console.log(`event.data MIDI In = ${event.data.length} bytes`);
+    //console.log(`event.data MIDI In = ${event.data.length} bytes`);
     const dataToBeUnpacked = event.data.slice(2, event.data.length - 1)
-    console.log(`event.data = ${event.data}`);
-    console.log(`dataToBeUnpacked = ${dataToBeUnpacked}`);
+    //console.log(`event.data = ${event.data}`);
+    //console.log(`dataToBeUnpacked = ${dataToBeUnpacked}`);
     var data = Uint8Array.from(
       unpack_sysex(dataToBeUnpacked),
     );

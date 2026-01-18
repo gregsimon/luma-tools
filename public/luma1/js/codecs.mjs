@@ -154,7 +154,7 @@ function unpack_sysex(src) { // src is a Uint8Array
     }
   }
 
-  console.log("unpacked sysex " + src.length + " -> " + out_idx);
+  //console.log("unpacked sysex " + src.length + " -> " + out_idx);
   return out_block.slice(0, out_idx);
 }
 
