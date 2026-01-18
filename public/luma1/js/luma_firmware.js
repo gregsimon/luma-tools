@@ -139,11 +139,311 @@ function populateFirmwareDropdown() {
 
 function updateDownloadLink() {
   const select = document.getElementById("firmware_version_select");
-  const btn = document.getElementById("download_selected_firmware_btn");
-  if (!select || !btn) return;
+  const downloadBtn = document.getElementById("download_selected_firmware_btn");
+  const flashBtn = document.getElementById("flash_selected_firmware_btn");
+  if (!select) return;
 
-  btn.disabled = select.value === "";
+  const hasSelection = select.value !== "";
+  if (downloadBtn) downloadBtn.disabled = !hasSelection;
+  if (flashBtn) flashBtn.disabled = !hasSelection;
 }
+
+// Intel HEX parser
+class IntelHex {
+  constructor() {
+    this.blocks = new Map(); // address -> Uint8Array
+    this.minAddr = 0xFFFFFFFF;
+    this.maxAddr = 0;
+  }
+
+  parse(hexString) {
+    const lines = hexString.split(/\r?\n/);
+    let upperAddr = 0;
+
+    for (let line of lines) {
+      if (line[0] !== ':') continue;
+
+      const byteCount = parseInt(line.substr(1, 2), 16);
+      const addr = parseInt(line.substr(3, 4), 16);
+      const recordType = parseInt(line.substr(7, 2), 16);
+      const fullAddr = (upperAddr << 16) | addr;
+
+      if (recordType === 0) { // Data record
+        const data = new Uint8Array(byteCount);
+        for (let i = 0; i < byteCount; i++) {
+          data[i] = parseInt(line.substr(9 + i * 2, 2), 16);
+        }
+
+        // Store in 1k blocks
+        let currentAddr = fullAddr;
+        let dataOffset = 0;
+        while (dataOffset < byteCount) {
+          const blockAddr = currentAddr & ~(1024 - 1);
+          const offsetInBlock = currentAddr & (1024 - 1);
+          const spaceInBlock = 1024 - offsetInBlock;
+          const toCopy = Math.min(spaceInBlock, byteCount - dataOffset);
+
+          if (!this.blocks.has(blockAddr)) {
+            this.blocks.set(blockAddr, new Uint8Array(1024).fill(0xFF));
+          }
+          const block = this.blocks.get(blockAddr);
+          block.set(data.subarray(dataOffset, dataOffset + toCopy), offsetInBlock);
+
+          currentAddr += toCopy;
+          dataOffset += toCopy;
+        }
+
+        this.minAddr = Math.min(this.minAddr, fullAddr);
+        this.maxAddr = Math.max(this.maxAddr, fullAddr + byteCount);
+      } else if (recordType === 4) { // Extended Linear Address Record
+        upperAddr = parseInt(line.substr(9, 4), 16);
+      } else if (recordType === 1) { // End of File
+        break;
+      }
+    }
+  }
+
+  getSortedBlocks() {
+    return Array.from(this.blocks.keys()).sort((a, b) => a - b);
+  }
+}
+
+async function flashSelectedFirmware() {
+  if (!navigator.hid) {
+    alert("WebHID is not supported in this browser. Please use a modern browser like Chrome or Edge.");
+    return;
+  }
+
+  const select = document.getElementById("firmware_version_select");
+  if (!select || select.value === "") return;
+
+  const apiUrl = select.value;
+  const statusDiv = document.getElementById("firmware_status");
+  const progressContainer = document.getElementById("firmware_progress_container");
+  const progressBar = document.getElementById("firmware_progress_bar");
+  const progressPercent = document.getElementById("firmware_progress_percent");
+  const progressLabel = document.getElementById("firmware_progress_label");
+
+  const setStatus = (msg, isError = false) => {
+    statusDiv.innerHTML = msg;
+    statusDiv.className = isError ? "status_alert" : "";
+    console.log(msg);
+  };
+
+  const updateProgress = (label, percent) => {
+    progressLabel.innerText = label;
+    progressPercent.innerText = `${Math.round(percent)}%`;
+    progressBar.style.width = `${percent}%`;
+  };
+
+  // Helper to send report (tries Output Report first, then Feature Report)
+  const sendReport = async (device, reportId, data, useFeature = false) => {
+    const maxRetries = 3;
+    let lastError;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        if (useFeature) {
+          await device.sendFeatureReport(reportId, data);
+        } else {
+          await device.sendReport(reportId, data);
+        }
+        return; // Success
+      } catch (e) {
+        lastError = e;
+        console.warn(`HID write attempt ${i + 1} failed (ID: ${reportId}, Size: ${data.byteLength}, Feature: ${useFeature}):`, e);
+        
+        // If it's a permission/busy error, wait a bit and retry
+        if (e.name === "NotAllowedError" || e.name === "NetworkError") {
+          await new Promise(r => setTimeout(r, 200 * (i + 1)));
+          continue;
+        }
+        throw e; // For other errors, fail immediately
+      }
+    }
+    
+    // If we reach here, all retries failed. Try the opposite type as a last resort.
+    try {
+      if (useFeature) {
+        await device.sendReport(reportId, data);
+      } else {
+        await device.sendFeatureReport(reportId, data);
+      }
+      console.log("Fallback report type succeeded.");
+      return;
+    } catch (e) {
+      console.error("All HID write attempts and fallbacks failed.", e);
+      throw new Error(`HID write failed after retries: ${lastError.message}`);
+    }
+  };
+
+  try {
+    progressContainer.style.display = "block";
+    updateProgress("Downloading...", 0);
+    setStatus("Fetching firmware info...");
+
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error("Failed to fetch directory info");
+
+    const files = await response.json();
+    const hexFileInfo = files.find(f => f.name.endsWith(".hex"));
+
+    if (!hexFileInfo || !hexFileInfo.download_url) {
+      throw new Error("No .hex file found in this version folder.");
+    }
+
+    setStatus(`Downloading ${hexFileInfo.name}...`);
+    const hexResp = await fetch(hexFileInfo.download_url);
+    if (!hexResp.ok) throw new Error("Failed to download hex file");
+    const hexText = await hexResp.text();
+
+    setStatus("Parsing hex file...");
+    const ih = new IntelHex();
+    ih.parse(hexText);
+
+    if (ih.blocks.size === 0) {
+      throw new Error("Hex file is empty or invalid.");
+    }
+
+    // Step 1: Reboot to bootloader
+    setStatus("Please select your Luma-1 device to begin the update...");
+    
+    try {
+      if (navigator.serial) {
+        const ports = await navigator.serial.getPorts();
+        let port = ports.find(p => p.getInfo().usbVendorId === TEENSY_VID);
+        
+        if (!port) {
+          port = await navigator.serial.requestPort({
+            filters: [{ usbVendorId: TEENSY_VID }]
+          });
+        }
+        
+        setStatus("Rebooting into bootloader mode...");
+        await port.open({ baudRate: 134 });
+        await port.close();
+        
+        // Wait for the device to disconnect and reconnect as bootloader
+        // Increased wait time for macOS stability
+        setStatus("Waiting for device to enter bootloader mode...");
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    } catch (e) {
+      console.log("Web Serial reboot failed or cancelled", e);
+      setStatus("Could not reboot automatically. Please press the button on the Teensy manually.");
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    // Step 2: Connect via WebHID (HalfKay)
+    setStatus("Please select the 'Teensy HalfKay' device...");
+    let device;
+    try {
+      const hidDevices = await navigator.hid.requestDevice({
+        filters: [{ vendorId: TEENSY_VID, productId: TEENSY_BOOTLOADER_PID }]
+      });
+
+      if (hidDevices.length === 0) {
+        throw new Error("No Teensy bootloader device selected.");
+      }
+      device = hidDevices[0];
+      console.log("HID Device selected:", device);
+    } catch (e) {
+      throw new Error("Failed to connect to bootloader. " + e.message);
+    }
+
+    if (!device.opened) {
+      await device.open();
+    }
+
+    // Determine report size and type from collections
+    let outputReportSize = 1088;
+    let useFeatureReport = false;
+    let bootloaderCollection = null;
+
+    if (device.collections) {
+      for (const collection of device.collections) {
+        if (collection.usagePage === 0xFF9C) {
+          bootloaderCollection = collection;
+          console.log(`Found Teensy Bootloader Collection (Usage: 0x${collection.usage.toString(16)})`);
+          
+          const outRep = collection.outputReports.find(r => r.reportId === 0);
+          const featRep = collection.featureReports.find(r => r.reportId === 0);
+          
+          const bestRep = outRep || featRep;
+          useFeatureReport = !outRep && !!featRep;
+
+          if (bestRep && bestRep.items) {
+            let totalBits = 0;
+            for (const item of bestRep.items) {
+              totalBits += item.reportSize * item.reportCount;
+            }
+            const calculatedSize = totalBits / 8;
+            if (calculatedSize > 0) {
+              outputReportSize = calculatedSize;
+              console.log(`Calculated report size: ${outputReportSize} bytes, Use Feature: ${useFeatureReport}`);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // Step 3: Flash blocks
+    const sortedAddrs = ih.getSortedBlocks();
+    const totalBlocks = sortedAddrs.length;
+    let blocksDone = 0;
+
+    setStatus("Flashing... Do not disconnect the device.");
+    for (const addr of sortedAddrs) {
+      const block = ih.blocks.get(addr);
+      
+      const reportData = new Uint8Array(outputReportSize);
+      reportData[0] = addr & 0xFF;
+      reportData[1] = (addr >> 8) & 0xFF;
+      reportData[2] = (addr >> 16) & 0xFF;
+      reportData.set(block, 64);
+
+      await sendReport(device, 0, reportData, useFeatureReport);
+      
+      blocksDone++;
+      const percent = (blocksDone / totalBlocks) * 100;
+      updateProgress("Flashing...", percent);
+
+      // Erase takes time on the first block
+      if (blocksDone === 1) {
+        await new Promise(r => setTimeout(r, 600));
+      }
+    }
+
+    // Step 4: Reset
+    setStatus("Resetting device...");
+    updateProgress("Finalizing...", 100);
+    
+    const resetData = new Uint8Array(outputReportSize);
+    resetData[0] = 0xFF;
+    resetData[1] = 0xFF;
+    resetData[2] = 0xFF;
+    await sendReport(device, 0, resetData, useFeatureReport);
+
+    await device.close();
+    
+    setStatus("Update successful! Your Luma-1 is restarting.", false);
+    setTimeout(() => {
+      progressContainer.style.display = "none";
+      if (typeof checkLatestFirmware === 'function') checkLatestFirmware();
+    }, 3000);
+
+  } catch (e) {
+    console.error(e);
+    setStatus(`Error: ${e.message}`, true);
+    setTimeout(() => {
+      progressContainer.style.display = "none";
+    }, 10000);
+  }
+}
+
+const TEENSY_VID = 0x16C0;
+const TEENSY_BOOTLOADER_PID = 0x0478;
 
 async function downloadSelectedFirmware() {
   const select = document.getElementById("firmware_version_select");

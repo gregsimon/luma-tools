@@ -153,11 +153,19 @@ select {
   height: 260px;
 }
 
-.numeric {
-  width: 48px;
-  border: none;
-  background-color: rgb(24, 24, 24);
-  color: rgb(236, 221, 223);
+.status_alert {
+  color: #ff4d4d;
+}
+
+.status_success {
+  color: #4CAF50;
+}
+
+#firmware_progress_container {
+  background: #333;
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid #444;
 }
 
 
