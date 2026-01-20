@@ -252,7 +252,7 @@ async function flashSelectedFirmware() {
       } catch (e) {
         lastError = e;
         console.warn(`HID write attempt ${i + 1} failed (ID: ${reportId}, Size: ${data.byteLength}, Feature: ${useFeature}):`, e);
-        
+
         // If it's a permission/busy error, wait a bit and retry
         if (e.name === "NotAllowedError" || e.name === "NetworkError") {
           await new Promise(r => setTimeout(r, 200 * (i + 1)));
@@ -261,7 +261,7 @@ async function flashSelectedFirmware() {
         throw e; // For other errors, fail immediately
       }
     }
-    
+
     // If we reach here, all retries failed. Try the opposite type as a last resort.
     try {
       if (useFeature) {
@@ -307,22 +307,22 @@ async function flashSelectedFirmware() {
 
     // Step 1: Reboot to bootloader
     setStatus("Please select your Luma-1 device to begin the update...");
-    
+
     try {
       if (navigator.serial) {
         const ports = await navigator.serial.getPorts();
         let port = ports.find(p => p.getInfo().usbVendorId === TEENSY_VID);
-        
+
         if (!port) {
           port = await navigator.serial.requestPort({
             filters: [{ usbVendorId: TEENSY_VID }]
           });
         }
-        
+
         setStatus("Rebooting into bootloader mode...");
         await port.open({ baudRate: 134 });
         await port.close();
-        
+
         // Wait for the device to disconnect and reconnect as bootloader
         // Increased wait time for macOS stability
         setStatus("Waiting for device to enter bootloader mode...");
@@ -365,10 +365,10 @@ async function flashSelectedFirmware() {
         if (collection.usagePage === 0xFF9C) {
           bootloaderCollection = collection;
           console.log(`Found Teensy Bootloader Collection (Usage: 0x${collection.usage.toString(16)})`);
-          
+
           const outRep = collection.outputReports.find(r => r.reportId === 0);
           const featRep = collection.featureReports.find(r => r.reportId === 0);
-          
+
           const bestRep = outRep || featRep;
           useFeatureReport = !outRep && !!featRep;
 
@@ -396,7 +396,7 @@ async function flashSelectedFirmware() {
     setStatus("Flashing... Do not disconnect the device.");
     for (const addr of sortedAddrs) {
       const block = ih.blocks.get(addr);
-      
+
       const reportData = new Uint8Array(outputReportSize);
       reportData[0] = addr & 0xFF;
       reportData[1] = (addr >> 8) & 0xFF;
@@ -404,7 +404,7 @@ async function flashSelectedFirmware() {
       reportData.set(block, 64);
 
       await sendReport(device, 0, reportData, useFeatureReport);
-      
+
       blocksDone++;
       const percent = (blocksDone / totalBlocks) * 100;
       updateProgress("Flashing...", percent);
@@ -418,7 +418,7 @@ async function flashSelectedFirmware() {
     // Step 4: Reset
     setStatus("Resetting device...");
     updateProgress("Finalizing...", 100);
-    
+
     const resetData = new Uint8Array(outputReportSize);
     resetData[0] = 0xFF;
     resetData[1] = 0xFF;
@@ -426,8 +426,17 @@ async function flashSelectedFirmware() {
     await sendReport(device, 0, resetData, useFeatureReport);
 
     await device.close();
-    
+
     setStatus("Update successful! Your Luma-1 is restarting.", false);
+
+    // Update global version and footer
+    const selectedFw = availableFirmwareVersions.find(fw => fw.url === apiUrl);
+    if (selectedFw) {
+      luma_firmware_version = selectedFw.version;
+      const fv = document.getElementById("firmware_version");
+      if (fv) fv.innerHTML = luma_firmware_version;
+    }
+
     setTimeout(() => {
       progressContainer.style.display = "none";
       if (typeof checkLatestFirmware === 'function') checkLatestFirmware();
