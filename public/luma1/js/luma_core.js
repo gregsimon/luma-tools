@@ -486,10 +486,7 @@ function luma1_init() {
     window.LumaTooltips.init('en');
   }
 
-  // Auto-check firmware if in Luma-1 mode
-  if (current_mode === "luma1" && typeof checkLatestFirmware === 'function') {
-    checkLatestFirmware();
-  }
+
 }
 
 function switchTab(newTab) {
