@@ -39,10 +39,6 @@ test.describe('Firmware Tab', () => {
 
     // Verify the firmware tab is visible
     await expect(page.locator('#firmware_tab')).toBeVisible();
-
-    // Verify auto-check started/finished
-    // It might be "Checking..." or already "0.945" depending on speed, but definitely not "Unknown" forever
-    await expect(page.locator('#latest_firmware_version')).not.toHaveText('Unknown');
   });
 
   test('checks for updates successfully when update available', async ({ page }) => {
@@ -58,6 +54,9 @@ test.describe('Firmware Tab', () => {
     await page.goto('/luma1/');
 
     await page.locator('#firmware_tab_button').click();
+
+    // Manual check required
+    await page.locator('#check_firmware_btn').click();
 
     // Auto-check should happen. 
     await expect(page.locator('#check_firmware_btn')).toBeEnabled();
@@ -85,7 +84,9 @@ test.describe('Firmware Tab', () => {
     await page.goto('/luma1/');
 
     await page.locator('#firmware_tab_button').click();
-    // No need to click check, auto-check runs
+
+    // Manual check required
+    await page.locator('#check_firmware_btn').click();
 
     // Verify results
     await expect(page.locator('#latest_firmware_version')).toHaveText('0.945');
@@ -104,6 +105,7 @@ test.describe('Firmware Tab', () => {
     await page.goto('/luma1/');
 
     await page.locator('#firmware_tab_button').click();
+    await page.locator('#check_firmware_btn').click();
 
     // Latest is 0.945, device is v0.941 -> Update Available
     await expect(page.locator('#latest_firmware_version')).toHaveText('0.945');
@@ -122,6 +124,9 @@ test.describe('Firmware Tab', () => {
     await page.goto('/luma1/');
 
     await page.locator('#firmware_tab_button').click();
+
+    // Manual check required
+    await page.locator('#check_firmware_btn').click();
 
     // Initial state: download disabled (even if fetched, nothing selected)
     await expect(page.locator('#download_selected_firmware_btn')).toBeDisabled();
