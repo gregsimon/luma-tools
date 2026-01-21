@@ -12,6 +12,8 @@
   <script src="js/wav.js"></script>
   <script src="js/aiff.js"></script>
   <script src="js/flac.js"></script>
+  <!-- Google API Loader -->
+  <script src="https://apis.google.com/js/api.js"></script>
   <!-- Firebase Compat (Non-ESM) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -213,44 +215,20 @@
       <div
         style="max-width: 600px; margin: 0 auto 30px auto; text-align: left; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
         <strong>How the Librarian works:</strong>
-        <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds.
-          All files are organized within a folder named <code
-            style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of
-          your Drive.</p>
+        <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds
+          securely.</p>
         <ul style="margin: 8px 0; padding-left: 20px;">
-          <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
-          <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
-          <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
+          <li><strong>Open:</strong> Use the Google Picker to select audio files or banks from anywhere in your Drive.
+          </li>
+          <li><strong>Save:</strong> Save your work to any folder you choose.</li>
+          <li><strong>Secure:</strong>Note this app only has access to the specific files you select or create.</li>
         </ul>
       </div>
       <p>Please login to access your personal sound library.</p>
       <input type="button" value="Login with Google" onclick="login()" />
     </div>
     <div id="librarian_content" style="display: none;">
-      <div style="margin-bottom: 20px; padding: 15px; background: #333; border-radius: 4px; line-height: 1.5;">
-        <strong>How it works:</strong>
-        <p style="margin: 8px 0;">The Librarian connects to your Google Drive to store and retrieve your Luma-1 sounds.
-          All files are organized within a folder named <code
-            style="background: #000; padding: 2px 4px; border-radius: 3px;">luma_librarian</code> at the top level of
-          your Drive.</p>
-        <ul style="margin: 8px 0; padding-left: 20px;">
-          <li><strong>Upload:</strong> Save your current Editor sample or the entire Staging Bank to the cloud.</li>
-          <li><strong>Download:</strong> Click a file to load it back into the Editor or Staging Slots.</li>
-          <li><strong>Share:</strong> Generate a public link to share your sounds with others.</li>
-        </ul>
-      </div>
-      <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-        <input type="button" value="Refresh List from Google Drive" onclick="listDriveFiles()"
-          data-tooltip="btn_librarian_refresh" />
-        <input type="button" value="Upload Editor Sample" onclick="uploadToDrive()"
-          data-tooltip="btn_librarian_upload_sample" />
-        <input type="button" value="Upload Bank" onclick="uploadBankToDrive()"
-          data-tooltip="btn_librarian_upload_bank" />
-      </div>
-      <div id="drive_file_list"
-        style="border: 1px solid #444; padding: 10px; min-height: 100px; background: #222; overflow-y: auto; max-height: 400px;">
-        Click "List Sounds" to see your files...
-      </div>
+      <!-- Content populated by luma_librarian.js updateLibrarianUI() -->
     </div>
   </div> <!-- Librarian-->
 

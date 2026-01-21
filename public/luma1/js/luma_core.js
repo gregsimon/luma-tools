@@ -161,6 +161,10 @@ function luma1_init() {
       if (userName) userName.textContent = user.displayName || user.email;
       if (libAuthNotice) libAuthNotice.style.display = "none";
       if (libContent) libContent.style.display = "block";
+
+      // Update Librarian UI (will show "Connect" if token needed, or buttons if ready)
+      if (typeof updateLibrarianUI === 'function') updateLibrarianUI();
+
       console.log("User signed in:", user.uid);
     } else {
       if (loginBtn) loginBtn.style.display = ENABLE_LIBRARIAN ? "block" : "none";

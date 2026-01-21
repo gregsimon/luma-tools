@@ -1,5 +1,5 @@
 # Terms of Service for Luma Tools
-Last updated: December 20, 2025
+Last updated: January 21, 2026
 
 ## 1. Acceptance of Terms
 
