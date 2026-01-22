@@ -6,7 +6,7 @@ function resizeCanvasToParent() {
   if (canvas && canvas.parentElement) {
     canvas.width = canvas.parentElement.offsetWidth;
   }
-  
+
   var sbCanvas = document.getElementById("scrollbar_canvas");
   if (sbCanvas && sbCanvas.parentElement) {
     sbCanvas.width = sbCanvas.parentElement.offsetWidth;
@@ -48,7 +48,7 @@ function drawEditorCanvas() {
 
   if (editorSampleData && editorSampleLength > 0) {
     const visibleSamples = editorSampleLength / editorZoomLevel;
-    
+
     // Clamp scroll position
     editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
 
@@ -60,13 +60,13 @@ function drawEditorCanvas() {
     const maxLimit = getMaxSampleSize();
     const inX = sampleToX(editor_in_point);
     const endX = sampleToX(editor_in_point + maxLimit);
-    
+
     ctx.save();
-    
+
     // 1. Draw the overall transparent green block for the max limit
     ctx.globalAlpha = 0.15;
     ctx.fillStyle = "rgb(0, 255, 0)";
-    
+
     const blockStart = Math.max(0, inX);
     const blockEnd = Math.min(w, endX);
     if (blockEnd > blockStart) {
@@ -79,10 +79,10 @@ function drawEditorCanvas() {
     ctx.fillStyle = "rgb(0, 255, 0)";
     ctx.font = "10px InterstateRegular, sans-serif";
     ctx.textAlign = "right";
-    
+
     limits.forEach(limit => {
       if (limit > maxLimit) return;
-      
+
       const limitX = sampleToX(editor_in_point + limit);
       if (limitX >= 0 && limitX <= w) {
         // Draw vertical line
@@ -91,24 +91,24 @@ function drawEditorCanvas() {
         ctx.moveTo(limitX, 0);
         ctx.lineTo(limitX, h);
         ctx.stroke();
-        
+
         // Draw label
         ctx.globalAlpha = 0.8;
         const label = (limit / 1024) + "k";
         ctx.fillText(label, limitX - 2, 12);
       }
     });
-    
+
     ctx.restore();
 
     ctx.strokeStyle = editor_waveform_fg;
     drawWaveform(w, h, ctx, editorSampleData, editorSampleLength, editorViewStart, visibleSamples);
-    
+
     const tab_side = 15;
-    
+
     ctx.fillStyle = drag_handle_color;
     var offset = sampleToX(editor_in_point);
-    
+
     // Only draw in-point if it's within the visible range
     if (offset >= -tab_side && offset <= w) {
       ctx.fillRect(offset, 0, 1, h);
@@ -132,7 +132,7 @@ function drawEditorCanvas() {
 
     ctx.fillStyle = drag_handle_color;
     var out_offset = sampleToX(editor_out_point);
-    
+
     // Only draw out-point if it's within the visible range
     if (out_offset >= 0 && out_offset <= w + tab_side) {
       ctx.fillRect(out_offset - 1, 0, 1, h);
@@ -155,10 +155,11 @@ function drawEditorCanvas() {
 
     // Draw playback cursor if playing editor sound
     if (playingSound && playingSound.isEditorSound && typeof actx !== 'undefined' && actx && typeof getSelectedSampleRate === 'function') {
+      ctx.save();
       const elapsed = actx.currentTime - playbackStartTime;
       const currentSample = (playingSound.playbackOffset + elapsed) * getSelectedSampleRate();
       const cursorX = sampleToX(currentSample);
-      
+
       if (cursorX >= 0 && cursorX <= w) {
         ctx.strokeStyle = "rgb(255, 255, 255)";
         ctx.lineWidth = 2;
@@ -167,21 +168,22 @@ function drawEditorCanvas() {
         ctx.lineTo(cursorX, h);
         ctx.stroke();
       }
+      ctx.restore();
     }
-    
+
     drawScrollbar();
   } else {
     ctx.fillStyle = slot_waveform_fg;
     ctx.textAlign = "center";
     ctx.font = "24px condensed";
-    
+
     let helpText = "Drag a .bin, .wav, .mp3, .aif, .flac, or .zip archive here to get started.";
     if (current_mode === "lumamu") {
       helpText = "Drag a .bin (ROM file), .wav, .mp3, .aif, .flac, or .zip archive here to get started.";
     }
-    
+
     ctx.fillText(helpText, w / 2, h / 2);
-    
+
     // Also clear scrollbar
     const sbCanvas = document.getElementById("scrollbar_canvas");
     if (sbCanvas) {
@@ -252,22 +254,22 @@ function zoomIn() {
   const canvas = document.getElementById("editor_canvas");
   if (!canvas) return;
   const w = canvas.width;
-  
+
   const oldVisibleSamples = editorSampleLength / editorZoomLevel;
-  
+
   let mouseRatio = 0.5;
   if (editorMouseX >= 0 && editorMouseX <= w) {
     mouseRatio = editorMouseX / w;
   }
-  
+
   const zoomCenterSample = editorViewStart + mouseRatio * oldVisibleSamples;
-  
+
   editorZoomLevel *= 1.2;
   if (editorZoomLevel > 500) editorZoomLevel = 500; // Cap zoom
-  
+
   const newVisibleSamples = editorSampleLength / editorZoomLevel;
   editorViewStart = zoomCenterSample - mouseRatio * newVisibleSamples;
-  
+
   drawEditorCanvas();
 }
 
@@ -288,17 +290,17 @@ function zoomOut() {
 
   editorZoomLevel /= 1.2;
   if (editorZoomLevel < 1.0) editorZoomLevel = 1.0;
-  
+
   const newVisibleSamples = editorSampleLength / editorZoomLevel;
   editorViewStart = zoomCenterSample - mouseRatio * newVisibleSamples;
-  
+
   drawEditorCanvas();
 }
 
 function drawSlotWaveforms() {
   // Get the appropriate number of slots based on current mode
   const numSlots = (current_mode === "luma1") ? luma1_slot_names.length : lumamu_slot_names.length;
-  
+
   for (let i = 0; i < 10; i++) {
     const canvas = document.getElementById("canvas_slot_" + i);
     if (canvas) {
@@ -306,7 +308,7 @@ function drawSlotWaveforms() {
       if (i < numSlots) {
         // Use the appropriate slot name based on the current mode
         const slotName = (current_mode === "luma1") ? luma1_slot_names[i] : lumamu_slot_names[i];
-        
+
         drawSlotWaveformOnCanvas(
           canvas,
           bank[i].sampleData,
@@ -355,19 +357,19 @@ function drawSlotWaveformOnCanvas(
 
 function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numSamples = -1) {
   if (numSamples === -1) numSamples = sampleLength;
-  
+
   const pixelsPerSample = w / numSamples;
-  
+
   // Draw sample separator lines if zoomed in enough (at least 5 pixels per sample)
   if (pixelsPerSample >= 5) {
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = "rgba(214, 214, 214, 0.2)";
     ctx.lineWidth = 1;
-    
+
     const firstSample = Math.floor(startSample);
     const lastSample = Math.ceil(startSample + numSamples);
-    
+
     for (let s = firstSample; s <= lastSample; s++) {
       const x = ((s - startSample) * w) / numSamples;
       if (x >= 0 && x <= w) {
@@ -378,15 +380,15 @@ function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numS
     ctx.stroke();
     ctx.restore();
   }
-  
+
   ctx.beginPath();
   for (var x = 0; x < w; x++) {
     const s0 = startSample + (x * numSamples) / w;
     const s1 = startSample + ((x + 1) * numSamples) / w;
-    
+
     const firstSample = Math.max(0, Math.floor(s0));
     const lastSample = Math.max(firstSample, Math.floor(s1));
-    
+
     if (firstSample >= sampleLength) break;
 
     let min = 1.0;
@@ -408,7 +410,7 @@ function drawWaveform(w, h, ctx, sampleData, sampleLength, startSample = 0, numS
     if (x === 0) {
       ctx.moveTo(x, yMin);
     }
-    
+
     ctx.lineTo(x, yMin);
     ctx.lineTo(x, yMax);
   }
@@ -420,30 +422,30 @@ let scrollbarMouseIsDown = false;
 
 function onEditorCanvasMouseDown(event) {
   editorCanvasMouseIsDown = true;
-  
+
   const x = event.offsetX;
   const y = event.offsetY;
   const canvas = document.getElementById("editor_canvas");
   const h = canvas.height;
   const w = canvas.width;
   const tab_side = 15;
-  
+
   if (editorSampleData == null) return;
-  
+
   const visibleSamples = editorSampleLength / editorZoomLevel;
   const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
 
   // Calculate endpoint positions in pixels
   const in_offset = sampleToX(editor_in_point);
   const out_offset = sampleToX(editor_out_point);
-  
+
   // Check if clicking on in-point handle (triangle at top)
   if (y < tab_side && x >= in_offset && x <= in_offset + tab_side) {
     isDraggingEndpoint = true;
     draggingWhichEndpoint = "in";
     return;
   }
-  
+
   // Check if clicking on out-point handle (triangle at bottom)
   if (y >= h - tab_side && x >= out_offset - tab_side && x <= out_offset) {
     isDraggingEndpoint = true;
@@ -475,7 +477,7 @@ function onEditorCanvasMouseDown(event) {
     }
     return;
   }
-  
+
   // If not clicking on endpoints, check if it's in the middle area for waveform drag
   const edge = h * drag_gutter_pct;
   if (y > edge && y < h - edge) {
@@ -504,17 +506,17 @@ function onScrollbarMouseMove(event) {
     const canvas = document.getElementById("scrollbar_canvas");
     const w = canvas.width;
     const x = event.offsetX;
-    
+
     const visibleSamples = editorSampleLength / editorZoomLevel;
     const thumbWidthActual = (1.0 / editorZoomLevel) * w;
-    
+
     // Center the thumb on the mouse click
     let newStartRatio = (x - thumbWidthActual / 2) / w;
     editorViewStart = newStartRatio * editorSampleLength;
-    
+
     // Clamp
     editorViewStart = Math.max(0, Math.min(editorViewStart, editorSampleLength - visibleSamples));
-    
+
     drawEditorCanvas();
   }
 }

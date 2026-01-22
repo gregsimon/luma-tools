@@ -3,12 +3,12 @@ import { test, expect } from '@playwright/test';
 test.describe('Playback Cursor Line', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/luma1/');
-    
+
     // Mock AudioContext and initialize editor data
     await page.evaluate(() => {
       // @ts-ignore
       window._mockCurrentTime = 0;
-      
+
       const mockActx = {
         state: 'running',
         destination: {},
@@ -25,12 +25,12 @@ test.describe('Playback Cursor Line', () => {
         }),
         createBufferSource: () => ({
           buffer: null,
-          connect: () => {},
-          start: function() {
+          connect: () => { },
+          start: function () {
             // @ts-ignore
             window._lastSource = this;
           },
-          stop: function() {
+          stop: function () {
             if (this.onended) this.onended();
           },
           onended: null
@@ -54,7 +54,7 @@ test.describe('Playback Cursor Line', () => {
       editorZoomLevel = 1.0;
       // @ts-ignore
       editorViewStart = 0;
-      
+
       // Mock getSelectedSampleRate
       // @ts-ignore
       window.getSelectedSampleRate = () => 12000;
@@ -89,17 +89,22 @@ test.describe('Playback Cursor Line', () => {
       const canvas = document.getElementById('editor_canvas') as HTMLCanvasElement;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      
+
       // @ts-ignore
       window._cursorDrawDetected = false;
       const originalStroke = ctx.stroke;
-      ctx.stroke = function() {
+      ctx.stroke = function () {
         const style = ctx.strokeStyle.toString().replace(/\s/g, '').toLowerCase();
         const width = ctx.lineWidth;
-        // Normalize color for comparison
+
+        // If it's a cursor draw (white, width 2)
         if ((style === 'rgb(255,255,255)' || style === '#ffffff') && width === 2) {
           // @ts-ignore
           window._cursorDrawDetected = true;
+        } else if (width === 2) {
+          // If something else is drawn with width 2, it's a leak!
+          // @ts-ignore
+          window._leakDetected = true;
         }
         originalStroke.apply(this, arguments);
       };
@@ -114,12 +119,14 @@ test.describe('Playback Cursor Line', () => {
         playing: playingSound !== null,
         isEditorSound: playingSound ? playingSound.isEditorSound : null,
         animationFrameId: animationFrameId,
-        cursorDrawDetected: window._cursorDrawDetected
+        cursorDrawDetected: window._cursorDrawDetected,
+        leakDetected: window._leakDetected
       };
     });
     console.log('Debug Info:', debugInfo);
 
     expect(debugInfo.cursorDrawDetected).toBe(true);
+    expect(debugInfo.leakDetected).not.toBe(true);
 
     // 5. Stop playback
     await page.click('input[value="Preview"]');
