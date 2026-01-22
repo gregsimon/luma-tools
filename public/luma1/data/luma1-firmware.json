@@ -1,0 +1,184 @@
+[
+  {
+    "name": "Prebuilt 0.945",
+    "version": "0.945",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.945?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.945",
+    "commit_message": "Fix MIDI out dropping notes when playing from sequencer\n\nNeeded to buffer notes from the sequencer, they were coming quickly enough that they were overwriting the single note buffer previously used.\nThat was good enough for local playing, but having several notes firing at the same time would cause all but the last one to be overwritten, and so not sent."
+  },
+  {
+    "name": "Prebuilt 0.944",
+    "version": "0.944",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.944?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.944",
+    "commit_message": "Fix bug saving RAM patterns to SD card.\n\nWas overwriting a filename buffer when I was checking for other files in the target directory."
+  },
+  {
+    "name": "Prebuilt 0.943",
+    "version": "0.943",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.943?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.943",
+    "commit_message": "Added Andrei's USB Host support\n\nSecond-run Luma-1's have a USB host port.\nThis version adds support for USB MIDI controllers to send MIDI Note On messages to trigger the drums.\n\nAlso a minor UI fix, the fan active indicator was not drawing in the right place.\n\nPrebuilt v0.943 added with these changes."
+  },
+  {
+    "name": "Prebuilt 0.942",
+    "version": "0.942",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.942?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.942",
+    "commit_message": "WIP for Pattern RAM read/write over sysex, Prebuilt 0.942\n\nTeensy code support for reading and writing Z-80 pattern RAM over sysex.\nWork in progress!\nPrebuilt v0.942"
+  },
+  {
+    "name": "Prebuilt 0.941",
+    "version": "0.941",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.941?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.941",
+    "commit_message": "v0.941: New MENU 89 to work around sysex issue\n\nSome computers (like Windows machines) cannot reliably receive USB sysex data sent at full speed.\nAdded MENU 89, which lets the user set how many milliseconds of delay are inserted between each 256 byte chunk of sysex data.\nThe code defaults it to 50ms, which gives reliable voice sample uploading on my Lenovo T14 running Windows 10.\nI can get reliable sample uploading with it set to 0ms on my M1 MacBook Pro. That setting causes the Lenovo to corrupt some of the received sample data.\nAlso added length parameter to sample sysex messages so the luma tool can sanity check the received length.\nAlso bumped the version # to 0.941."
+  },
+  {
+    "name": "Prebuilt 0.940",
+    "version": "0.940",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.940?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.940",
+    "commit_message": "Improved sysex sample transfers.\n\nNOTE! Recommended toolchain is Arduino 1.8.19 + Teensy 1.58.\nA known issue in the Arduino/Teensy toolchain and/or libraries can result in corruption when transferring large blocks of data over USB MIDI.\nDIN5 MIDI appears to not have this issue (but is of course slower).\nFor more details, see:\nhttps://forum.pjrc.com/index.php?threads/usbmidi-transmission-error.70288/"
+  },
+  {
+    "name": "Prebuilt 0.939",
+    "version": "0.939",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.939?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.939",
+    "commit_message": "More sysex support for banks and names, bug fixes\n\nSysex support for getting / loading voice files from / into any bank.\nSysex support for getting / setting names.\nSysex support for getting / setting parameters, like MIDI channel, routing, etc.\nBug fixes."
+  },
+  {
+    "name": "Prebuilt 0.938",
+    "version": "0.938",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.938?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.938",
+    "commit_message": "Bug fixes, added way to play soft notes w/o MIDI velocity\n\nfixed: DIN-5 OMNI mode not working. USB OMNI was OK.\nfixed: restore Soft Thru setting at boot.\nfixed: MENU 80 display problems for channels > 09\nadded: Parallel MIDI notes for soft sounds to enable triggering soft sounds w/o MIDI velocity. There is a parallel mapping of notes 2 octaves down which will trigger soft versions of corresponding sounds when available. For example, you can send a C1 with vel 127 or 63 to trigger the loud and soft BASS drum, respectively. With this new change, you can send C1 with vel 127 to trigger the loud BASS drum and now C-1 with vel 127 to trigger the soft BASS drum.\nThere is a new MENU 88 to select whether Luma sends velocity or sends these new note values for soft sounds.\nThere are only 5 sounds which have loud and soft sounds: BASS, SNARE, HIHAT, TAMB, and CABASA."
+  },
+  {
+    "name": "Prebuilt 0.937",
+    "version": "0.937",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.937?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.937",
+    "commit_message": "SD card / voice loading cleanup, prep for bank load/store\n\nMoved more out of LM_Voices -> LM_SDCard.\nGeneralized some SD card code.\nKeep track of which bank # was last loaded into STAGING, and show it on the bank info screen."
+  },
+  {
+    "name": "Prebuilt 0.936",
+    "version": "0.936",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.936?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.936",
+    "commit_message": "Improved MIDI Clock sync\n\nNOTE: Use this with MENU 87 (MIDI Start Enable) set to disabled!\nYou will need to manually arm Luma-1 before playing.\nSet rear switch to MIDI CLOCK.\nSelect pattern you wish to play.\nHit PLAY/STOP, light will come on but it won't play yet.\nSend MIDI Start and MIDI Clock, Luma-1 will start playing with tempo set by MIDI Clock tempo."
+  },
+  {
+    "name": "Prebuilt 0.935",
+    "version": "0.935",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.935?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.935",
+    "commit_message": "Fix Menu 87 (MIDI Start Enable), added Prebuilt 0.935\n\nNeeded to check if we are in \"ignore MIDI Start\" mode when receiving MIDI Clock."
+  },
+  {
+    "name": "Prebuilt 0.934",
+    "version": "0.934",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.934?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.934",
+    "commit_message": "Fix problem saving modified voices back to SD card\n\nUgh, dumb bug that made updated STAGING voice files (like, loaded with the Luma Tool) not get copied properly when using MENU 02 to store a voice bank."
+  },
+  {
+    "name": "Prebuilt 0.933",
+    "version": "0.933",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.933?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.933",
+    "commit_message": "Prebuilt v0.933, Load last voice bank at boot, fix some bugs\n\nWe used to always load bank 00 at boot. Now we load the last bank the user loaded.\nMac OSX puts hidden files like \".DS_Store\" in some directories. This could screw up voice loading. Now ignore any file that starts with '.'\nNow preserve voice bank name file (BANKNAME.TXT) when loading and saving voice banks."
+  },
+  {
+    "name": "Prebuilt 0.932",
+    "version": "0.932",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.932?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.932",
+    "commit_message": "Fix problems saving voices, prebuilt 0.932\n\nIf there are files in a voice bank directory when saving, remove them. There should be only 1 voice file in each voice directory.\nAdded prebuilt 0.932."
+  },
+  {
+    "name": "Prebuilt 0.931",
+    "version": "0.931",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.931?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.931",
+    "commit_message": "Fixes for Pattern Load/Save (Menu 02/03)\n\n- Fixed issue where saving a bank of Patterns (Menu 03) into an SD Card bank that already contained a RAM_IMAGE file would not overwrite that file.\n- RAM_IMAGE files now end with a 4-digit number that monotonically increases up to 9999, then wraps."
+  },
+  {
+    "name": "Prebuilt 0.930",
+    "version": "0.930",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.930?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.930",
+    "commit_message": "MIDI Start/Stop prebuilt v0.930\n\nPrebuilt v0.930, adds Menu 87 control for MIDI Start/Stop honoring."
+  },
+  {
+    "name": "Prebuilt 0.929",
+    "version": "0.929",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.929?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.929",
+    "commit_message": "Added 0.929 Prebuilt hex file\n\nThis includes the last changes for MIDI clock sync and EPROM reading."
+  },
+  {
+    "name": "Prebuilt 0.928",
+    "version": "0.928",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.928?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.928",
+    "commit_message": "MIDI Start/Stop changes\n\nHopefully fix the occasional crash when handling MIDI Start/Stop. I do 3 z-80 bus accesses, and was very briefly (~80ns) deasserting /BR between the first and second.\nHopefully fixed the occasional z-80 sequencer wedge when processing MIDI Stop. For MIDI Clock sources that are gated by MIDI Start/Stop (like Ableton Live), stopping the z-80 sequencer just as the clock was stopping would sometimes leave it in a bad state. Not crashed, just half-stopped. Now I always \"skid\" the MIDI clock to a stop by inserting a few fake tempo clock pulses after handling the MIDI Stop.\nFinally, added a new front panel command to let the user toggle off/on whether Luma-1 honors MIDI Start/Stop. Tap MENU, then tap CHAIN ON/OFF. The state will toggle and you'll hear a beep. The current state is now shown on the main screen."
+  },
+  {
+    "name": "Prebuilt 0.927",
+    "version": "0.927",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.927?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.927",
+    "commit_message": "Fix fan enable bug introduced with pop fix\n\nFan enable bits in same register as Beep bit, which was causing pop on MIDI drum trigger.\nProperly save and restore state so I don't break fan enabling. :-)"
+  },
+  {
+    "name": "Prebuilt 0.926",
+    "version": "0.926",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.926?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.926",
+    "commit_message": "Fix intermittent pop on MIDI drum triggers\n\nHonor the current state of the D802 control register, which controls drum trigger access and (among other things) the software Beep generator."
+  },
+  {
+    "name": "Prebuilt 0.925",
+    "version": "0.925",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.925?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.925",
+    "commit_message": "More MIDI Start/Stop work\n\nNow we check a variable in the Z-80 RAM to see if the sequencer is already running when we get a MIDI Start or already stopped when we get a MIDI Stop. And we only simulate the foot pedal press if we need to start/stop."
+  },
+  {
+    "name": "Prebuilt 0.924",
+    "version": "0.924",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.924?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.924",
+    "commit_message": "MIDI Start/Stop support\n\nHonor MIDI Start/Stop. To the Z-80, these messages (and MIDI Continue) look like a press of the Start/Stop footswitch (same as the Play/Stop button)."
+  },
+  {
+    "name": "Prebuilt 0.923",
+    "version": "0.923",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.923?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.923",
+    "commit_message": "Bump version to 0.923\n\nFor new command 86.\nAlso new Prebuilt."
+  },
+  {
+    "name": "Prebuilt 0.922",
+    "version": "0.922",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.922?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.922",
+    "commit_message": "MIDI Clock Fixes\n\nChanged the way MIDI clock is converted into the Tempo Clock pulses for the Z-80.\nSimpler approach than before. Verified with oscilloscope and by recording simple pattern into Ableton Live.\nSee LM_MIDI.ino for most of the changes."
+  },
+  {
+    "name": "Prebuilt 0.921",
+    "version": "0.921",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.921?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.921",
+    "commit_message": "MIDI Clock Fixes\n\nSome hardware sequencers send MIDI clock continuously.\nQualify MIDI clock with MIDI Start/Stop.\nSome hardware sequencers send MIDI Continue instead of MIDI Start. Honor MIDI Continue as MIDI Start, at least for now. Eventually we should be able to restart the Luma-1 sequencer on MIDI Start."
+  },
+  {
+    "name": "Prebuilt 0.92",
+    "version": "0.92",
+    "url": "https://api.github.com/repos/joebritt/luma1/contents/TeensyCode/Prebuilt%200.92?ref=main",
+    "html_url": "https://github.com/joebritt/luma1/tree/main/TeensyCode/Prebuilt%200.92",
+    "commit_message": "Create Luma1.ino.hex"
+  }
+]

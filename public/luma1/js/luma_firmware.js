@@ -5,7 +5,7 @@ const GITHUB_API_URL = "https://api.github.com/repos/joebritt/luma1/contents/Tee
 
 let availableFirmwareVersions = []; // Store the fetched versions
 
-async function checkLatestFirmware() {
+async function checkLatestFirmware(event) {
   const firmwareStatusDiv = document.getElementById("firmware_status");
   const checkBtn = document.getElementById("check_firmware_btn");
   const latestVersionSpan = document.getElementById("latest_firmware_version");
@@ -18,22 +18,41 @@ async function checkLatestFirmware() {
     currentVersionSpan.innerText = luma_firmware_version || "Unknown";
   }
 
+  const isShiftClick = event && event.shiftKey;
+  const targetUrl = isShiftClick ? "data/luma1-firmware.json" : GITHUB_API_URL;
+
   checkBtn.disabled = true;
   checkBtn.value = "Checking...";
-  firmwareStatusDiv.innerHTML = "Querying GitHub...";
+  firmwareStatusDiv.innerHTML = isShiftClick ? "Reading local data..." : "Querying GitHub...";
   firmwareStatusDiv.className = ""; // Reset class
 
   try {
-    const response = await fetch(GITHUB_API_URL);
+    const response = await fetch(targetUrl);
     if (!response.ok) {
-      throw new Error(`GitHub API Error: ${response.statusText}`);
+      throw new Error(`${isShiftClick ? 'Local' : 'GitHub'} API Error: ${response.statusText}`);
     }
     const data = await response.json();
 
-    // Filter for directories starting with "Prebuilt "
-    const prebuiltDirs = data.filter(item =>
-      item.type === "dir" && item.name.startsWith("Prebuilt ")
-    );
+    let prebuiltDirs = [];
+
+    if (isShiftClick) {
+      // Local JSON is already an array of version objects
+      prebuiltDirs = data;
+    } else {
+      // Filter for directories starting with "Prebuilt " from GitHub contents API
+      prebuiltDirs = data.filter(item =>
+        item.type === "dir" && item.name.startsWith("Prebuilt ")
+      ).map(dir => {
+        // Name format from GitHub: "Prebuilt X.XXX"
+        const versionPart = dir.name.substring(9).trim();
+        return {
+          version: versionPart,
+          name: dir.name,
+          url: dir.url, // Use API URL for direct fetching
+          html_url: dir.html_url
+        };
+      });
+    }
 
     if (prebuiltDirs.length === 0) {
       firmwareStatusDiv.innerHTML = "No firmware versions found.";
@@ -48,21 +67,20 @@ async function checkLatestFirmware() {
     // Reset global list
     availableFirmwareVersions = [];
 
-    prebuiltDirs.forEach(dir => {
-      // Name format: "Prebuilt X.XXX"
-      const versionPart = dir.name.substring(9).trim();
+    prebuiltDirs.forEach(item => {
+      const versionPart = item.version;
 
       // Store for dropdown
       availableFirmwareVersions.push({
         version: versionPart,
-        name: dir.name,
-        url: dir.url // Use API URL for direct fetching
+        name: item.name,
+        url: item.url // Use API URL for direct fetching
       });
 
       if (compareFirmwareVersions(versionPart, latestVersion) > 0) {
         latestVersion = versionPart;
-        latestDirName = dir.name;
-        latestUrl = dir.html_url;
+        latestDirName = item.name;
+        latestUrl = item.html_url;
       }
     });
 
@@ -80,7 +98,7 @@ async function checkLatestFirmware() {
     const cleanDeviceVersion = deviceVersion.trim();
 
     if (cleanDeviceVersion === "Unknown" || cleanDeviceVersion === "") {
-      firmwareStatusDiv.innerHTML = `Latest online is <b>${latestVersion}</b>. <br>Connect device to compare.`;
+      firmwareStatusDiv.innerHTML = `Latest${isShiftClick ? ' local' : ' online'} is <b>${latestVersion}</b>. <br>Connect device to compare.`;
     } else if (compareFirmwareVersions(latestVersion, cleanDeviceVersion) > 0) {
       firmwareStatusDiv.innerHTML = `Update available! <br><a href="${latestUrl}" target="_blank">Download ${latestDirName} here</a>`;
       firmwareStatusDiv.className = "status_alert"; // Add styling class if needed
@@ -91,7 +109,7 @@ async function checkLatestFirmware() {
 
   } catch (error) {
     console.error("Firmware check failed:", error);
-    firmwareStatusDiv.innerHTML = "Failed to check updates. (Rate limit or network error)";
+    firmwareStatusDiv.innerHTML = `Failed to check updates. (${isShiftClick ? 'Local file missing?' : 'Rate limit or network error'})`;
   } finally {
     checkBtn.disabled = false;
     checkBtn.value = "Check for Updates";
