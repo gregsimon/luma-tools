@@ -34,7 +34,7 @@ function applyHardwarePadding(sampleData) {
   if (current_mode !== "luma1") return sampleData;
   const paddedSize = getPaddedSampleSize(sampleData.length);
   if (paddedSize === sampleData.length) return sampleData;
-  
+
   const paddedData = new Uint8Array(paddedSize);
   paddedData.set(sampleData);
   // Uint8Array is initialized with 0x00, which is u-law silence in our inverted format
@@ -44,19 +44,19 @@ function applyHardwarePadding(sampleData) {
 // Create AudioBuffer from byte array for playback
 function createAudioBufferFromBytes(sampleData, sampleRate = 24000) {
   if (!sampleData || sampleData.length === 0) return null;
-  
+
   // Convert uLaw bytes to linear PCM float32
   const numSamples = sampleData.length;
   const audioBuffer = actx.createBuffer(1, numSamples, sampleRate);
   const channelData = audioBuffer.getChannelData(0);
-  
+
   for (let i = 0; i < numSamples; i++) {
     let ulaw = sampleData[i];
     ulaw = ~ulaw; // Invert from storage format
     const linear = ulaw_to_linear(ulaw);
     channelData[i] = linear / 32768.0; // Convert to [-1, 1]
   }
-  
+
   return audioBuffer;
 }
 
@@ -65,7 +65,7 @@ function createBytesFromAudioBuffer(audioBuffer) {
   const numSamples = audioBuffer.length;
   const sampleData = new Uint8Array(numSamples);
   const channelData = audioBuffer.getChannelData(0);
-  
+
   for (let i = 0; i < numSamples; i++) {
     const sample = channelData[i];
     // Clamp to [-1, 1] and convert to 16-bit linear
@@ -73,7 +73,7 @@ function createBytesFromAudioBuffer(audioBuffer) {
     const ulaw = linear_to_ulaw(linear);
     sampleData[i] = ~ulaw; // Invert for storage format
   }
-  
+
   return sampleData;
 }
 
@@ -100,7 +100,7 @@ function updateBinaryFileOriginal() {
 function stretchLinearBuffer(inputData, targetLength) {
   const inputLength = inputData.length;
   if (inputLength === targetLength) return inputData;
-  
+
   const outputData = new Float32Array(targetLength);
   for (let i = 0; i < targetLength; i++) {
     const pos = i * (inputLength - 1) / (targetLength - 1);
@@ -194,7 +194,7 @@ function playSlotAudio(id) {
   // Create AudioBuffer on-demand for playback
   const audioBuffer = createAudioBufferFromBytes(bank[id].sampleData, playbackSampleRate);
   if (!audioBuffer) return;
-  
+
   let theSound = actx.createBufferSource();
   theSound.buffer = audioBuffer;
   theSound.connect(actx.destination); // connect to the output
@@ -237,12 +237,12 @@ function playAudio() {
   theSound.connect(actx.destination); // connect to the output
 
   console.log("editor_in_point = " + editor_in_point);
-  console.log("editor_out_point = " + editor_out_point); 
-  console.log("num samples to play = " + (editor_out_point - editor_in_point+1));
+  console.log("editor_out_point = " + editor_out_point);
+  console.log("num samples to play = " + (editor_out_point - editor_in_point + 1));
   console.log("start at " + editor_in_point / playbackSampleRate + " seconds");
-  console.log("total duration = " + (editor_out_point - editor_in_point+1) / playbackSampleRate + " seconds");
-  
-  const duration = (editor_out_point - editor_in_point+1) / audioBuffer.sampleRate;
+  console.log("total duration = " + (editor_out_point - editor_in_point + 1) / playbackSampleRate + " seconds");
+
+  const duration = (editor_out_point - editor_in_point + 1) / audioBuffer.sampleRate;
   const offset = editor_in_point / audioBuffer.sampleRate;
 
   // convert end points into seconds for playback.
@@ -250,7 +250,7 @@ function playAudio() {
     // when (seconds) playback should start (immediately)
     0,
     // offset (seconds) into the buffer where playback starts
-    offset, 
+    offset,
     // duration (seconds) of the sample to play
     duration,
   );
@@ -280,13 +280,13 @@ function generateRamp() {
   const numSamples = 16384; // Default size
   editorSampleData = new Uint8Array(numSamples);
   editorSampleLength = numSamples;
-  
+
   for (var i = 0; i < numSamples; i++) {
     // Convert float to uLaw
     const linear = Math.round(value * 32767);
     const ulaw = linear_to_ulaw(linear);
     editorSampleData[i] = ~ulaw; // Invert for storage format
-    
+
     value = value + 0.01;
     if (value > 1) value = 0;
   }
@@ -309,19 +309,19 @@ function reverseSampleBuffer() {
 
 function cropSample() {
   if (!editorSampleData || editorSampleLength === 0) return;
-  
+
   const start = Math.max(0, editor_in_point);
   const end = Math.min(editorSampleLength - 1, editor_out_point);
-  
+
   if (start > end) return;
-  
+
   const newLength = end - start + 1;
   const newSampleData = new Uint8Array(newLength);
   newSampleData.set(editorSampleData.subarray(start, end + 1));
-  
+
   editorSampleData = newSampleData;
   editorSampleLength = newLength;
-  
+
   if (typeof resetRange === 'function') resetRange();
   updateBinaryFileOriginal();
 }
@@ -374,14 +374,30 @@ function zeroRange() {
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
 
+function clearSample() {
+  editorSampleData = null;
+  editorSampleLength = 0;
+  sampleName = "untitled";
+
+  if (typeof resetRange === 'function') resetRange();
+  updateBinaryFileOriginal();
+  if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+
+  const sampleNameInput = document.getElementById('sample_name');
+  if (sampleNameInput) sampleNameInput.value = "untitled";
+
+  const sampleNameMuInput = document.getElementById('sample_name_mu');
+  if (sampleNameMuInput) sampleNameMuInput.value = "untitled";
+}
+
 function handleFunctionPicker(selectElement) {
   const value = selectElement.value;
   if (value === "Crop") cropSample();
   else if (value === "Delete Selection") deleteSelection();
   else if (value === "Zero Range") zeroRange();
   else if (value === "Reverse") reverseSampleBuffer();
-  
+  else if (value === "Clear") clearSample();
+
   // Reset the picker to the label
   selectElement.selectedIndex = 0;
 }
-
