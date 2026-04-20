@@ -775,6 +775,13 @@ function trimBufferToFitLuma() {
 
 function finishImporting() {
   isImporting = false;
+
+  const loopBtn = document.getElementById('loop_playback_button');
+  if (loopBtn && loopBtn.classList.contains('loop_active')) {
+    loopBtn.classList.remove('loop_active');
+    loopBtn.value = "Loop: Off";
+  }
+
   if (typeof redrawAllWaveforms === "function") redrawAllWaveforms();
 }
 
@@ -943,6 +950,12 @@ function copyWaveFormBetweenSlots(srcId, dstId) {
       picker.value = sRate.toString();
     }
     
+    const loopBtn = document.getElementById('loop_playback_button');
+    if (loopBtn && loopBtn.classList.contains('loop_active')) {
+      loopBtn.classList.remove('loop_active');
+      loopBtn.value = "Loop: Off";
+    }
+
     if (typeof resetRange === 'function') resetRange();
   } else {
     bank[dstId].sampleData = cloneSampleData(bank[srcId].sampleData, bank[srcId].sampleLength);

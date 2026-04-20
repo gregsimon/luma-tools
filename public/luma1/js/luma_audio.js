@@ -212,6 +212,19 @@ function playSlotAudio(id) {
   };
 }
 
+function toggleLoopPlayback() {
+  const btn = document.getElementById('loop_playback_button');
+  if (!btn) return;
+  
+  if (btn.classList.contains('loop_active')) {
+    btn.classList.remove('loop_active');
+    btn.value = "Loop: Off";
+  } else {
+    btn.classList.add('loop_active');
+    btn.value = "Loop: On";
+  }
+}
+
 function playAudio() {
   if (typeof audio_init === 'function') audio_init();
   if (actx == undefined) return;
@@ -228,37 +241,45 @@ function playAudio() {
   // Get the selected sample rate for playback
   const playbackSampleRate = getSelectedSampleRate();
 
+  const loopBtn = document.getElementById('loop_playback_button');
+  const isLooping = loopBtn && loopBtn.classList.contains('loop_active');
+
+  let bufferData = editorSampleData;
+  if (isLooping) {
+    bufferData = cloneSampleData(editorSampleData, editorSampleLength, editor_in_point, editor_out_point + 1);
+  }
+
   // Create AudioBuffer on-demand for playback
-  const audioBuffer = createAudioBufferFromBytes(editorSampleData, playbackSampleRate);
+  const audioBuffer = createAudioBufferFromBytes(bufferData, playbackSampleRate);
   if (!audioBuffer) return;
 
   let theSound = actx.createBufferSource();
   theSound.buffer = audioBuffer;
   theSound.connect(actx.destination); // connect to the output
 
-  console.log("editor_in_point = " + editor_in_point);
-  console.log("editor_out_point = " + editor_out_point);
-  console.log("num samples to play = " + (editor_out_point - editor_in_point + 1));
-  console.log("start at " + editor_in_point / playbackSampleRate + " seconds");
-  console.log("total duration = " + (editor_out_point - editor_in_point + 1) / playbackSampleRate + " seconds");
-
-  const duration = (editor_out_point - editor_in_point + 1) / audioBuffer.sampleRate;
-  const offset = editor_in_point / audioBuffer.sampleRate;
+  const duration = (editor_out_point - editor_in_point + 1) / playbackSampleRate;
+  const offset = editor_in_point / playbackSampleRate;
 
   // convert end points into seconds for playback.
-  theSound.start(
-    // when (seconds) playback should start (immediately)
-    0,
-    // offset (seconds) into the buffer where playback starts
-    offset,
-    // duration (seconds) of the sample to play
-    duration,
-  );
+  if (isLooping) {
+    theSound.loop = true;
+    theSound.start(0);
+  } else {
+    theSound.start(
+      // when (seconds) playback should start (immediately)
+      0,
+      // offset (seconds) into the buffer where playback starts
+      offset,
+      // duration (seconds) of the sample to play
+      duration,
+    );
+  }
 
   playingSound = theSound;
   playingSound.isEditorSound = true;
   playbackStartTime = actx.currentTime;
   playingSound.playbackOffset = offset;
+  playingSound.loopDuration = duration;
   playingSound.onended = () => {
     if (playingSound === theSound) {
       playingSound = null;

@@ -42,6 +42,11 @@ select {
   color: rgb(236, 221, 223);
 }
 
+.loop_active {
+  background-color: rgb(138, 138, 138);
+  color: black;
+}
+
 #dragsrc {
   border: none;
   background-color: #9a9a9a;

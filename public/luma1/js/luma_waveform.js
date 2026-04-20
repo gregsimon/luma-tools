@@ -156,7 +156,15 @@ function drawEditorCanvas() {
     // Draw playback cursor if playing editor sound
     if (playingSound && playingSound.isEditorSound && typeof actx !== 'undefined' && actx && typeof getSelectedSampleRate === 'function') {
       ctx.save();
-      const elapsed = actx.currentTime - playbackStartTime;
+      let elapsed = actx.currentTime - playbackStartTime;
+      
+      if (playingSound.loop) {
+        const loopDuration = playingSound.loopDuration;
+        if (loopDuration > 0) {
+          elapsed = elapsed % loopDuration;
+        }
+      }
+
       const currentSample = (playingSound.playbackOffset + elapsed) * getSelectedSampleRate();
       const cursorX = sampleToX(currentSample);
 
