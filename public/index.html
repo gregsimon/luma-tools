@@ -105,6 +105,29 @@
     </style>
     <script>
       function checkRedirect() {
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          document.getElementById("loading-overlay").style.display = "none";
+          document.querySelector(".container").innerHTML = `
+            <div class="logo">
+              <img src="luma1/images/lumatools-icon-120x120.png" alt="Luma Tools Icon" class="icon">
+              <img src="luma1/images/lumatools_logo.png" alt="Luma Tools Logo" class="text-logo">
+            </div>
+            <h1>BROWSER NOT SUPPORTED</h1>
+            <p style="font-size: 18px; line-height: 1.5; margin-bottom: 30px; color: rgb(190,190,190);">
+              Luma Tools requires Web MIDI support to communicate with your device. 
+              Safari does not currently support Web MIDI.
+            </p>
+            <p style="font-size: 18px; margin-bottom: 40px; color: rgb(190,190,190);">
+              Please use a Chromium-based browser instead.
+            </p>
+            <a href="https://www.google.com/chrome/" target="_blank" style="display: inline-block; background-color: rgb(35, 35, 35); border: 1px solid rgb(60, 60, 60); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 18px; transition: transform 0.2s, background-color 0.2s;" onmouseover="this.style.backgroundColor='rgb(45,45,45)'; this.style.borderColor='rgb(100,100,100)'; this.style.transform='translateY(-5px)';" onmouseout="this.style.backgroundColor='rgb(35,35,35)'; this.style.borderColor='rgb(60,60,60)'; this.style.transform='translateY(0)';">
+              Download Google Chrome
+            </a>
+          `;
+          return;
+        }
+
         // If a mode is already set, redirect immediately
         const savedMode = localStorage.getItem("deviceMode");
         if (savedMode) {

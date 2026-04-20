@@ -142,6 +142,29 @@ function de(id) {
 
 // Initialize the application.
 function luma1_init() {
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari) {
+    document.body.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; font-family: 'condensed', -apple-system, BlinkMacSystemFont, sans-serif; background-color: rgb(24,24,24); color: rgb(190,190,190); padding: 20px; box-sizing: border-box;">
+        <div style="margin-bottom: 30px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+          <img src="images/lumatools-icon-120x120.png" alt="Luma Tools Icon" style="width: 120px; height: 120px;">
+          <img src="images/lumatools_logo.png" alt="Luma Tools Logo" style="max-width: 300px;">
+        </div>
+        <h1 style="font-weight: normal; letter-spacing: 1px; margin-bottom: 30px; color: white;">BROWSER NOT SUPPORTED</h1>
+        <p style="font-size: 18px; line-height: 1.5; margin-bottom: 30px; max-width: 600px;">
+          Luma Tools requires Web MIDI support to communicate with your device. 
+          Safari does not currently support Web MIDI.
+        </p>
+        <p style="font-size: 18px; margin-bottom: 40px;">
+          Please use a Chromium-based browser instead.
+        </p>
+        <a href="https://www.google.com/chrome/" target="_blank" style="display: inline-block; background-color: rgb(35, 35, 35); border: 1px solid rgb(60, 60, 60); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 18px; transition: transform 0.2s, background-color 0.2s;" onmouseover="this.style.backgroundColor='rgb(45,45,45)'; this.style.borderColor='rgb(100,100,100)'; this.style.transform='translateY(-5px)';" onmouseout="this.style.backgroundColor='rgb(35,35,35)'; this.style.borderColor='rgb(60,60,60)'; this.style.transform='translateY(0)';">
+          Download Google Chrome
+        </a>
+      </div>
+    `;
+    return;
+  }
 
   // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
