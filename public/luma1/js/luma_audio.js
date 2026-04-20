@@ -411,6 +411,29 @@ function clearSample() {
   if (sampleNameMuInput) sampleNameMuInput.value = "untitled";
 }
 
+function duplicateToFill() {
+  if (!editorSampleData || editorSampleLength === 0) return;
+
+  const targetLength = getMaxSampleSize();
+  const start = Math.max(0, editor_in_point);
+  const end = Math.min(editorSampleLength - 1, editor_out_point);
+  const sourceLength = end - start + 1;
+  
+  if (sourceLength <= 0) return;
+
+  const newSampleData = new Uint8Array(targetLength);
+  for (let i = 0; i < targetLength; i++) {
+    newSampleData[i] = editorSampleData[start + (i % sourceLength)];
+  }
+
+  editorSampleData = newSampleData;
+  editorSampleLength = targetLength;
+
+  if (typeof resetRange === 'function') resetRange();
+  updateBinaryFileOriginal();
+  if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+}
+
 function handleFunctionPicker(selectElement) {
   const value = selectElement.value;
   if (value === "Crop") cropSample();
@@ -418,6 +441,7 @@ function handleFunctionPicker(selectElement) {
   else if (value === "Zero Range") zeroRange();
   else if (value === "Reverse") reverseSampleBuffer();
   else if (value === "Clear") clearSample();
+  else if (value === "Duplicate to Fill") duplicateToFill();
 
   // Reset the picker to the label
   selectElement.selectedIndex = 0;
