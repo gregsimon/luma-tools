@@ -10,6 +10,7 @@
   "btn_write_sample": "Write the current sample to the connected Luma device",
   "btn_export_wav": "Download the current sample as a WAV file",
   "btn_play_preview": "Play the current sample (Spacebar)",
+  "btn_zero_crossing_snap": "Snap selection markers to the nearest zero-amplitude crossing for click-free loops.",
   "btn_read_bank": "Read the entire sample bank from the device",
   "btn_write_bank": "Write the entire bank to the device",
   "btn_export_bank_zip": "Download the entire bank as a ZIP file",

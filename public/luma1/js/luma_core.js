@@ -17,6 +17,7 @@ let editor_in_point = 0;
 let editor_out_point = 0;
 let editorZoomLevel = 1.0;
 let editorViewStart = 0;
+let snapToZeroCrossing = false;
 let editorMouseX = -1; // Current mouse X on editor canvas, -1 if not over canvas
 let sampleRate = 12000; // Hz
 let sampleName = "untitled";
@@ -464,7 +465,17 @@ function luma1_init() {
 
       var new_pt = editorViewStart + (visibleSamples * x) / w;
 
-      if (shiftDown) new_pt = Math.round(new_pt / 1024) * 1024;
+      if (shiftDown) {
+        new_pt = Math.round(new_pt / 1024) * 1024;
+      } else if (typeof snapToZeroCrossing !== "undefined" && snapToZeroCrossing) {
+        if (draggingWhichEndpoint === "in") {
+          const preferredSlope = getSampleSlope(editor_out_point);
+          new_pt = findNearestZeroCrossing(new_pt, preferredSlope);
+        } else if (draggingWhichEndpoint === "out") {
+          const preferredSlope = getSampleSlope(editor_in_point);
+          new_pt = findNearestZeroCrossing(new_pt, preferredSlope);
+        }
+      }
 
       if (draggingWhichEndpoint === "in") {
         if (new_pt < editor_out_point) {
@@ -564,6 +575,10 @@ function loadSettings() {
   settings_midiDeviceName = localStorage.getItem("midiDeviceName") || "";
   settings_midi_monitor_show_sysex =
     localStorage.getItem("midi_monitor_show_sysex") === "true";
+  snapToZeroCrossing = localStorage.getItem("snapToZeroCrossing") === "true";
+  if (typeof updateZeroCrossingSnapButton === "function") {
+    updateZeroCrossingSnapButton();
+  }
   // Load saved mode if available
   const savedMode = localStorage.getItem("deviceMode");
   if (savedMode) {
@@ -577,6 +592,7 @@ function saveSettings() {
   localStorage.setItem("midiDeviceName", settings_midiDeviceName);
   localStorage.setItem("midi_monitor_show_sysex", settings_midi_monitor_show_sysex);
   localStorage.setItem("deviceMode", current_mode);
+  localStorage.setItem("snapToZeroCrossing", snapToZeroCrossing);
 }
 
 // Function to handle mode change

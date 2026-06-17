@@ -446,3 +446,114 @@ function handleFunctionPicker(selectElement) {
   // Reset the picker to the label
   selectElement.selectedIndex = 0;
 }
+
+function updateZeroCrossingSnapButton() {
+  const btn = document.getElementById("zero_crossing_snap_button");
+  if (!btn) return;
+  if (typeof snapToZeroCrossing !== "undefined" && snapToZeroCrossing) {
+    btn.classList.add("loop_active");
+    btn.value = "Snap Zero: On";
+  } else {
+    btn.classList.remove("loop_active");
+    btn.value = "Snap Zero: Off";
+  }
+}
+
+function toggleZeroCrossingSnap() {
+  if (typeof snapToZeroCrossing !== "undefined") {
+    snapToZeroCrossing = !snapToZeroCrossing;
+    if (typeof saveSettings === "function") saveSettings();
+    updateZeroCrossingSnapButton();
+
+    // Snap current selection bounds immediately if turned on
+    if (snapToZeroCrossing && editorSampleData && editorSampleLength > 0) {
+      editor_in_point = findNearestZeroCrossing(editor_in_point, 0);
+      const inSlope = getSampleSlope(editor_in_point);
+      editor_out_point = findNearestZeroCrossing(editor_out_point, inSlope);
+
+      if (editor_out_point <= editor_in_point) {
+        editor_out_point = Math.min(editor_in_point + 1, editorSampleLength - 1);
+      }
+
+      if (typeof updateStatusBar === "function") updateStatusBar();
+      if (typeof redrawAllWaveforms === "function") redrawAllWaveforms();
+    }
+  }
+}
+
+function getLinearSample(index) {
+  if (!editorSampleData || index < 0 || index >= editorSampleLength) return 0;
+  let ulaw = editorSampleData[index];
+  ulaw = ~ulaw; // Invert from storage format
+  return ulaw_to_linear(ulaw);
+}
+
+function getSampleSlope(index) {
+  const v1 = getLinearSample(index);
+  const v2 = getLinearSample(index + 1);
+  return (v2 - v1 >= 0) ? 1 : -1;
+}
+
+function findNearestZeroCrossing(targetIndex, preferredSlope = 0) {
+  if (!editorSampleData || editorSampleLength <= 0) return targetIndex;
+
+  targetIndex = Math.round(targetIndex);
+  targetIndex = Math.max(0, Math.min(targetIndex, editorSampleLength - 1));
+
+  const maxSearch = 1000; // Search up to 1000 samples away
+  let bestDistAny = Infinity;
+  let bestIndexAny = targetIndex;
+
+  let bestDistSlope = Infinity;
+  let bestIndexSlope = targetIndex;
+
+  for (let offset = 0; offset < maxSearch; offset++) {
+    // Check indices in outward order
+    const checkIndices = [];
+    if (offset === 0) {
+      checkIndices.push(targetIndex);
+    } else {
+      checkIndices.push(targetIndex + offset);
+      checkIndices.push(targetIndex - offset);
+    }
+
+    for (const idx of checkIndices) {
+      if (idx < 0 || idx >= editorSampleLength - 1) continue;
+
+      const v1 = getLinearSample(idx);
+      const v2 = getLinearSample(idx + 1);
+
+      // Is this a zero crossing?
+      if (v1 * v2 <= 0 && !(v1 === 0 && v2 === 0)) {
+        const slope = (v2 - v1 >= 0) ? 1 : -1;
+        const crossingIdx = (Math.abs(v1) <= Math.abs(v2)) ? idx : idx + 1;
+        const dist = Math.abs(crossingIdx - targetIndex);
+
+        if (dist < bestDistAny) {
+          bestDistAny = dist;
+          bestIndexAny = crossingIdx;
+        }
+
+        if (preferredSlope === 0 || slope === preferredSlope) {
+          if (dist < bestDistSlope) {
+            bestDistSlope = dist;
+            bestIndexSlope = crossingIdx;
+          }
+        }
+      }
+    }
+
+    // Break early if we found a slope-matched one close by
+    if (bestDistSlope < offset) {
+      break;
+    }
+  }
+
+  if (bestDistSlope !== Infinity) {
+    return bestIndexSlope;
+  }
+  if (bestDistAny !== Infinity) {
+    return bestIndexAny;
+  }
+  return targetIndex;
+}

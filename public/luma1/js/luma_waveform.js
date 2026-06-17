@@ -37,6 +37,17 @@ function drawEditorCanvas() {
   ctx.fillStyle = editor_waveform_bg;
   ctx.fillRect(0, 0, w, h);
 
+  // Draw zero-crossing reference line (center amplitude line)
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2);
+  ctx.lineTo(w, h / 2);
+  ctx.stroke();
+  ctx.restore();
+
   if (isImporting) {
     ctx.fillStyle = editor_waveform_fg;
     ctx.font = "20px InterstateRegular, sans-serif";
@@ -465,6 +476,10 @@ function onEditorCanvasMouseDown(event) {
   if (y < tab_side) {
     let new_pt = editorViewStart + (visibleSamples * x) / w;
     if (new_pt < editor_out_point) {
+      if (typeof snapToZeroCrossing !== "undefined" && snapToZeroCrossing) {
+        const preferredSlope = getSampleSlope(editor_out_point);
+        new_pt = findNearestZeroCrossing(new_pt, preferredSlope);
+      }
       editor_in_point = Math.floor(Math.max(0, new_pt));
       isDraggingEndpoint = true;
       draggingWhichEndpoint = "in";
@@ -477,6 +492,10 @@ function onEditorCanvasMouseDown(event) {
   if (y >= h - tab_side) {
     let new_pt = editorViewStart + (visibleSamples * x) / w;
     if (new_pt > editor_in_point) {
+      if (typeof snapToZeroCrossing !== "undefined" && snapToZeroCrossing) {
+        const preferredSlope = getSampleSlope(editor_in_point);
+        new_pt = findNearestZeroCrossing(new_pt, preferredSlope);
+      }
       editor_out_point = Math.floor(Math.min(editorSampleLength - 1, new_pt));
       isDraggingEndpoint = true;
       draggingWhichEndpoint = "out";
