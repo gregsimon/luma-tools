@@ -15,7 +15,7 @@
   "btn_write_bank": "Write the entire bank to the device",
   "btn_export_bank_zip": "Download the entire bank as a ZIP file",
   "btn_export_bank_rom": "Download the bank as a raw ROM file",
-  "canvas_editor": "Key Shortcuts:\n-/+ zoom\nhover mouse over center of zoom position\n<space> preview sample",
+  "canvas_editor": "Key Shortcuts:\n-/+ zoom\nhover mouse over center of zoom position\n<space> preview sample\nAlt+drag (or Cmd/Ctrl+drag): Slide selection\nHold Shift to snap to 1k",
   "canvas_scrollbar": "Scrollbar canvas, drag to scroll in editor.",
   "canvas_slot": "Sample memory slot on the device. Drag selections from the editor above to this slot to assign. To commit to the device use write buttons.",
   "select_binary_format": "Choose how to interpret a binary sample file (.bin)",

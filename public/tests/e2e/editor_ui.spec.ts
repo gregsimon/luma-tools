@@ -100,4 +100,72 @@ test('editor selection and basic functions', async ({ page }) => {
   });
   // Should be exactly 2048 because of 1024-snap
   expect(state.in).toBe(2048);
+
+  // 7. Test Selection Dragging (Alt+drag)
+  // First, set selection to a fixed 1020-sample window: [1000, 2020]
+  await page.evaluate(() => {
+    // @ts-ignore
+    editor_in_point = 1000;
+    // @ts-ignore
+    editor_out_point = 2020;
+    // @ts-ignore
+    if (typeof updateStatusBar === 'function') updateStatusBar();
+    // @ts-ignore
+    if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+  });
+
+  // Move mouse to center of the canvas
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down('Alt'); // Hold Alt (Option)
+  await page.mouse.down();
+  // Drag right by some amount (e.g. 1/8th of width)
+  await page.mouse.move(box.x + box.width / 2 + box.width / 8, box.y + box.height / 2);
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+
+  state = await page.evaluate(() => {
+    // @ts-ignore
+    return { in: editor_in_point, out: editor_out_point };
+  });
+
+  // The selection length should be exactly preserved (2020 - 1000 = 1020)
+  expect(state.out - state.in).toBe(1020);
+  // It should have moved to the right (e.g. state.in > 1000)
+  expect(state.in).toBeGreaterThan(1000);
+
+  // 8. Test Selection Dragging with Shift Snap (Alt+Shift+drag)
+  // Start at a known position
+  await page.evaluate(() => {
+    // @ts-ignore
+    editor_in_point = 1000;
+    // @ts-ignore
+    editor_out_point = 2000;
+    // @ts-ignore
+    if (typeof updateStatusBar === 'function') updateStatusBar();
+    // @ts-ignore
+    if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
+  });
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down('Alt');
+  await page.keyboard.down('Shift');
+  await page.mouse.down();
+  // Drag to the right (enough to cross 1024 samples boundary, e.g. deltaX is 1/4 of canvas width -> ~1024 samples)
+  await page.mouse.move(box.x + box.width / 2 + box.width / 4, box.y + box.height / 2);
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.keyboard.up('Alt');
+
+  state = await page.evaluate(() => {
+    // @ts-ignore
+    return { in: editor_in_point, out: editor_out_point };
+  });
+
+  // Length should still be exactly 1000
+  expect(state.out - state.in).toBe(1000);
+  // The shift should be a multiple of 1024 samples. Since start was 1000,
+  // new in_point should be 1000 + 1024 = 2024 (or 1000 + 2048 = 3048, etc.)
+  const shift = state.in - 1000;
+  expect(shift % 1024).toBe(0);
+  expect(shift).toBeGreaterThan(0);
 });

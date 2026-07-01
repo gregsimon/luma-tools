@@ -50,6 +50,11 @@ const firebaseConfig = {
 let isDraggingEndpoint = false;
 let draggingWhichEndpoint = null; // "in" or "out"
 let isDraggingWaveform = false;
+let isDraggingSelection = false;
+let dragSelectionStartIn = 0;
+let dragSelectionStartOut = 0;
+let dragSelectionStartMouseX = 0;
+let wasPlayingBeforeDrag = false;
 let currentDropZone = null; // null, "start", "center", "end"
 
 // settings lets that are persisted locally on computer
@@ -435,7 +440,7 @@ function luma1_init() {
     }
   });
   window.addEventListener("keyup", (e) => {
-    if (e.key.charCodeAt(0) === 83) {
+    if (e.key === "Shift" || e.key.charCodeAt(0) === 83) {
       shiftDown = false;
     }
   });
@@ -490,11 +495,49 @@ function luma1_init() {
       }
       updateStatusBar();
       drawEditorCanvas();
+    } else if (isDraggingSelection && editorCanvasMouseIsDown) {
+      const canvas = document.getElementById("editor_canvas");
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const w = canvas.width;
+
+      if (editorSampleData == null) return;
+
+      const visibleSamples = editorSampleLength / editorZoomLevel;
+      const deltaX = x - dragSelectionStartMouseX;
+      let deltaSamples = (visibleSamples * deltaX) / w;
+
+      const isShiftPressed = shiftDown || event.shiftKey;
+
+      if (isShiftPressed) {
+        // Snap movement to 1024 sample increments
+        deltaSamples = Math.round(deltaSamples / 1024) * 1024;
+      }
+
+      let newIn = dragSelectionStartIn + deltaSamples;
+      const selectionLength = dragSelectionStartOut - dragSelectionStartIn;
+
+      newIn = Math.round(newIn);
+
+      // Clamp newIn
+      if (newIn < 0) {
+        newIn = 0;
+      } else if (newIn + selectionLength > editorSampleLength - 1) {
+        newIn = editorSampleLength - 1 - selectionLength;
+      }
+
+      let newOut = newIn + selectionLength;
+
+      editor_in_point = newIn;
+      editor_out_point = newOut;
+
+      updateStatusBar();
+      drawEditorCanvas();
     }
   });
 
   window.addEventListener("mouseup", (event) => {
-    if (isDraggingEndpoint) {
+    if (isDraggingEndpoint || isDraggingSelection) {
       onEditorCanvasMouseUp(event);
     }
   });

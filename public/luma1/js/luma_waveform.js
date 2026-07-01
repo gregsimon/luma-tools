@@ -451,6 +451,23 @@ function onEditorCanvasMouseDown(event) {
 
   if (editorSampleData == null) return;
 
+  // Check if dragging selection using modifier key
+  const isModifierDown = event.altKey || event.metaKey || event.ctrlKey;
+  if (isModifierDown) {
+    isDraggingSelection = true;
+    dragSelectionStartIn = editor_in_point;
+    dragSelectionStartOut = editor_out_point;
+    dragSelectionStartMouseX = x;
+    canvas.style.cursor = "grabbing";
+
+    wasPlayingBeforeDrag = (playingSound !== null && playingSound.isEditorSound);
+    if (wasPlayingBeforeDrag) {
+      if (typeof stopPlayingSound === "function") stopPlayingSound();
+    }
+    event.preventDefault();
+    return;
+  }
+
   const visibleSamples = editorSampleLength / editorZoomLevel;
   const sampleToX = (s) => ((s - editorViewStart) * w) / visibleSamples;
 
@@ -521,6 +538,19 @@ function onEditorCanvasMouseUp(event) {
   isDraggingEndpoint = false;
   draggingWhichEndpoint = null;
   isDraggingWaveform = false;
+
+  if (typeof isDraggingSelection !== "undefined" && isDraggingSelection) {
+    isDraggingSelection = false;
+    const canvas = document.getElementById("editor_canvas");
+    if (canvas) canvas.style.cursor = "default";
+
+    if (typeof wasPlayingBeforeDrag !== "undefined" && wasPlayingBeforeDrag) {
+      wasPlayingBeforeDrag = false;
+      if (typeof playAudio === "function") {
+        playAudio();
+      }
+    }
+  }
 }
 
 function onScrollbarMouseDown(event) {
