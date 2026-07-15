@@ -72,19 +72,20 @@
     <div style="display:flex; flex-flow: row nowrap;
           justify-content: space-between; padding-top:8px; ">
 
-      <div>
+      <div style="display: inline-flex; align-items: center; min-height: 32px; flex-wrap: wrap;">
 
         <select id='binaryFormat' onchange='changeBinFormat();' data-tooltip="select_binary_format">
           <option value="ulaw_u8">UInt8 uLaw</option>
           <option value="pcm_u8">UInt8 PCM</option>
         </select>
-        Sel Index:<input class='numeric' style="text-align:right" type='text' value="0" id='in_point'
+        Sel Index:<input class='numeric' type='text' value="0" id='in_point'
           data-tooltip="input_in_point" />
         &mdash;<input class='numeric' type='text' value="0" id='out_point' data-tooltip="input_out_point" />
         (<span id='sample_count'>0</span> samples)
-        <input type='button' value="Select Max Range" onclick="resetRange()" data-tooltip="select_function" />
+        <input type='button' value="Select All" onclick="resetRange()" data-tooltip="select_function" />
         &nbsp;Playback@<select id='sample_rate_picker' data-tooltip="select_sample_rate">
           <option value="12000">12000 Hz</option>
+          <option value="20000">20000 Hz</option>
           <option value="24000" selected>24000 Hz</option>
           <option value="44100">44100 Hz</option>
           <option value="48000">48000 Hz</option>
@@ -101,6 +102,14 @@
         <input type="button" id="loop_playback_button" value="Loop: Off" onclick="toggleLoopPlayback()" data-tooltip="btn_loop_playback" />&nbsp;
         <input type="button" id="zero_crossing_snap_button" value="Snap Zero: Off" onclick="toggleZeroCrossingSnap()" data-tooltip="btn_zero_crossing_snap" />&nbsp;
         <input type='button' value="Preview" onclick="playAudio()" />
+        <span style="display:inline-flex; align-items:center; margin-left:8px; border-left:1px solid #555; padding-left:8px;">
+          <input type="checkbox" id="emu_enable" style="margin-right:4px; vertical-align:middle;" />
+          <span style="user-select:none; font-size:14px; margin-right:6px; vertical-align:middle;">Luma-Sim</span>
+          <span id="emu_controls" style="display:none; align-items:center; vertical-align:middle;">
+            Pitch:&nbsp;<input type="range" id="emu_pitch" min="0" max="100" step="0.5" value="49" style="width:80px; margin-right:4px; vertical-align:middle;" />
+            <span id="emu_pitchval" style="font-size:12px; min-width:110px; display:inline-block; color:#e08a2e; vertical-align:middle;">49% · +0.0 st</span>
+          </span>
+        </span>
       </div>
       <img src="images/lumatools_logo.png" />
     </div>

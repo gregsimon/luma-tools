@@ -60,6 +60,211 @@ function createAudioBufferFromBytes(sampleData, sampleRate = 24000) {
   return audioBuffer;
 }
 
+// ========================= AM6072+555 Emulation (Luma-Mu hardware preview) =========================
+
+const CLOCK_WANDER_CENTS = 1.5;   // slow thermal drift (std, sub-Hz)
+const CLOCK_JITTER_SEC = 150e-9;  // per-cycle period noise (std), constant in TIME
+
+// Measured knob taper: [position 0..1, semitones re as-prepped pitch].
+const KNOB_TAPER = [
+  [0.000, -16.25], [0.143, -15.20], [0.286, -12.77], [0.429, -9.57],
+  [0.490, -7.11], [0.571, -4.78], [0.714, 1.52], [0.857, 8.97],
+  [1.000, 16.10],
+];
+
+function knobToSemitones(pos) {
+  pos = Math.max(0, Math.min(1, pos));
+  for (let i = 1; i < KNOB_TAPER.length; i++) {
+    const [p0, s0] = KNOB_TAPER[i - 1], [p1, s1] = KNOB_TAPER[i];
+    if (pos <= p1) return s0 + (s1 - s0) * (pos - p0) / (p1 - p0);
+  }
+  return KNOB_TAPER[KNOB_TAPER.length - 1][1];
+}
+
+function mulawCompand(x) {
+  const out = new Float32Array(x.length);
+  for (let i = 0; i < x.length; i++) {
+    const v = Math.max(-1, Math.min(1, x[i]));
+    const mag = Math.abs(v) * 8031;
+    const biased = Math.min(mag + 33, 8191);
+    const chord = Math.max(0, Math.min(7, Math.floor(Math.log2(biased)) - 5));
+    const step = Math.max(0, Math.min(15,
+        Math.floor(biased / Math.pow(2, chord + 1)) - 16));
+    const dec = Math.pow(2, chord) * (2 * step + 33) - 33;
+    out[i] = Math.sign(v) * dec / 8031;
+  }
+  return out;
+}
+
+function gauss() {  // Box-Muller
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function zohRender(rom, clock, outRate,
+                    wanderCents = CLOCK_WANDER_CENTS,
+                    jitterSec = CLOCK_JITTER_SEC) {
+  const n = rom.length;
+  if (n < 2) return new Float32Array(1);
+  // slow wander at the clock rate
+  let acc = new Float64Array(n);
+  if (wanderCents > 0) {
+    const a = 1 - Math.exp(-2 * Math.PI * 0.3 / clock);
+    let p1 = 0, p2 = 0;
+    for (let i = 0; i < n; i++) {
+      p1 += a * (gauss() - p1);
+      p2 += a * (p1 - p2);
+      acc[i] = p2;
+    }
+    let m = 0, s = 0;
+    for (let i = 0; i < n; i++) m += acc[i];
+    m /= n;
+    for (let i = 0; i < n; i++) s += (acc[i] - m) * (acc[i] - m);
+    s = Math.sqrt(s / n);
+    const target = (wanderCents / 1200) * Math.LN2;
+    if (s > 0) for (let i = 0; i < n; i++) acc[i] *= target / s;
+  }
+  const jitFrac = jitterSec * clock;
+  const base = outRate / clock;
+  // edge times (output-rate units)
+  const edges = new Float64Array(n);
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    let per = base * (1 - acc[i] + jitFrac * gauss());
+    if (per < 0.05 * base) per = 0.05 * base;
+    t += per;
+    edges[i] = t;
+  }
+  const nOut = Math.floor(edges[n - 1]);
+  if (nOut < 2) return new Float32Array(1);
+  const y = new Float64Array(nOut);
+  // naive hold: forward walk
+  let k = 0;
+  for (let m2 = 0; m2 < nOut; m2++) {
+    while (k < n - 1 && edges[k] <= m2) k++;
+    y[m2] = rom[Math.min(k, n - 1)];
+  }
+  // polyBLEP bandlimited correction at every transition
+  for (let e = 0; e < n - 1; e++) {
+    const et = edges[e];
+    if (et <= 0 || et >= nOut - 1) continue;
+    const dv = rom[e + 1] - rom[e];
+    const i = Math.floor(et);
+    const f = et - i;
+    y[i] += dv * (1 - f) * (1 - f) / 2;
+    y[i + 1] -= dv * f * f / 2;
+  }
+  return Float32Array.from(y);
+}
+
+function simulate(rom, knobPos, outRate, romRate) {
+  const st = knobToSemitones(knobPos);
+  const clock = romRate * Math.pow(2, st / 12);
+  return zohRender(mulawCompand(rom), clock, outRate);
+}
+
+function createEmulatedAudioBufferFromBytes(sampleData, playbackSampleRate) {
+  if (!sampleData || sampleData.length === 0) return null;
+
+  const numSamples = sampleData.length;
+  const rom = new Float32Array(numSamples);
+
+  for (let i = 0; i < numSamples; i++) {
+    let ulaw = sampleData[i];
+    ulaw = ~ulaw; // Invert from storage format
+    const linear = ulaw_to_linear(ulaw);
+    rom[i] = linear / 32768.0; // Convert to [-1, 1]
+  }
+
+  // Get current pitch setting (0..100) -> 0..1
+  const pitchInput = document.getElementById("emu_pitch");
+  const pos = pitchInput ? parseFloat(pitchInput.value) / 100 : 0.49;
+  const outRate = actx.sampleRate; // Browser's native AudioContext sample rate
+
+  // Run the emulation chain
+  const emulatedData = simulate(rom, pos, outRate, playbackSampleRate);
+
+  // Create AudioBuffer at the browser's native sample rate
+  const audioBuffer = actx.createBuffer(1, emulatedData.length, outRate);
+  audioBuffer.copyToChannel(emulatedData, 0);
+
+  return audioBuffer;
+}
+
+function createPlaybackAudioBuffer(sampleData, playbackSampleRate) {
+  const emuCheckbox = document.getElementById('emu_enable');
+  const isEmuEnabled = emuCheckbox && emuCheckbox.checked;
+
+  if (isEmuEnabled) {
+    return createEmulatedAudioBufferFromBytes(sampleData, playbackSampleRate);
+  } else {
+    return createAudioBufferFromBytes(sampleData, playbackSampleRate);
+  }
+}
+
+function toggleEmuControls() {
+  const emuCheckbox = document.getElementById("emu_enable");
+  const emuControls = document.getElementById("emu_controls");
+  if (emuCheckbox && emuControls) {
+    if (emuCheckbox.checked) {
+      emuControls.style.display = "inline-flex";
+      updateEmuPitchLabel();
+    } else {
+      emuControls.style.display = "none";
+    }
+  }
+}
+
+function updateEmuPitchLabel() {
+  const emuPitch = document.getElementById("emu_pitch");
+  const emuPitchVal = document.getElementById("emu_pitchval");
+  if (emuPitch && emuPitchVal) {
+    const pos = parseFloat(emuPitch.value);
+    const st = knobToSemitones(pos / 100);
+    const rel = st - knobToSemitones(0.49);
+    const romRate = getSelectedSampleRate();
+    const clock = romRate * Math.pow(2, st / 12);
+    emuPitchVal.textContent = `${pos.toFixed(0)}% · ${rel >= 0 ? "+" : ""}${rel.toFixed(1)} st · ${(clock / 1000).toFixed(1)} kHz`;
+  }
+}
+
+function initEmuControls() {
+  const emuPitch = document.getElementById("emu_pitch");
+  if (emuPitch) {
+    emuPitch.addEventListener("input", () => {
+      updateEmuPitchLabel();
+    });
+    emuPitch.addEventListener("change", () => {
+      if (playingSound) {
+        if (playingSound.isEditorSound) {
+          playAudio();
+        }
+      }
+    });
+  }
+
+  const emuEnable = document.getElementById("emu_enable");
+  if (emuEnable) {
+    emuEnable.addEventListener("change", () => {
+      toggleEmuControls();
+      if (playingSound) {
+        if (playingSound.isEditorSound) {
+          playAudio();
+        }
+      }
+    });
+  }
+
+  const ratePicker = document.getElementById("sample_rate_picker");
+  if (ratePicker) {
+    ratePicker.addEventListener("change", () => {
+      updateEmuPitchLabel();
+    });
+  }
+}
+
 // Create byte array from AudioBuffer for storage
 function createBytesFromAudioBuffer(audioBuffer) {
   const numSamples = audioBuffer.length;
@@ -184,7 +389,7 @@ function playSlotAudio(id) {
   // Update the sample rate picker to match the slot's sample rate if it's standard
   const slotRate = bank[id].sample_rate;
   const picker = document.getElementById('sample_rate_picker');
-  if (picker && slotRate && [12000, 24000, 44100, 48000].includes(slotRate)) {
+  if (picker && slotRate && [12000, 20000, 24000, 44100, 48000].includes(slotRate)) {
     picker.value = slotRate.toString();
   }
 
@@ -192,17 +397,31 @@ function playSlotAudio(id) {
   const playbackSampleRate = getSelectedSampleRate();
 
   // Create AudioBuffer on-demand for playback
-  const audioBuffer = createAudioBufferFromBytes(bank[id].sampleData, playbackSampleRate);
+  const audioBuffer = createPlaybackAudioBuffer(bank[id].sampleData, playbackSampleRate);
   if (!audioBuffer) return;
 
   let theSound = actx.createBufferSource();
   theSound.buffer = audioBuffer;
   theSound.connect(actx.destination); // connect to the output
 
-  // convert end points into seconds for playback.
-  theSound.start(0, 0, audioBuffer.length / playbackSampleRate);
+  const emuCheckbox = document.getElementById('emu_enable');
+  const isEmuEnabled = emuCheckbox && emuCheckbox.checked;
 
-  playingSound = theSound;
+  if (isEmuEnabled) {
+    const pitchInput = document.getElementById("emu_pitch");
+    const pos = pitchInput ? parseFloat(pitchInput.value) : 49.0;
+    const st = knobToSemitones(pos / 100);
+    const scale = Math.pow(2, st / 12);
+    theSound.start(0);
+    playingSound = theSound;
+    playingSound.pitchScale = scale;
+  } else {
+    // convert end points into seconds for playback.
+    theSound.start(0, 0, audioBuffer.length / playbackSampleRate);
+    playingSound = theSound;
+    playingSound.pitchScale = 1.0;
+  }
+
   playingSound.isEditorSound = false;
   playingSound.onended = () => {
     if (playingSound === theSound) {
@@ -250,7 +469,7 @@ function playAudio() {
   }
 
   // Create AudioBuffer on-demand for playback
-  const audioBuffer = createAudioBufferFromBytes(bufferData, playbackSampleRate);
+  const audioBuffer = createPlaybackAudioBuffer(bufferData, playbackSampleRate);
   if (!audioBuffer) return;
 
   let theSound = actx.createBufferSource();
@@ -260,26 +479,37 @@ function playAudio() {
   const duration = (editor_out_point - editor_in_point + 1) / playbackSampleRate;
   const offset = editor_in_point / playbackSampleRate;
 
+  const emuCheckbox = document.getElementById('emu_enable');
+  const isEmuEnabled = emuCheckbox && emuCheckbox.checked;
+  let scale = 1.0;
+
+  if (isEmuEnabled) {
+    const pitchInput = document.getElementById("emu_pitch");
+    const pos = pitchInput ? parseFloat(pitchInput.value) : 49.0;
+    const st = knobToSemitones(pos / 100);
+    scale = Math.pow(2, st / 12);
+  }
+
   // convert end points into seconds for playback.
   if (isLooping) {
     theSound.loop = true;
     theSound.start(0);
   } else {
-    theSound.start(
-      // when (seconds) playback should start (immediately)
-      0,
-      // offset (seconds) into the buffer where playback starts
-      offset,
-      // duration (seconds) of the sample to play
-      duration,
-    );
+    if (isEmuEnabled) {
+      // If emulated and not looping, we pass the full editorSampleData to emulate,
+      // so the offset and duration in the emulated buffer are scaled.
+      theSound.start(0, offset / scale, duration / scale);
+    } else {
+      theSound.start(0, offset, duration);
+    }
   }
 
   playingSound = theSound;
   playingSound.isEditorSound = true;
   playbackStartTime = actx.currentTime;
   playingSound.playbackOffset = offset;
-  playingSound.loopDuration = duration;
+  playingSound.loopDuration = isEmuEnabled ? (duration / scale) : duration;
+  playingSound.pitchScale = scale;
   playingSound.onended = () => {
     if (playingSound === theSound) {
       playingSound = null;

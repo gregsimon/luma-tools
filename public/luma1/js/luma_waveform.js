@@ -176,7 +176,8 @@ function drawEditorCanvas() {
         }
       }
 
-      const currentSample = (playingSound.playbackOffset + elapsed) * getSelectedSampleRate();
+      const scale = playingSound.pitchScale || 1.0;
+      const currentSample = (playingSound.playbackOffset + elapsed * scale) * getSelectedSampleRate();
       const cursorX = sampleToX(currentSample);
 
       if (cursorX >= 0 && cursorX <= w) {

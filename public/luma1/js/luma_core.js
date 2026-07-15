@@ -543,6 +543,7 @@ function luma1_init() {
   });
 
   loadSettings();
+  if (typeof initEmuControls === "function") initEmuControls();
 
   // get the build #
   fetch("deploy_date.txt")
@@ -740,6 +741,14 @@ function updateUIForMode(mode) {
         "Hold \"Shift\" while dragging endpoints to lock cursor to 1k (1024 samples)<br>" +
         "Drag waveforms between slots in the staging area, they can also be dragged to and from the editor<br>" +
         "The \"STAGING\" bank represents the samples currently loaded into the cards, the numbered banks are banks stored on the internal SD card.";
+    }
+  }
+
+  const emuCheckbox = document.getElementById("emu_enable");
+  if (emuCheckbox) {
+    emuCheckbox.checked = (mode === "lumamu");
+    if (typeof toggleEmuControls === "function") {
+      toggleEmuControls();
     }
   }
 

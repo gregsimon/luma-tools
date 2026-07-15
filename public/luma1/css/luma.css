@@ -32,6 +32,11 @@ input {
   border: 1px solid rgb(138, 138, 138);
 }
 
+.numeric {
+  width: 50px;
+  text-align: right;
+}
+
 select {
   background-color: rgb(15, 15, 15);
   color: rgb(236, 221, 223);

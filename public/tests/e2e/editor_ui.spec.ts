@@ -37,8 +37,8 @@ test('editor selection and basic functions', async ({ page }) => {
   expect(state.in).toBe(100);
   expect(state.out).toBe(2000);
 
-  // 3. Test "Select Max Range" Button
-  await page.click('input[value="Select Max Range"]');
+  // 3. Test "Select All" Button
+  await page.click('input[value="Select All"]');
   state = await page.evaluate(() => {
     // @ts-ignore
     return { in: editor_in_point, out: editor_out_point };

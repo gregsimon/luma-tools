@@ -86,7 +86,7 @@ test.describe('Waveform Zoom and Scroll', () => {
     if (!box) throw new Error('Canvas not found');
 
     // Reset view
-    await page.click('input[value="Select Max Range"]');
+    await page.click('input[value="Select All"]');
 
     // 1. Snap out-point to 3/4 of the way (MUST DO THIS FIRST OR AFTER in-point is set to something smaller)
     await page.mouse.click(box.x + (box.width * 3) / 4, box.y + box.height - 5);
