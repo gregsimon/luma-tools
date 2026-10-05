@@ -27,6 +27,7 @@
   <script src="js/hexy.js"></script>
   <script src="js/tooltips.js"></script>
   <script src="js/luma_firmware.js"></script>
+  <script src="js/luma_sequencer.js"></script>
   <title>Luma Tools</title>
 </head>
 
@@ -196,16 +197,120 @@
 
   <!-- PATTERN EDITOR page -->
   <div id="pattern_editor_tab" class="main_section" style="display:none;">
-    <input type='button' value="Read RAM from Device" onclick="readRAMfromDevice()" data-tooltip="btn_read_ram" />
-    From bank:
-    <select id='ram_bankId' data-tooltip="select_ram_bank_id"></select>
-    <input type='button' class="red_button" value="Write RAM To Device" onclick="writeRAMToDevice()"
-      data-tooltip="btn_write_ram" />
-    |
-    <input type='button' value="Download" onclick="downloadRAMBuffer()" data-tooltip="btn_download_ram" />
-    <hr>
-    <div id="ram_editor"></div>
-  </div>
+
+    <!-- ── 1. STEP SEQUENCER GRID (top) ───────────────────────────────────── -->
+    <div class="seq-machine" id="seqMachine" ondragover="seqDragOver(event)" ondragleave="seqDragLeave(event)" ondrop="seqDrop(event)">
+
+      <!-- 12-voice × 32-step grid (first row = step numbers) -->
+      <div class="seq-grid" id="seqGrid" data-tip="Click a step: off → soft → loud
+HH also has Open state
+Hover a hit: ‹ › or ←/→ nudge it
+early/late (±5/12 step)
+Alt+click: add shuffle offset
+Shift+click: clear step
+
+Drop a Luma-1 / LM-1 .bin
+memory file here to load patterns"></div>
+
+      <!-- Controls row (below grid) -->
+      <div class="seq-ctrl-row">
+        <span class="seq-ctrl-group">
+          <input type="button" id="seqPlayBtn" value="&#9654; PLAY" data-tip="Play / Stop
+Spacebar toggles play∕stop" class="seq-play-btn" />
+        </span>
+        <span class="seq-ctrl-group">
+          BPM
+          <input type="range" id="seqBpmIn" min="40" max="250" value="120" style="width:80px;accent-color:rgb(214,144,30);">
+          <span id="seqBpmLbl" class="seq-bpm-lbl">120</span>
+        </span>
+        <span class="seq-ctrl-group">
+          HH DECAY
+          <input type="range" id="seqHhDecayR" min="30" max="2000" value="250"
+            style="width:120px;accent-color:rgb(15,100,100);">
+          <span id="seqHhDecayLbl" class="seq-bpm-lbl" style="color:rgb(15,180,180);min-width:40px;">250ms</span>
+          <select class="seq-steps-badge" id="seqLenSel" data-tip="Pattern length — sets where the pattern loops
+and is written into the pattern data">
+            <option value="16">16 steps (1 bar)</option>
+          </select>
+          <span id="seqShufLegend" style="display:none;font-size:10px;color:rgb(120,170,220);">
+            &#9632; late &nbsp;<span style="color:rgb(90,190,110);">&#9632; early</span>
+          </span>
+        </span>
+        <span class="seq-ctrl-group seq-ctrl-right">
+          Slot <input type="text" id="seqSlotInput" value="0"
+            style="width:36px;text-align:center;font-size:11px;" />
+          <input type="button" id="seqWriteBtn" value="Write to Slot"
+            title="Encode current grid into RAM buffer (then use Write RAM To Device to send to Luma-1)" />
+          <input type="button" id="seqClrBtn" value="CLR" title="Clear all steps" />
+        </span>
+      </div>
+
+      <div class="seq-mnote">
+        click: off&#8594;soft&#8594;loud &nbsp;&#183;&nbsp; HH: +open &nbsp;&#183;&nbsp;
+        hover hit + &#8249; &#8250; or &#8592;/&#8594;: nudge early/late (dbl-click &#8249;&#8250; = back on grid) &nbsp;&#183;&nbsp;
+        alt+click: shuffle offset (50%&#8594;70%) &nbsp;&#183;&nbsp; shift+click: clear &nbsp;&#183;&nbsp;
+        spacebar: play/stop
+      </div>
+    </div>
+
+    <!-- ── 2. RAM I/O CONTROLS ─────────────────────────────────────────────── -->
+    <div class="seq-topbar">
+      <input type="button" value="Read RAM from Device" onclick="readRAMfromDevice()" data-tooltip="btn_read_ram" />
+      From bank: <select id="ram_bankId" data-tooltip="select_ram_bank_id"></select>
+      <input type="button" class="red_button" value="Write RAM To Device" onclick="writeRAMToDevice()" data-tooltip="btn_write_ram" />
+      <input type="button" value="Download" onclick="downloadRAMBuffer()" data-tooltip="btn_download_ram" />
+      |
+      <label class="seq-file-lbl" for="seqBinFile">&#8593; Load .BIN / .SYX</label>
+      <input type="file" id="seqBinFile" accept=".bin,.syx,.BIN,.SYX" style="display:none">
+      |
+      <span id="seqStatus" class="seq-status"></span>
+    </div>
+
+    <!-- ── 3. CHAIN SELECTORS ─────────────────────────────────────────────── -->
+    <div class="seq-panel" id="seqChPanel">
+      <div class="seq-panel-hdr">
+        <span data-tip="Click a chain to select it.
+Press ▶ PLAY CHAIN to sequence
+through all linked patterns,
+advancing at each loop boundary.">CHAINS IN RAM</span>
+        <span class="seq-panel-info" id="seqChInfo"></span>
+        <input type="button" id="seqPlayChainBtn" value="&#9654; PLAY CHAIN"
+          title="Play selected chain — sequences through linked patterns at each loop boundary" />
+        <span class="seq-ch-progress" id="seqChProgress"></span>
+      </div>
+      <div class="seq-ch-grid" id="seqChGrid"></div>
+      <div class="seq-legend">
+        <span><span class="seq-swatch seq-swatch-data"></span> chain has data</span>
+        <span><span class="seq-swatch seq-swatch-empty"></span> empty</span>
+        <span><span class="seq-swatch seq-swatch-active"></span> selected</span>
+      </div>
+    </div>
+
+    <!-- ── 4. PATTERN SELECTORS ───────────────────────────────────────────── -->
+    <div class="seq-panel" id="seqPpPanel">
+      <div class="seq-panel-hdr">
+        <span data-tip="Click a pattern to load it into the editor.
+While stopped: loads immediately.
+While playing: queues it — loads at the next loop boundary.">PATTERNS IN RAM</span>
+        <span class="seq-panel-info" id="seqPpInfo"></span>
+      </div>
+      <div class="seq-pp-grid" id="seqPpGrid"></div>
+      <div class="seq-legend">
+        <span><span class="seq-swatch seq-swatch-data"></span> has data (click to load)</span>
+        <span><span class="seq-swatch seq-swatch-empty"></span> empty slot</span>
+        <span><span class="seq-swatch seq-swatch-active"></span> loaded</span>
+        <span><span class="seq-swatch seq-swatch-play"></span> playing</span>
+        <span><span class="seq-swatch seq-swatch-queue"></span> queued next</span>
+      </div>
+    </div>
+
+    <!-- ── 5. RAM / ENCODING DETAIL ───────────────────────────────────────── -->
+    <div class="seq-hex-panel" id="seqHexPanel">
+      <div class="seq-hex-hdr">Z-80 RAM &#8212; PATTERN ENCODING</div>
+      <div id="seqHexContent"></div>
+    </div>
+
+  </div><!-- /pattern_editor_tab -->
 
   <!-- MIDI MONITOR page -->
   <div id="midi_monitor_tab" class="main_section" style="display:none;">
@@ -318,6 +423,31 @@
     Luma-Tools deployed on: <span id="deployed_date"></span>
   </div>
 
+
+<div id="seq-tip"></div>
+<script>
+(()=>{
+  const tip=document.getElementById('seq-tip');
+  if(!tip)return;
+  let ht;
+  document.addEventListener('mouseover',e=>{
+    const el=e.target.closest('[data-tip]');
+    if(!el){tip.style.display='none';return;}
+    clearTimeout(ht);
+    tip.textContent=el.dataset.tip;
+    tip.style.display='block';
+  });
+  document.addEventListener('mousemove',e=>{
+    if(tip.style.display==='none')return;
+    const x=e.clientX+14,y=e.clientY+14,r=tip.getBoundingClientRect();
+    tip.style.left=(x+r.width>window.innerWidth?e.clientX-r.width-8:x)+'px';
+    tip.style.top=(y+r.height>window.innerHeight?e.clientY-r.height-8:y)+'px';
+  });
+  document.addEventListener('mouseout',e=>{
+    if(e.target.closest('[data-tip]')) ht=setTimeout(()=>tip.style.display='none',120);
+  });
+})();
+</script>
 </body>
 
 </html>

@@ -991,7 +991,7 @@ function downloadRAMBuffer() {
   var ram_blob = new Blob([ram_dump]);
   var link = document.createElement("a");
   link.href = window.URL.createObjectURL(ram_blob);
-  link.download = "luna_ram.bin";
+  link.download = "luma1_ram.bin";
   link.click();
 }
 

@@ -116,9 +116,9 @@ function onMIDIMessageReceived(event) {
       }
     } else if (type == CMD_RAM_BANK || type == (CMD_RAM_BANK | CMD_REQUEST)) {
       console.log(`CMD_RAM_BANK ${event.data.length} bytes`);
+      ram_dump = data.slice(32);
       var el = de("ram_editor");
       if (el) {
-        ram_dump = data.slice(32);
         var format = {
           width: 16,
           html: false,
@@ -126,6 +126,8 @@ function onMIDIMessageReceived(event) {
         };
         el.innerText = hexy(ram_dump, format);
       }
+      // Notify step sequencer
+      if (typeof seqOnRamReceived === 'function') seqOnRamReceived(ram_dump);
     } else {
       console.log("unsupported Luma packet type=" + type);
     }

@@ -394,6 +394,7 @@ function luma1_init() {
   };
   document.getElementById("pattern_editor_tab_button").onclick = () => {
     switchTab(TAB_PATTERN_EDITOR);
+    if(typeof seqOnTabShown==='function') seqOnTabShown();
   };
   document.getElementById("midi_monitor_tab_button").onclick = () => {
     switchTab(TAB_MIDI_MONITOR);
@@ -568,7 +569,8 @@ function luma1_init() {
     window.LumaTooltips.init('en');
   }
 
-
+  // Initialize the step sequencer
+  if(typeof seqInit==='function') seqInit();
 }
 
 function switchTab(newTab) {

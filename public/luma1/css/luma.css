@@ -203,3 +203,343 @@ select {
   /* Smooth implementation */
   transition: opacity 0.1s;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP SEQUENCER  (luma_sequencer.js)
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Top bar ──────────────────────────────────────────────────── */
+.seq-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0 6px 0;
+  border-top: 1px solid white;
+}
+.seq-status { font-size: 11px; color: rgb(100,220,120); }
+.seq-file-lbl {
+  cursor: pointer;
+  background-color: rgb(15,15,15);
+  color: rgb(236,221,223);
+  border: 1px solid rgb(138,138,138);
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.seq-file-lbl:hover { border-color: rgb(200,200,200); }
+
+/* ── Panels (chain / pattern pickers) ────────────────────────── */
+.seq-panel {
+  background: rgb(20,20,20);
+  border: 1px solid rgb(51,51,51);
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin: 6px 0;
+}
+.seq-panel-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgb(190,190,190);
+  margin-bottom: 7px;
+}
+.seq-panel-info { font-size: 10px; color: rgb(160,160,160); }
+.seq-ch-progress { font-size: 10px; color: rgb(120,190,240); font-family: monospace; letter-spacing: 1px; }
+.seq-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 9px;
+  color: rgb(160,160,160);
+  margin-top: 6px;
+}
+.seq-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.seq-swatch-empty  { background: rgb(30,30,30); border: 1px solid rgb(50,50,50); }
+.seq-swatch-data   { background: rgb(90,50,10); border: 1px solid rgb(150,90,20); }
+.seq-swatch-active { background: rgb(90,60,0); border: 2px solid rgb(217,119,6); }
+.seq-swatch-play   { background: rgb(90,60,0); border: 2px solid rgb(245,158,11); }
+.seq-swatch-queue  { background: rgb(0,24,40); border: 2px solid rgb(56,189,248); }
+
+/* ── Pattern picker buttons ───────────────────────────────────── */
+.seq-pp-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.seq-pp-btn {
+  font-size: 8px;
+  font-family: monospace;
+  background: rgb(20,20,20);
+  border: 1px solid rgb(35,35,35);
+  color: rgb(130,130,130);
+  padding: 3px 5px;
+  cursor: pointer;
+  border-radius: 3px;
+  min-width: 48px;
+  text-align: center;
+  line-height: 1.4;
+}
+.seq-pp-btn:hover { border-color: rgb(140,140,140); color: rgb(190,190,190); }
+.seq-pp-has   { background: rgb(26,14,0); border-color: rgb(92,56,16); color: rgb(217,119,6); }
+.seq-pp-has:hover { border-color: rgb(217,119,6); }
+.seq-pp-active  { background: rgb(42,26,0); border-color: rgb(217,119,6); color: rgb(251,191,36); outline: 1px solid rgb(107,58,16); }
+.seq-pp-playing { background: rgb(42,26,0); border-color: rgb(245,158,11); color: rgb(254,240,138); outline: 2px solid rgb(217,119,6); font-weight: bold; }
+.seq-pp-queued  {
+  background: rgb(0,24,40); border-color: rgb(56,189,248); color: rgb(125,211,252);
+  animation: seqPPQ .7s ease-in-out infinite;
+}
+@keyframes seqPPQ {
+  0%,100% { border-color: rgb(56,189,248); background: rgb(0,24,40); }
+  50%      { border-color: rgb(125,211,252); background: rgb(0,38,61); }
+}
+.seq-pp-sz { font-size: 7px; color: inherit; opacity: .8; }
+
+/* ── Chain picker buttons ─────────────────────────────────────── */
+.seq-ch-grid { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+.seq-ch-btn {
+  font-size: 9px;
+  font-family: monospace;
+  background: rgb(20,20,20);
+  border: 1px solid rgb(35,35,35);
+  color: rgb(130,130,130);
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  min-width: 60px;
+  text-align: center;
+  line-height: 1.4;
+  transition: border-color .1s;
+}
+.seq-ch-btn:hover { border-color: rgb(140,140,140); color: rgb(190,190,190); }
+.seq-ch-has     { background: rgb(26,14,0); border-color: rgb(92,56,16); color: rgb(217,119,6); }
+.seq-ch-has:hover { border-color: rgb(217,119,6); }
+.seq-ch-active  { background: rgb(42,26,0); border-color: rgb(217,119,6); color: rgb(251,191,36); outline: 1px solid rgb(107,58,16); }
+.seq-ch-playing { background: rgb(30,16,0); border-color: rgb(245,158,11); color: rgb(254,240,138); outline: 2px solid rgb(217,119,6); font-weight: bold; }
+
+/* ── Sequencer machine ────────────────────────────────────────── */
+.seq-machine {overflow-x:auto;
+  background: rgb(18,18,18);
+  border: 1px solid rgb(51,51,51);
+  border-radius: 3px;
+  padding: 10px;
+  margin: 6px 0;
+  font-family: monospace;
+}
+
+/* ── Controls row ─────────────────────────────────────────────── */
+.seq-ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.seq-ctrl-group { display: flex; align-items: center; gap: 5px; }
+.seq-ctrl-right { margin-left: auto; }
+.seq-bpm-lbl { font-size: 11px; color: rgb(214,144,30); min-width: 28px; }
+.seq-play-btn { min-width: 70px; }
+.seq-play-on { background: rgb(42,26,0) !important; color: rgb(251,191,36) !important; border-color: rgb(217,119,6) !important; }
+.seq-steps-badge {
+  font-size: 9px;
+  background: rgb(30,30,30);
+  border: 1px solid rgb(51,51,51);
+  color: rgb(180,180,180);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+/* ── Step number header ───────────────────────────────────────── */
+.seq-nums-wrap {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+.seq-vlbl-spacer { width: 50px; flex-shrink: 0; }
+.seq-ngrp {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  flex: 1;
+}
+
+/* Numbers header row — same grid as voice rows, perfect alignment */
+.seq-vrow-nums .seq-vlbl { opacity:0; pointer-events:none; }
+.seq-sn { font-size:7px; color:rgb(140,140,140); text-align:center; line-height:1; }
+.seq-bt { color:rgb(200,160,60); }
+
+/* ── Flat 32-column grid layout ─────────────────── */
+/* seq-nums-wrap removed — numbers now in first row of seqGrid */
+.seq-sn-spacer{width:50px;flex-shrink:0;}
+.seq-sn{flex:1;font-size:7px;color:rgb(140,140,140);text-align:center;line-height:1;min-width:0;}
+.seq-vrow{display:grid;grid-template-columns:120px repeat(32,1fr);gap:2px;margin-bottom:2px;min-width:0;}
+
+.seq-bt { color: rgb(200,160,60); }
+
+/* 16 vs 32 step layout */
+/* Always 32 steps */
+.seq-nums-wrap, 
+
+/* ── Grid rows ────────────────────────────────────────────────── */
+.seq-grid { display: flex; flex-direction: column; gap: 2px; }
+.seq-vrow {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 1px;
+}
+
+
+
+.seq-vlbl{font-size:9px;color:rgb(190,190,190);letter-spacing:1px;font-family:monospace;flex-shrink:0;user-select:none;width:28px;text-align:right;}
+.seq-sgrp {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+
+/* ── Step cells ───────────────────────────────────────────────── */
+.seq-st {
+  position: relative;
+  height: 22px;
+  background: rgb(30,30,30);
+  border: 1px solid rgb(44,44,44);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .05s;
+}
+.seq-st:hover { border-color: rgb(80,80,80); }
+.seq-st.seq-cur { outline: 1px solid rgb(240,240,240); }
+
+/* Velocity states */
+.seq-st.seq-loud { background: rgb(180,95,0); border-color: rgb(140,74,0); }
+.seq-st.seq-soft { background: rgb(70,34,0); border-color: rgb(90,44,0); }
+.seq-st.seq-on   { background: rgb(180,95,0); border-color: rgb(140,74,0); }
+.seq-st.seq-open { background: rgb(15,100,100); border-color: rgb(13,82,82); }
+
+/* Shuffle tints */
+.seq-st.seq-shuf1.seq-loud, .seq-st.seq-shuf1.seq-on { background: rgb(30,90,170); border-color: rgb(25,75,145); }
+.seq-st.seq-shuf1.seq-soft                            { background: rgb(18,54,100); border-color: rgb(25,65,115); }
+.seq-st.seq-shuf4.seq-loud, .seq-st.seq-shuf4.seq-on { background: rgb(90,30,180); border-color: rgb(75,25,150); }
+.seq-st.seq-shuf4.seq-soft                            { background: rgb(54,18,100); border-color: rgb(65,22,120); }
+
+/* Early (pulled ahead of the grid) tint */
+.seq-st.seq-early.seq-loud, .seq-st.seq-early.seq-on { background: rgb(40,135,70); border-color: rgb(32,110,56); }
+.seq-st.seq-early.seq-soft                            { background: rgb(22,72,38); border-color: rgb(28,90,48); }
+
+/* Micro-offset marker: where in the step the hit actually falls (centre = on grid) */
+.seq-off-mark {
+  position: absolute; top: 2px; bottom: 2px; width: 2px; margin-left: -1px;
+  background: rgba(255,255,255,.85); border-radius: 1px; pointer-events: none;
+}
+
+/* ‹ › nudge handles, shown on the hovered hit */
+.seq-nudge {
+  display: none;
+  position: absolute; top: 0; bottom: 0; width: 34%;
+  align-items: center; justify-content: center;
+  font-size: 13px; font-weight: bold; line-height: 1;
+  color: rgba(255,255,255,.9); background: rgba(0,0,0,.35);
+  user-select: none;
+}
+.seq-nudge-l { left: 0; border-radius: 2px 0 0 2px; }
+.seq-nudge-r { right: 0; border-radius: 0 2px 2px 0; }
+.seq-st:hover .seq-nudge { display: flex; }
+.seq-nudge:hover { background: rgba(0,0,0,.65); color: rgb(255,210,120); }
+
+/* Steps beyond the pattern length */
+.seq-st.seq-st-x { opacity: .22; cursor: default; }
+.seq-st.seq-st-x .seq-nudge { display: none; }
+.seq-sn.seq-st-x { opacity: .3; }
+
+/* Shuffle label */
+.seq-shuf-lbl {
+  position: absolute;
+  bottom: 1px; right: 2px;
+  font-size: 6.5px;
+  font-family: monospace;
+  font-weight: bold;
+  color: rgba(255,255,255,.82);
+  pointer-events: none;
+  line-height: 1;
+  letter-spacing: -.3px;
+}
+
+/* ── Mouse note ───────────────────────────────────────────────── */
+.seq-mnote {
+  font-size: 9px;
+  color: rgb(140,140,140);
+  margin-top: 6px;
+  letter-spacing: .3px;
+}
+
+/* ── Hex / encoding panel ─────────────────────────────────────── */
+.seq-hex-panel {
+  background: rgb(20,20,20);
+  border: 1px solid rgb(51,51,51);
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  font-family: monospace;
+  font-size: 10px;
+}
+.seq-hex-hdr { font-size: 9px; letter-spacing: 2px; color: rgb(160,160,160); margin-bottom: 6px; }
+.seq-hex-stitle { font-size: 8px; color: rgb(160,160,160); letter-spacing: 2px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid rgb(35,35,35); }
+.seq-ev-row { display: flex; align-items: baseline; gap: 10px; padding: 1px 0; flex-wrap: wrap; }
+.seq-ev-empty { opacity: .45; }
+.seq-ev-addr  { font-size: 9.5px; color: rgb(160,160,160); min-width: 52px; }
+.seq-ev-bytes { font-size: 9.5px; min-width: 100px; letter-spacing: 1px; }
+.seq-ev-meta  { font-size: 8.5px; color: rgb(130,130,130); }
+.seq-ev-v     { font-size: 9px; color: rgb(251,191,36); background: rgb(42,26,0); padding: 1px 3px; border-radius: 2px; }
+.seq-b0c { color: rgb(74,222,128); }
+.seq-bdc { color: rgb(56,189,248); }
+.seq-bec { color: rgb(167,139,250); }
+
+/* Drag-and-drop target */
+.seq-machine.seq-drag-over{
+  outline:2px dashed rgb(217,119,6);
+  background:rgb(26,16,0);
+}
+
+/* Pitch slider column */
+.seq-pitch-cell{display:flex;align-items:center;gap:3px;padding:0 3px 0 4px;overflow:hidden;}
+.seq-pitch-sl{
+  width:56px;flex-shrink:0;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;
+  background:rgb(50,50,50);outline:none;
+}
+.seq-pitch-sl::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:rgb(80,200,140);
+  cursor:pointer;margin-top:-5px;
+  box-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.seq-pitch-sl::-webkit-slider-runnable-track{
+  height:4px;background:rgb(50,50,50);border-radius:2px;
+}
+.seq-vkey-lbl{
+  font-size:8px;font-family:monospace;
+  background:rgb(40,40,40);
+  border:1px solid rgb(90,90,90);border-bottom:2px solid rgb(60,60,60);
+  border-radius:3px;padding:1px 3px;color:rgb(200,200,200);
+  flex-shrink:0;user-select:none;min-width:13px;text-align:center;line-height:1.4;
+}
+
+/* Tooltip (Pattern Editor) */
+#seq-tip{position:fixed;z-index:9999;pointer-events:none;display:none;
+  background:rgba(18,18,18,.97);color:rgb(210,210,210);
+  border:1px solid rgb(80,80,80);border-radius:4px;
+  padding:6px 9px;font-size:11px;font-family:'Barlow Condensed',condensed,sans-serif;
+  max-width:240px;line-height:1.45;white-space:pre-wrap;
+  box-shadow:0 4px 12px rgba(0,0,0,.5);}
