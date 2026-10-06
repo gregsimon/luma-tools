@@ -159,13 +159,20 @@ function zohRender(rom, clock, outRate,
   return Float32Array.from(y);
 }
 
+// Pitch relative to noon (49%), where the module plays the sample as prepped.
+// The measured taper is relative to the as-prepped pitch at 0%, so noon reads −7.1 st.
+function knobToNoonSemitones(pos) {
+  return knobToSemitones(pos) - knobToSemitones(0.49);
+}
+
 function simulate(rom, knobPos, outRate, romRate) {
-  const st = knobToSemitones(knobPos);
+  const st = knobToNoonSemitones(knobPos);
   const clock = romRate * Math.pow(2, st / 12);
   return zohRender(mulawCompand(rom), clock, outRate);
 }
 
-function createEmulatedAudioBufferFromBytes(sampleData, playbackSampleRate) {
+// knobPos (0..1) defaults to the Sample Editor's Luma-Sim knob
+function createEmulatedAudioBufferFromBytes(sampleData, playbackSampleRate, knobPos) {
   if (!sampleData || sampleData.length === 0) return null;
 
   const numSamples = sampleData.length;
@@ -180,7 +187,7 @@ function createEmulatedAudioBufferFromBytes(sampleData, playbackSampleRate) {
 
   // Get current pitch setting (0..100) -> 0..1
   const pitchInput = document.getElementById("emu_pitch");
-  const pos = pitchInput ? parseFloat(pitchInput.value) / 100 : 0.49;
+  const pos = knobPos !== undefined ? knobPos : pitchInput ? parseFloat(pitchInput.value) / 100 : 0.49;
   const outRate = actx.sampleRate; // Browser's native AudioContext sample rate
 
   // Run the emulation chain
@@ -222,10 +229,9 @@ function updateEmuPitchLabel() {
   const emuPitchVal = document.getElementById("emu_pitchval");
   if (emuPitch && emuPitchVal) {
     const pos = parseFloat(emuPitch.value);
-    const st = knobToSemitones(pos / 100);
-    const rel = st - knobToSemitones(0.49);
+    const rel = knobToNoonSemitones(pos / 100);
     const romRate = getSelectedSampleRate();
-    const clock = romRate * Math.pow(2, st / 12);
+    const clock = romRate * Math.pow(2, rel / 12);
     emuPitchVal.textContent = `${pos.toFixed(0)}% · ${rel >= 0 ? "+" : ""}${rel.toFixed(1)} st · ${(clock / 1000).toFixed(1)} kHz`;
   }
 }
@@ -410,7 +416,7 @@ function playSlotAudio(id) {
   if (isEmuEnabled) {
     const pitchInput = document.getElementById("emu_pitch");
     const pos = pitchInput ? parseFloat(pitchInput.value) : 49.0;
-    const st = knobToSemitones(pos / 100);
+    const st = knobToNoonSemitones(pos / 100);
     const scale = Math.pow(2, st / 12);
     theSound.start(0);
     playingSound = theSound;
@@ -486,7 +492,7 @@ function playAudio() {
   if (isEmuEnabled) {
     const pitchInput = document.getElementById("emu_pitch");
     const pos = pitchInput ? parseFloat(pitchInput.value) : 49.0;
-    const st = knobToSemitones(pos / 100);
+    const st = knobToNoonSemitones(pos / 100);
     scale = Math.pow(2, st / 12);
   }
 

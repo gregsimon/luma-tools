@@ -3,7 +3,7 @@
  * 
  * This file provides a JavaScript implementation for communicating with PicoROM devices
  * via Web Serial, based on the protocol defined in the Rust implementation at:
- * https://github.com/wickerwaka/PicoROM/blob/main/host/picolink/src/lib.rs
+ * https://github.com/wickerwaka/PicoROM/blob/21f895213d67d2e4af0787dfe27bbebee17e2007/host/picolink/src/lib.rs
  */
 
 // PicoROM USB Vendor ID and Product ID for device identification
@@ -42,7 +42,9 @@ class PicoROM {
         this.port = port;
         this.reader = null;
         this.writer = null;
-        this.readLoop = null;
+        this.pendingRead = null;
+        this.receiveBuffer = new Uint8Array(0);
+        this.isOpen = false;
         this.debug = false;
     }
 
@@ -52,45 +54,31 @@ class PicoROM {
      */
     async open(options = {}) {
         try {
-            // Use baud rate from Rust implementation: 9600 for non-macOS, auto-detect for macOS
-            const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            const defaultBaudRate = 9600;
-            
             await this.port.open({
-                baudRate: options.baudRate || defaultBaudRate,
+                baudRate: options.baudRate || 9600,
                 dataBits: options.dataBits || 8,
                 stopBits: options.stopBits || 1,
                 parity: options.parity || 'none',
                 bufferSize: options.bufferSize || 255,
                 flowControl: options.flowControl || 'none'
             });
-            
-            // Wait for the "PicoROM Hello" message (same as Rust implementation)
-            const expected = "PicoROM Hello";
-            let preamble = "";
-            
+            this.isOpen = true;
             this.reader = this.port.readable.getReader();
-            
-            while (preamble.length < expected.length || !preamble.includes(expected)) {
-                const { value, done } = await this.reader.read();
-                if (done) break;
-                
-                const text = new TextDecoder().decode(value);
-                preamble += text;
-                
-                if (this.debug) {
-                    console.log("Received preamble chunk:", text);
+            // The legacy firmware starts its session when DTR is asserted and
+            // sends the 13 ASCII bytes of its greeting (without a NUL).
+            if (this.port.setSignals) await this.port.setSignals({ dataTerminalReady: true });
+            const expected = new TextEncoder().encode('PicoROM Hello');
+            const deadline = Date.now() + (options.timeout || 3000);
+            while (this.receiveBuffer.length < expected.length) {
+                if (!await this.fillReceiveBuffer(deadline)) {
+                    throw new Error('Timeout waiting for PicoROM Hello. Check the selected device and reconnect.');
                 }
             }
-            
-            if (!preamble.includes(expected)) {
-                throw new Error("Did not receive expected PicoROM Hello message");
+            if (!expected.every((byte, i) => this.receiveBuffer[i] === byte)) {
+                throw new Error('Did not receive expected PicoROM Hello message');
             }
-            
-            if (this.debug) {
-                console.log("PicoROM Hello received successfully");
-            }
-            
+            this.receiveBuffer = this.receiveBuffer.slice(expected.length);
+
             return true;
         } catch (error) {
             console.error("Error opening PicoROM device:", error);
@@ -102,16 +90,51 @@ class PicoROM {
      * Close the connection to the PicoROM device
      */
     async close() {
-        if (this.reader) {
-            await this.reader.cancel();
-            this.reader = null;
+        const port = this.port;
+        try {
+            if (this.reader) {
+                try { await this.reader.cancel(); } catch (_) { /* Already disconnected. */ }
+                finally { this.reader.releaseLock(); this.reader = null; }
+            }
+            if (this.writer) {
+                try { await this.writer.abort(); } catch (_) { /* Already disconnected. */ }
+                finally { this.writer.releaseLock(); this.writer = null; }
+            }
+            if (port && this.isOpen) await port.close();
+        } finally {
+            this.port = null;
+            this.isOpen = false;
+            this.pendingRead = null;
+            this.receiveBuffer = new Uint8Array(0);
         }
-        
-        if (this.port && this.port.readable) {
-            await this.port.close();
+    }
+
+    // Keep a single pending read across timeout boundaries. Losing that promise
+    // would discard the next arriving chunk and desynchronize every later packet.
+    async fillReceiveBuffer(deadline) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) return false;
+        if (!this.reader) throw new Error('PicoROM is not connected');
+        if (!this.pendingRead) this.pendingRead = this.reader.read();
+        let timer;
+        const timedOut = Symbol('timeout');
+        let result;
+        try {
+            result = await Promise.race([
+                this.pendingRead,
+                new Promise(resolve => { timer = setTimeout(() => resolve(timedOut), remaining); })
+            ]);
+        } finally { clearTimeout(timer); }
+        if (result === timedOut) return false;
+        this.pendingRead = null;
+        if (result.done) throw new Error('PicoROM disconnected while receiving data');
+        if (result.value && result.value.length) {
+            const combined = new Uint8Array(this.receiveBuffer.length + result.value.length);
+            combined.set(this.receiveBuffer);
+            combined.set(result.value, this.receiveBuffer.length);
+            this.receiveBuffer = combined;
         }
-        
-        this.port = null;
+        return true;
     }
 
     /**
@@ -150,8 +173,8 @@ class PicoROM {
         switch (packet.type) {
             case 'PointerSet':
                 kind = PacketKind.PointerSet;
-                const offset = new Uint32Array([packet.offset]);
-                payload = new Uint8Array(offset.buffer);
+                payload = new Uint8Array(4);
+                new DataView(payload.buffer).setUint32(0, packet.offset, true);
                 break;
             case 'PointerGet':
                 kind = PacketKind.PointerGet;
@@ -221,78 +244,35 @@ class PicoROM {
      * @returns {Promise<Object>} - The received packet
      */
     async receivePacket(timeout = 1000) {
-        try {
-            const deadline = Date.now() + timeout;
-
-            if (this.debug) {
-                console.log("receivePacket: "+deadline);
-            }
-            
-            // Read the packet header (kind and size)
-            let headerData = new Uint8Array(0);
-            let extraData = new Uint8Array(0); // Buffer for any extra data read during header read
-            
-            while (headerData.length < 2 && Date.now() < deadline) {
-                const { value, done } = await this.reader.read();
-                if (done) break;
-                
-                const newData = new Uint8Array(headerData.length + value.length);
-                newData.set(headerData);
-                newData.set(value, headerData.length);
-                
-                // If we now have more than 2 bytes, split into header and extra data
-                if (newData.length >= 2) {
-                    headerData = newData.slice(0, 2);
-                    extraData = newData.slice(2);
-                    break;
-                } else {
-                    headerData = newData;
-                }
-            }
-            
-            if (headerData.length < 2) {
-                return null; // Timeout
-            }
-            
-            const kind = headerData[0];
-            const size = headerData[1];
-            
-            if (size > 30) {
-                throw new Error(`Packet payload too large: ${size}`);
-            }
-            
-            // Read the packet payload, starting with any extra data we already have
-            let payload = extraData;
-            while (payload.length < size && Date.now() < deadline) {
-                const { value, done } = await this.reader.read();
-                if (done) break;
-                
-                const newData = new Uint8Array(payload.length + value.length);
-                newData.set(payload);
-                newData.set(value, payload.length);
-                payload = newData;
-            }
-            
-            if (payload.length < size) {
-                if (this.debug) {
-                    console.log("receivePacket timedout");
-                }
-                return null; // Timeout
-            }
-            
-            // Take only the required size
-            payload = payload.slice(0, size);
-
-            if (this.debug) {
-                console.log("receivePacket: "+payload.length);
-            }
-            
-            // Decode the packet based on its kind
-            return this.decodePacket(kind, payload);
-        } catch (error) {
-            console.error("Error receiving packet:", error);
-            throw error;
+        const deadline = Date.now() + timeout;
+        while (this.receiveBuffer.length < 2) {
+            if (!await this.fillReceiveBuffer(deadline)) return null;
         }
+        const kind = this.receiveBuffer[0];
+        const size = this.receiveBuffer[1];
+        if (size > 30) throw new Error(`Packet payload too large: ${size}`);
+        while (this.receiveBuffer.length < size + 2) {
+            if (!await this.fillReceiveBuffer(deadline)) return null;
+        }
+        const payload = this.receiveBuffer.slice(2, size + 2);
+        // USB may deliver multiple packets together. Keep the remainder.
+        this.receiveBuffer = this.receiveBuffer.slice(size + 2);
+        return this.decodePacket(kind, payload);
+    }
+
+    async waitForPacket(type, timeout = 1000) {
+        const deadline = Date.now() + timeout;
+        while (Date.now() < deadline) {
+            const response = await this.receivePacket(deadline - Date.now());
+            if (!response) break;
+            if (response.type === 'Error') throw new Error(`PicoROM: ${response.message}`);
+            if (response.type === 'ParameterError') throw new Error('PicoROM rejected the parameter');
+            if (response.type === type) return response;
+            if (response.type !== 'Debug') {
+                throw new Error(`Unexpected PicoROM response: ${response.type}, expected ${type}`);
+            }
+        }
+        throw new Error(`Timeout waiting for PicoROM ${type}`);
     }
 
     /**
@@ -304,6 +284,7 @@ class PicoROM {
     decodePacket(kind, payload) {
         switch (kind) {
             case PacketKind.PointerCur:
+                if (payload.length !== 4) throw new Error('Invalid PicoROM pointer response');
                 const view = new DataView(payload.buffer);
                 return {
                     type: 'PointerCur',
@@ -322,7 +303,7 @@ class PicoROM {
                 const decoder = new TextDecoder();
                 return {
                     type: 'Parameter',
-                    value: decoder.decode(payload)
+                    value: decoder.decode(payload).replace(/\0+$/, '')
                 };
             case PacketKind.ParameterError:
                 return {
@@ -382,19 +363,7 @@ class PicoROM {
             param: name
         });
 
-        const deadline = Date.now() + 1000;
-        while (Date.now() < deadline) {
-            const response = await this.receivePacket();
-            if (!response) continue;
-
-            if (response.type === 'Parameter') {
-                return response.value;
-            } else if (response.type === 'ParameterError') {
-                throw new Error(`Could not get parameter '${name}'`);
-            }
-        }
-
-        throw new Error('Timeout waiting for parameter response');
+        return (await this.waitForPacket('Parameter')).value;
     }
 
     /**
@@ -410,19 +379,13 @@ class PicoROM {
             value: value
         });
 
-        const deadline = Date.now() + 1000;
-        while (Date.now() < deadline) {
-            const response = await this.receivePacket();
-            if (!response) continue;
-
-            if (response.type === 'Parameter') {
-                return; // Success
-            } else if (response.type === 'ParameterError') {
-                throw new Error(`Could not set parameter '${name}' to '${value}'`);
-            }
+        const stored = (await this.waitForPacket('Parameter')).value;
+        const matches = name === 'addr_mask'
+            ? /^0x[0-9a-f]+$/i.test(stored) && Number(stored) === Number(value)
+            : stored === value;
+        if (!matches) {
+            throw new Error(`PicoROM did not retain parameter '${name}': expected '${value}', got '${stored}'`);
         }
-
-        throw new Error('Timeout waiting for parameter set response');
     }
 
     /**
@@ -460,7 +423,7 @@ class PicoROM {
 
                 // Read back the data to verify
                 await this.sendPacket({ type: 'Read' });
-                const response = await this.receivePacket(1000);
+                const response = await this.waitForPacket('ReadData');
 
                 if (response && response.type === 'ReadData') {
                     if (response.data.length < chunk.length) {
@@ -494,43 +457,13 @@ class PicoROM {
             type: 'PointerGet'
         });
         
-        const deadline = Date.now() + 1000;
-        while (Date.now() < deadline) {
-            const response = await this.receivePacket();
-            if (!response) continue;
-            
-            if (response.type === 'PointerCur') {
-                if (response.offset !== bytes.length) {
-                    throw new Error(`Upload did not complete. Expected ${bytes.length} bytes, got ${response.offset}`);
-                }
-                break;
-            }
+        const response = await this.waitForPacket('PointerCur');
+        if (response.offset !== bytes.length) {
+            throw new Error(`Upload did not complete. Expected ${bytes.length} bytes, got ${response.offset}`);
         }
-        
-        // Set the address mask parameter
-        await this.sendPacket({
-            type: 'ParameterSet',
-            param: 'addr_mask',
-            value: `0x${addrMask.toString(16)}`
-        });
-        
-        // Commit the flash
-        await this.sendPacket({
-            type: 'CommitFlash'
-        });
-        
-        // Wait for the commit to complete
-        const commitDeadline = Date.now() + 5000; // 5 second timeout for commit
-        while (Date.now() < commitDeadline) {
-            const response = await this.receivePacket();
-            if (!response) continue;
-            
-            if (response.type === 'CommitDone') {
-                return; // Success
-            }
-        }
-        
-        throw new Error('Timeout waiting for commit to complete');
+        await this.setParameter('addr_mask', `0x${addrMask.toString(16)}`);
+        await this.sendPacket({ type: 'CommitFlash' });
+        await this.waitForPacket('CommitDone', 5000);
     }
 
     /**
@@ -541,10 +474,13 @@ class PicoROM {
     async readImage(progressCallback = null) {
         // Get the address mask to determine the ROM size
         const addrMaskStr = await this.getParameter('addr_mask');
-        const addrMask = parseInt(addrMaskStr, 16);
+        const addrMask = /^0x[0-9a-f]+$/i.test(addrMaskStr) ? Number(addrMaskStr) : NaN;
         const imageSize = addrMask + 1;
 
-        if (isNaN(imageSize) || imageSize <= 0) {
+        // Legacy PicoROM has at most 256 KiB. Only contiguous address masks
+        // describe an image; reject corrupt replies before allocating memory.
+        if (!Number.isSafeInteger(imageSize) || imageSize <= 0 || imageSize > 262144 ||
+            (imageSize & (imageSize - 1)) !== 0) {
             throw new Error(`Invalid image size determined from addr_mask: ${addrMaskStr}`);
         }
 
@@ -562,10 +498,11 @@ class PicoROM {
             // Request a chunk of data
             await this.sendPacket({ type: 'Read' });
 
-            const response = await this.receivePacket(1000);
+            const response = await this.waitForPacket('ReadData');
 
             if (response && response.type === 'ReadData') {
                 const chunk = response.data;
+                if (!chunk.length) throw new Error('PicoROM returned an empty ROM chunk');
                 const bytesToCopy = Math.min(chunk.length, imageSize - bytesRead);
                 image.set(chunk.slice(0, bytesToCopy), bytesRead);
                 bytesRead += bytesToCopy;
@@ -594,8 +531,8 @@ async function listPicoROMs() {
         // Get the names of all connected PicoROM devices
         const names = [];
         for (const port of ports) {
+            const picoROM = new PicoROM(port);
             try {
-                const picoROM = new PicoROM(port);
                 await picoROM.open();
                 const name = await picoROM.getName();
                 names.push(name);
@@ -605,9 +542,7 @@ async function listPicoROMs() {
             } finally {
                 // Try to close the port if it was opened
                 try {
-                    if (port.readable) {
-                        await port.close();
-                    }
+                    await picoROM.close();
                 } catch (e) {
                     // Ignore close errors
                 }
@@ -626,11 +561,13 @@ async function listPicoROMs() {
  * @returns {Promise<SerialPort>} - The selected serial port
  */
 async function requestPicoROMDevice() {
+    if (!navigator.serial?.requestPort) {
+        throw new Error('PicoROM needs desktop Chrome with Web Serial enabled. For a hosted version, use HTTPS or localhost. You can still edit and export ROM files here.');
+    }
     try {
         // Request a serial port - user will need to select the correct one
         const port = await navigator.serial.requestPort({
-            // Note: We can't filter by VID/PID in Web Serial API
-            // User will need to select the correct PicoROM device
+            filters: [{ usbVendorId: PICOROM_VID, usbProductId: PICOROM_PID }]
         });
         
         return port;
@@ -648,9 +585,17 @@ async function requestPicoROMDevice() {
  * @returns {Promise<void>}
  */
 async function uploadToPicoROM(binaryData, progressCallback = null, name = null) {
+    const length = binaryData.byteLength;
+    if (length !== 131072 && length !== 262144) {
+        throw new Error('PicoROM uploads require a complete 128 KiB or 256 KiB ROM image');
+    }
+    if (name && (name.includes('\0') || new TextEncoder().encode(name).length > 15)) {
+        throw new Error('PicoROM bank names must fit within 15 UTF-8 bytes');
+    }
     let port;
     let picoROM;
-    
+    let failure = null;
+
     try {
         // Request permission to access a PicoROM device
         port = await requestPicoROMDevice();
@@ -660,21 +605,26 @@ async function uploadToPicoROM(binaryData, progressCallback = null, name = null)
         await picoROM.open();
         
         // Upload the binary data
-        await picoROM.upload(binaryData, 0xFFFFFFFF, progressCallback, true);
-        
-        // Set the name parameter if provided
-        if (name) {
-            await picoROM.setParameter('name', name);
-        }
+        await picoROM.upload(binaryData, length - 1, progressCallback, true);
+        // Legacy firmware persists `name` immediately. Keep that separate write
+        // after the verified ROM commit, and validate its size before opening.
+        if (name) await picoROM.setParameter('name', name);
         
         return true;
     } catch (error) {
+        failure = error;
         console.error("Error uploading to PicoROM:", error);
         throw error;
     } finally {
         // Close the connection
         if (picoROM) {
-            await picoROM.close();
+            try { await picoROM.close(); }
+            catch (closeError) {
+                // Preserve the useful transfer error if disconnect also makes
+                // close fail; a close-only failure must still be reported.
+                if (!failure) throw closeError;
+                console.debug('PicoROM cleanup after transfer failure:', closeError);
+            }
         }
     }
 }
@@ -687,6 +637,7 @@ async function uploadToPicoROM(binaryData, progressCallback = null, name = null)
 async function readImageFromPicoROM(progressCallback = null) {
     let port;
     let picoROM;
+    let failure = null;
 
     try {
         port = await requestPicoROMDevice();
@@ -695,11 +646,18 @@ async function readImageFromPicoROM(progressCallback = null) {
         const image = await picoROM.readImage(progressCallback);
         return image;
     } catch (error) {
+        failure = error;
         console.error("Error reading image from PicoROM:", error);
         throw error;
     } finally {
         if (picoROM) {
-            await picoROM.close();
+            try { await picoROM.close(); }
+            catch (closeError) {
+                // Preserve the useful transfer error if disconnect also makes
+                // close fail; a close-only failure must still be reported.
+                if (!failure) throw closeError;
+                console.debug('PicoROM cleanup after transfer failure:', closeError);
+            }
         }
     }
 }

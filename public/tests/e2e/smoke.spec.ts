@@ -12,6 +12,7 @@ test('can switch modes', async ({ page }) => {
   await modeSelect.selectOption('lumamu');
   
   await expect(page).toHaveTitle(/Luma-Mu Tools/);
-  await expect(page.locator('#lumamu_sample_controls')).toBeVisible();
-  await expect(page.locator('#luma1_sample_controls')).toBeHidden();
+  await expect(page.locator('#lumamu_editor_frame')).toBeVisible();
+  await expect(page.locator('#luma1_sample_editor')).toBeHidden();
+  await expect(page.frameLocator('#lumamu_editor_frame').locator('#bank_title')).toHaveText('ROM bank');
 });

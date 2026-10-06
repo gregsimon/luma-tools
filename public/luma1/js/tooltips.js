@@ -3,7 +3,7 @@
  * A simple, non-interfering tooltip system for Luma Tools.
  * 
  * Features:
- * - Loads localization data from JSON
+ * - Loads localization data from data/tooltips.<lang>.js (a script, so it works from file:// too)
  * - Uses delegation to avoid attaching thousands of listeners
  * - Rendered overlay uses 'pointer-events: none' to completely avoid
  *   interfering with canvas mouse operations.
@@ -44,15 +44,10 @@ const LumaTooltips = {
   },
 
   loadData: function (lang) {
-    const path = `data/tooltips.${lang}.json`;
-    return fetch(path)
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.json();
-      })
-      .then(json => {
-        this.data = json;
-      });
+    const data = window.LUMA_TOOLTIPS && window.LUMA_TOOLTIPS[lang];
+    if (!data) return Promise.reject(new Error(`no tooltips for "${lang}" (data/tooltips.${lang}.js)`));
+    this.data = data;
+    return Promise.resolve();
   },
 
   attachListeners: function () {

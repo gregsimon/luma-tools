@@ -382,7 +382,7 @@ select {
 /* seq-nums-wrap removed — numbers now in first row of seqGrid */
 .seq-sn-spacer{width:50px;flex-shrink:0;}
 .seq-sn{flex:1;font-size:7px;color:rgb(140,140,140);text-align:center;line-height:1;min-width:0;}
-.seq-vrow{display:grid;grid-template-columns:120px repeat(32,1fr);gap:2px;margin-bottom:2px;min-width:0;}
+.seq-vrow{display:grid;grid-template-columns:234px repeat(32,1fr);gap:2px;margin-bottom:2px;min-width:0;}
 
 .seq-bt { color: rgb(200,160,60); }
 
@@ -513,7 +513,7 @@ select {
 /* Pitch slider column */
 .seq-pitch-cell{display:flex;align-items:center;gap:3px;padding:0 3px 0 4px;overflow:hidden;}
 .seq-pitch-sl{
-  width:56px;flex-shrink:0;cursor:pointer;
+  width:56px;flex-shrink:0;cursor:pointer;margin:0;
   -webkit-appearance:none;appearance:none;
   height:4px;border-radius:2px;
   background:rgb(50,50,50);outline:none;
@@ -543,3 +543,69 @@ select {
   padding:6px 9px;font-size:11px;font-family:'Barlow Condensed',condensed,sans-serif;
   max-width:240px;line-height:1.45;white-space:pre-wrap;
   box-shadow:0 4px 12px rgba(0,0,0,.5);}
+
+/* Luma-Mu editor (mu/index.html) hosted in the Sample Editor tab */
+#lumamu_editor_frame {
+  display: block;
+  width: 100%;
+  min-height: 560px;
+  border: 0;
+  background: #1b1b1d;
+}
+#lumamu_editor_frame[hidden] { display: none; }
+
+/* Per-instrument LM-1 shuffle menu (row header) */
+.seq-shuf-sel {
+  width: 64px; flex-shrink: 0;
+  font-size: 9px; font-family: monospace;
+  padding: 0 1px; height: 16px;
+  background: rgb(22,22,22); color: rgb(150,150,150);
+  border: 1px solid rgb(60,60,60); border-radius: 2px;
+}
+.seq-shuf-sel.seq-shuf-on { color: rgb(120,170,220); border-color: rgb(40,85,140); }
+
+/* Ratchet: faint slices for each repeat + count label */
+.seq-ratchet {
+  position: absolute; inset: 0; pointer-events: none; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, transparent 0,
+    transparent calc(100% / var(--k) - 1px), rgba(0,0,0,.45) calc(100% / var(--k) - 1px),
+    rgba(0,0,0,.45) calc(100% / var(--k)));
+}
+.seq-ratchet-lbl {
+  position: absolute; top: 1px; left: 2px; pointer-events: none;
+  font-size: 7px; font-family: monospace; font-weight: bold; line-height: 1;
+  color: rgba(255,255,255,.9);
+}
+/* Right-click menu on a hit */
+#seqHitMenu {
+  position: fixed; z-index: 10001; padding: 6px 8px;
+  background: rgb(28,28,28); border: 1px solid rgb(90,90,90); border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.5); font-size: 11px; color: rgb(200,200,200);
+}
+#seqHitMenu .seq-hm-title { color: rgb(200,160,60); margin-bottom: 4px; }
+#seqHitMenu .seq-hm-row { display: flex; align-items: center; gap: 3px; margin-top: 3px; }
+#seqHitMenu .seq-hm-row span { min-width: 58px; }
+#seqHitMenu button {
+  font-size: 10px; padding: 1px 5px; cursor: pointer;
+  background: rgb(40,40,40); color: rgb(220,220,220); border: 1px solid rgb(80,80,80); border-radius: 2px;
+}
+#seqHitMenu button.on { background: rgb(180,95,0); border-color: rgb(140,74,0); color: #fff; }
+#seqHitMenu button:disabled { opacity: .4; cursor: default; }
+
+/* Per-voice volume fader (row header) */
+.seq-vol-sl{
+  width:44px;flex-shrink:0;cursor:pointer;margin:0;
+  -webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;background:rgb(50,50,50);outline:none;
+}
+.seq-vol-sl::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:12px;border-radius:2px;
+  background:rgb(214,144,30);cursor:pointer;margin-top:-4px;box-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.seq-vol-sl::-webkit-slider-runnable-track{height:4px;background:rgb(50,50,50);border-radius:2px;}
+/* Column headings above the row controls */
+.seq-col-hdr{flex-shrink:0;font-size:7px;color:rgb(140,140,140);letter-spacing:.5px;text-align:center;line-height:1;}
+.seq-col-vol{width:44px;}
+.seq-col-pitch{width:56px;}
+.seq-col-key{width:21px;}
+.seq-col-shuf{width:64px;}

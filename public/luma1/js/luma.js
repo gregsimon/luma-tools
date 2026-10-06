@@ -6,5 +6,5 @@
   - luma_midi.js
   - luma_files.js
   - luma_librarian.js
-  - luma_picorom.js
+  (Luma-Mu editor, incl. PicoROM: mu/)
 */

@@ -1,4 +1,7 @@
-{
+// Tooltip text (English). A script, not JSON, so it also loads when index.html is opened
+// straight from disk (file://), where fetch() of local files is blocked.
+window.LUMA_TOOLTIPS = window.LUMA_TOOLTIPS || {};
+window.LUMA_TOOLTIPS.en = {
   "device_mode": "Select between Luma-1 (Drum Machine) and Luma-Mu (Expansion) modes.",
   "tab_sample": "Edit and process audio samples",
   "tab_pattern": "Edit rhythm patterns",
@@ -27,7 +30,6 @@
   "select_bank_id": "Choose which bank on the device to load from/save to.",
   "input_sample_name": "Name of the sample for display on slots and in banks.",
   "input_bank_name": "Name of the bank for when exporting to a bank (zip) file.",
-  "btn_stretch_16k": "Stretch current sample to 16384 bytes in length.",
   "select_ram_bank_id": "Choose pattern RAM bank.",
   "btn_read_ram": "Read pattern memory RAM from device.",
   "btn_write_ram": "Write pattern memory RAM to device.",
@@ -36,7 +38,5 @@
   "checkbox_show_sysex": "Showing/hide SysEx data in log",
   "btn_librarian_refresh": "Refresh file list",
   "btn_librarian_upload_sample": "Upload sample to Google Drive.",
-  "btn_librarian_upload_bank": "Upload bank to Google Drive.",
-  "btn_read_picorom": "Read bank from connected PicoROM device.",
-  "btn_program_picorom": "Program (write) bank to connected PicoROM device."
-}
+  "btn_librarian_upload_bank": "Upload bank to Google Drive."
+};

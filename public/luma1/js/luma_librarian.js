@@ -219,8 +219,11 @@ async function pickerCallbackOpen(data) {
 
 let pendingUploadType = null; // 'sample' or 'bank'
 
-function showSaveSamplePicker() {
-  if (!editorSampleData) {
+async function showSaveSamplePicker() {
+  const hasSample = (current_mode === "lumamu")
+    ? await (await lumaMuBridge()).hasEditorSound()
+    : !!editorSampleData;
+  if (!hasSample) {
     alert("No sample loaded in the editor.");
     return;
   }
@@ -278,14 +281,19 @@ async function uploadToDrive(folderId) {
     return;
   }
 
-  if (!editorSampleData) {
-    alert("No sample loaded in the editor to upload.");
-    return;
-  }
-
   // Guard if folderId undefined (shouldn't happen with Picker)
   if (!folderId) {
     alert("No destination folder selected.");
+    return;
+  }
+
+  if (current_mode === "lumamu") {
+    await uploadLumaMuSampleToDrive(folderId);
+    return;
+  }
+
+  if (!editorSampleData) {
+    alert("No sample loaded in the editor to upload.");
     return;
   }
 
@@ -315,6 +323,25 @@ async function uploadToDrive(folderId) {
     setDriveStatus(`Uploading ${wavFilename}...`);
     await uploadBlobToDrive(wavBlob, wavFilename, 'audio/wav', folderId);
 
+    alert(`Successfully uploaded both ${binFilename} and ${wavFilename} to Google Drive!`);
+    setDriveStatus(`Upload Complete.`);
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert("Upload failed: " + error.message);
+    setDriveStatus("Upload failed.", true);
+  }
+}
+
+// Luma-Mu: upload the Luma-Mu editor's selection (as it would be added to a slot) as .bin + .wav
+async function uploadLumaMuSampleToDrive(folderId) {
+  setDriveStatus("Preparing files for upload...");
+  try {
+    const { name, bin, wav } = await (await lumaMuBridge()).editorFiles();
+    const binFilename = name + ".bin", wavFilename = name + ".wav";
+    setDriveStatus(`Uploading ${binFilename}...`);
+    await uploadBlobToDrive(new Blob([bin], { type: 'application/octet-stream' }), binFilename, 'application/octet-stream', folderId);
+    setDriveStatus(`Uploading ${wavFilename}...`);
+    await uploadBlobToDrive(new Blob([wav], { type: 'audio/wav' }), wavFilename, 'audio/wav', folderId);
     alert(`Successfully uploaded both ${binFilename} and ${wavFilename} to Google Drive!`);
     setDriveStatus(`Upload Complete.`);
   } catch (error) {
@@ -364,6 +391,23 @@ async function uploadBankToDrive(folderId) {
   }
 
   setDriveStatus(`Preparing bank for upload...`);
+
+  if (current_mode === "lumamu") {
+    try {
+      // Same archive as the Luma-Mu editor's "Export bank ZIP…"
+      const { name, blob } = await (await lumaMuBridge()).bankZip();
+      const zipFilename = name + ".zip";
+      setDriveStatus(`Uploading ${zipFilename}...`);
+      await uploadBlobToDrive(blob, zipFilename, 'application/zip', folderId);
+      alert(`Successfully uploaded ${zipFilename} to Google Drive!`);
+      setDriveStatus(`Upload Complete.`);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Upload failed: " + error.message);
+      setDriveStatus("Upload failed", true);
+    }
+    return;
+  }
 
   try {
 
@@ -440,6 +484,14 @@ async function downloadFromDrive(fileId, filename) {
     if (!response.ok) throw new Error("Failed to download file");
 
     const arrayBuffer = await response.arrayBuffer();
+
+    if (current_mode === "lumamu") {
+      // The Luma-Mu editor opens sounds, ROMs, bank ZIPs and projects itself
+      switchTab(TAB_SAMPLE_EDITOR);
+      const opened = await (await lumaMuBridge()).importFile(arrayBuffer, filename);
+      if (!opened) throw new Error("The Luma-Mu editor could not open " + filename);
+      return;
+    }
 
     if (typeof audio_init === 'function') audio_init();
     sampleName = trim_filename_ext(filename);

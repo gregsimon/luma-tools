@@ -296,7 +296,6 @@ function luma1_init() {
 
   // Initialize both slot selectors
   populate_slot_select(document.getElementById("slotId"), "luma1");
-  populate_slot_select(document.getElementById("slotId_mu"), "lumamu");
 
   // Add event listener for mode change
   document.getElementById("device_mode").addEventListener("change", changeDeviceMode);
@@ -429,6 +428,7 @@ function luma1_init() {
     redrawAllWaveforms();
   });
   window.addEventListener("keydown", (e) => {
+    if (current_mode === "lumamu") return; // the Luma-Mu editor handles its own keys
     if (e.key === " ") {
       e.preventDefault(); // TODO this prevents space in the text edit field
       playAudio();
@@ -546,11 +546,14 @@ function luma1_init() {
   loadSettings();
   if (typeof initEmuControls === "function") initEmuControls();
 
-  // get the build #
+  // get the build # (deploy_date.txt is written by scripts/pre_deploy.py on Firebase deploy;
+  // it doesn't exist when running locally)
+  const deployedDate = document.getElementById("deployed_date");
   fetch("deploy_date.txt")
-    .then((response) => response.text())
+    .then((response) => (response.ok ? response.text() : ""))
+    .catch(() => "")
     .then((text) => {
-      document.getElementById("deployed_date").innerText = text;
+      deployedDate.innerText = text.trim() || "local build (not deployed)";
     });
 
   navigator
@@ -575,6 +578,7 @@ function luma1_init() {
 
 function switchTab(newTab) {
   if (typeof stopPlayingSound === 'function') stopPlayingSound();
+  stopLumaMuEditor();
   de("sample_editor_tab").style.display = "none";
   de("pattern_editor_tab").style.display = "none";
   de("midi_monitor_tab").style.display = "none";
@@ -583,6 +587,7 @@ function switchTab(newTab) {
   switch (newTab) {
     case TAB_SAMPLE_EDITOR:
       de("sample_editor_tab").style.display = "block";
+      requestAnimationFrame(sizeLumaMuFrame);
       break;
     case TAB_PATTERN_EDITOR:
       de("pattern_editor_tab").style.display = "block";
@@ -664,9 +669,8 @@ function updateUIForMode(mode) {
     // Show Luma-1 specific elements
     slotContainer.className = "luma1_layout";
     document.getElementById("luma1_controls").style.display = "block";
-    document.getElementById("lumamu_controls").style.display = "none";
     document.getElementById("luma1_sample_controls").style.display = "block";
-    document.getElementById("lumamu_sample_controls").style.display = "none";
+    showLumaMuEditor(false);
     document.getElementById("pattern_editor_tab_button").style.display = "block";
     document.getElementById("midi_monitor_tab_button").style.display = "block";
     document.getElementById("firmware_tab_button").style.display = "block";
@@ -690,9 +694,8 @@ function updateUIForMode(mode) {
     // Show Luma-Mu specific elements
     slotContainer.className = "lumamu_layout";
     document.getElementById("luma1_controls").style.display = "none";
-    document.getElementById("lumamu_controls").style.display = "block";
     document.getElementById("luma1_sample_controls").style.display = "none";
-    document.getElementById("lumamu_sample_controls").style.display = "block";
+    showLumaMuEditor(true);
     document.getElementById("pattern_editor_tab_button").style.display = "none";
     document.getElementById("midi_monitor_tab_button").style.display = "none";
     document.getElementById("firmware_tab_button").style.display = "none";
@@ -757,6 +760,93 @@ function updateUIForMode(mode) {
   // Redraw waveforms to update labels
   if (typeof redrawAllWaveforms === 'function') redrawAllWaveforms();
 }
+
+// ─── Luma-Mu editor host ───────────────────────────────────────────────────
+// In Luma-Mu mode the Sample Editor tab shows mu/index.html in an iframe. It is a
+// separate document because it defines the same global names as this editor.
+// The two talk with postMessage (see mu/js/luma_embed.js), which also works when the
+// app is opened from disk (file://), where each file is its own origin.
+let lumaMuFrameReady = null, lumaMuReadyResolve = null, lumaMuIsReady = false;
+const lumaMuCalls = new Map();
+let lumaMuCallId = 0;
+
+function lumaMuFrame() {
+  return document.getElementById("lumamu_editor_frame");
+}
+
+function lumaMuTarget() {
+  return location.protocol === "file:" ? "*" : location.origin;
+}
+
+window.addEventListener("message", (event) => {
+  const frame = lumaMuFrame();
+  if (!frame || event.source !== frame.contentWindow) return;
+  if (location.protocol !== "file:" && event.origin !== location.origin) return;
+  const msg = event.data;
+  if (!msg || !msg.lumaMu) return;
+  if (msg.lumaMu === "ready") {
+    lumaMuIsReady = true;
+    sizeLumaMuFrame();
+    if (lumaMuReadyResolve) lumaMuReadyResolve();
+  } else if (msg.lumaMu === "result") {
+    const call = lumaMuCalls.get(msg.id);
+    if (!call) return;
+    lumaMuCalls.delete(msg.id);
+    msg.ok ? call.resolve(msg.value) : call.reject(new Error(msg.error));
+  }
+});
+
+function lumaMuCall(method, args = [], transfer = []) {
+  return new Promise((resolve, reject) => {
+    const id = ++lumaMuCallId;
+    lumaMuCalls.set(id, { resolve, reject });
+    lumaMuFrame().contentWindow.postMessage({ lumaMu: "call", id, method, args }, lumaMuTarget(), transfer);
+  });
+}
+
+// The Luma-Mu editor's API, as seen from this page; every method returns a promise
+const lumaMuApi = Object.freeze({
+  importFile: (arrayBuffer, filename) => lumaMuCall("importFile", [arrayBuffer, filename], [arrayBuffer]),
+  hasEditorSound: () => lumaMuCall("hasEditorSound"),
+  editorFiles: () => lumaMuCall("editorFiles"),   // {name, bin, wav}
+  bankZip: () => lumaMuCall("bankZip"),           // {name, blob}
+  stop: () => lumaMuCall("stop"),
+});
+
+// Loads the editor on first use; resolves to lumaMuApi once it is ready.
+function lumaMuBridge() {
+  if (!lumaMuFrameReady) {
+    lumaMuFrameReady = new Promise((resolve) => { lumaMuReadyResolve = resolve; }).then(() => lumaMuApi);
+    lumaMuFrame().src = "mu/index.html";
+  }
+  return lumaMuFrameReady;
+}
+
+function sizeLumaMuFrame() {
+  const frame = lumaMuFrame();
+  if (!frame || frame.hidden || !frame.offsetParent) return;
+  const top = frame.getBoundingClientRect().top + window.scrollY;
+  frame.style.height = Math.max(560, window.innerHeight - top - 8) + "px";
+}
+
+function showLumaMuEditor(show) {
+  const frame = lumaMuFrame();
+  if (!frame) return;
+  document.getElementById("luma1_sample_editor").style.display = show ? "none" : "block";
+  frame.hidden = !show;
+  if (show) {
+    lumaMuBridge().catch((e) => console.error(e));
+    requestAnimationFrame(sizeLumaMuFrame);
+  } else {
+    stopLumaMuEditor();
+  }
+}
+
+function stopLumaMuEditor() {
+  if (lumaMuIsReady) lumaMuApi.stop().catch(() => {});
+}
+
+window.addEventListener("resize", sizeLumaMuFrame);
 
 function trim_filename_ext(filename) {
   if (filename.indexOf(".") >= 0)

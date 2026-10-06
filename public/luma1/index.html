@@ -8,7 +8,6 @@
   <script src="js/WavAudioEncoder.min.js"></script>
   <script src="js/codecs.mjs"></script>
   <script src="js/jszip.min.js"></script>
-  <script src="js/picorom.js"></script>
   <script src="js/wav.js"></script>
   <script src="js/aiff.js"></script>
   <script src="js/flac.js"></script>
@@ -23,8 +22,9 @@
   <script src="js/luma_midi.js"></script>
   <script src="js/luma_files.js"></script>
   <script src="js/luma_librarian.js"></script>
-  <script src="js/luma_picorom.js"></script>
   <script src="js/hexy.js"></script>
+  <script src="data/tooltips.en.js"></script>
+  <script src="data/default_ram.js"></script>
   <script src="js/tooltips.js"></script>
   <script src="js/luma_firmware.js"></script>
   <script src="js/luma_sequencer.js"></script>
@@ -63,6 +63,11 @@
 
   <!-- SAMPLE EDITOR page -->
   <div id="sample_editor_tab" class="main_section">
+    <!-- Luma-Mu mode: the Luma-Mu editor (mu/), isolated in its own document -->
+    <iframe id="lumamu_editor_frame" title="Luma-Mu sample editor" hidden></iframe>
+
+    <!-- Luma-1 mode -->
+    <div id="luma1_sample_editor">
     <div class="editor_waveform" ondragover="dragOverHandler(event);" ondragleave="dragLeaveHandler(event);"
       ondrop='dropHandler(event);'>
       <canvas id="editor_canvas" width="700px" height="240px" data-tooltip="canvas_editor"></canvas>
@@ -128,14 +133,6 @@
         <input type='button' value="Write Sample to Device" class="red_button" onclick='writeSampleToDevice()'
           data-tooltip="btn_write_sample" />
       </div>
-      <div id="lumamu_sample_controls" style="display:none;">
-        Which slot: <select id='slotId_mu' data-tooltip="select_slot_id">
-        </select>
-        Sample name:<input type='text' value="untitled" id='sample_name_mu' data-tooltip="input_sample_name" />
-        <input type='button' value="Export WAV..." onclick="exportSample()" data-tooltip="btn_export_wav" />
-        <input type="button" id="stretch_to_16k" value="Stretch to 16k" onclick="stretchTo16kClicked()"
-          title="Stretch sample to 16k using linear interpolation" data-tooltip="btn_stretch_16k" />
-      </div>
     </div>
 
     <div class="waveform_slots">
@@ -166,17 +163,6 @@
         <input type='button' class="red_button" value="Write Bank To Device" onclick="writeBankToDevice()"
           data-tooltip="btn_write_bank" />
       </div>
-      <div id="lumamu_controls" style="display:none;">
-        Bank name: <input type='text' value='Untitled' id='bank_name_mu' data-tooltip="input_bank_name" />
-        <input type='button' value="Export Bank as Zip..." onclick="exportBankAsZip()"
-          data-tooltip="btn_export_bank_zip" />
-        <input type='button' value="Export Bank as ROM..." onclick="exportBankAsRomMu()"
-          data-tooltip="btn_export_bank_rom" />
-        <input type='button' value="Read Bank from PicoROM..." onclick="readFromPicoROMClicked()"
-          data-tooltip="btn_read_picorom" />
-        <input type='button' value="Program PicoROM..." onclick="uploadToPicoROMClicked()" class="red_button"
-          data-tooltip="btn_program_picorom" />
-      </div>
 
     </div>
 
@@ -193,6 +179,7 @@
         stored on the internal SD card.
       </div>
     </div>
+    </div> <!-- luma1_sample_editor -->
   </div> <!-- sample editor -->
 
   <!-- PATTERN EDITOR page -->
@@ -203,10 +190,15 @@
 
       <!-- 12-voice × 32-step grid (first row = step numbers) -->
       <div class="seq-grid" id="seqGrid" data-tip="Click a step: off → soft → loud
+Hold and drag along the row to paint
+Hover a hit: ↑/↓ ratchet x2 x3 x4 x6 x12
+Right-click a hit: ratchet / offset menu
 HH also has Open state
 Hover a hit: ‹ › or ←/→ nudge it
 early/late (±5/12 step)
-Alt+click: add shuffle offset
+Alt+click: nudge late (+1…+5)
+Shuffle per instrument: menu next to the
+pitch slider (LM-1 ADJ SHFL, 16 or 8)
 Shift+click: clear step
 
 Drop a Luma-1 / LM-1 .bin
@@ -222,6 +214,19 @@ Spacebar toggles play∕stop" class="seq-play-btn" />
           BPM
           <input type="range" id="seqBpmIn" min="40" max="250" value="120" style="width:80px;accent-color:rgb(214,144,30);">
           <span id="seqBpmLbl" class="seq-bpm-lbl">120</span>
+        </span>
+        <span class="seq-ctrl-group" data-tip="Luma-Sim: play the voices through the hardware emulation
+(µ-law, sample-and-hold clock with drift and jitter).
+The knob is relative to noon (49%); double-click it to reset.
+Per-voice pitch sliders still apply on top.">
+          <label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;">
+            <input type="checkbox" id="seqEmuEnable" style="margin:0;"> LUMA-SIM
+          </label>
+          <span id="seqEmuControls" style="display:none;align-items:center;gap:4px;">
+            <input type="range" id="seqEmuPitch" min="0" max="100" step="0.5" value="49"
+              style="width:80px;accent-color:rgb(224,138,46);">
+            <span id="seqEmuPitchVal" class="seq-bpm-lbl" style="color:rgb(224,138,46);min-width:82px;">49% · +0.0 st</span>
+          </span>
         </span>
         <span class="seq-ctrl-group">
           HH DECAY
@@ -241,14 +246,18 @@ and is written into the pattern data">
             style="width:36px;text-align:center;font-size:11px;" />
           <input type="button" id="seqWriteBtn" value="Write to Slot"
             title="Encode current grid into RAM buffer (then use Write RAM To Device to send to Luma-1)" />
+          <input type="button" id="seqQuantizeBtn" value="QUANTIZE"
+            data-tip="LM-1 AUTO-CORRECT without shuffle:
+move every hit back onto its 1/16 step
+and set every instrument's shuffle to 50%" />
           <input type="button" id="seqClrBtn" value="CLR" title="Clear all steps" />
         </span>
       </div>
 
       <div class="seq-mnote">
-        click: off&#8594;soft&#8594;loud &nbsp;&#183;&nbsp; HH: +open &nbsp;&#183;&nbsp;
+        click: off&#8594;soft&#8594;loud (hold &amp; drag along a row to paint) &nbsp;&#183;&nbsp; HH: +open &nbsp;&#183;&nbsp;
         hover hit + &#8249; &#8250; or &#8592;/&#8594;: nudge early/late (dbl-click &#8249;&#8250; = back on grid) &nbsp;&#183;&nbsp;
-        alt+click: shuffle offset (50%&#8594;70%) &nbsp;&#183;&nbsp; shift+click: clear &nbsp;&#183;&nbsp;
+        alt+click: nudge late &nbsp;&#183;&nbsp; hover hit + &#8593;/&#8595; or right-click: ratchet &nbsp;&#183;&nbsp; shuffle: menu per instrument (16/8 &#183; 54%&#8594;70%) &nbsp;&#183;&nbsp; QUANTIZE: all back on the grid &nbsp;&#183;&nbsp; shift+click: clear &nbsp;&#183;&nbsp;
         spacebar: play/stop
       </div>
     </div>

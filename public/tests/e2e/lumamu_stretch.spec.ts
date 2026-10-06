@@ -1,191 +1,59 @@
 import { test, expect } from '@playwright/test';
 
+// Luma-Mu "Stretch to 16k": sets the editor pitch so the selection fills a 16 KB slot.
+// The retained source is not changed; the pitch is applied when the sound is added to a slot.
 test.describe('Luma-mu Stretch to 16k', () => {
-  
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/luma1/');
-    // Switch to Luma-mu mode
     await page.selectOption('#device_mode', 'lumamu');
+    await page.waitForFunction(() => {
+      const f = document.getElementById('lumamu_editor_frame') as HTMLIFrameElement;
+      return !!(f && f.contentWindow && (f.contentWindow as any).LumaMuBridge);
+    });
   });
 
-  test('should stretch a small .wav file to 16k', async ({ page }) => {
-    const sampleRate = 24000;
-    const numSamples = 1000;
-    
-    // Create a simple ramp in the WAV file to test interpolation
-    // 8-bit PCM: 128 is silence, we'll go from 128 to 228
-    const wavBuffer = Buffer.alloc(44 + numSamples);
-    wavBuffer.write('RIFF', 0);
-    wavBuffer.writeUInt32LE(36 + numSamples, 4);
-    wavBuffer.write('WAVE', 8);
-    wavBuffer.write('fmt ', 12);
-    wavBuffer.writeUInt32LE(16, 16);
-    wavBuffer.writeUInt16LE(1, 20); // PCM
-    wavBuffer.writeUInt16LE(1, 22); // Mono
-    wavBuffer.writeUInt32LE(sampleRate, 24);
-    wavBuffer.writeUInt32LE(sampleRate, 28);
-    wavBuffer.writeUInt16LE(1, 32);
-    wavBuffer.writeUInt16LE(8, 34);
-    wavBuffer.write('data', 36);
-    wavBuffer.writeUInt32LE(numSamples, 40);
-    
-    for (let i = 0; i < numSamples; i++) {
-      wavBuffer.writeUInt8(128 + Math.floor((i / numSamples) * 100), 44 + i);
-    }
+  async function openRamp(page, frames: number) {
+    return page.evaluate(async (n) => {
+      const w = (document.getElementById('lumamu_editor_frame') as HTMLIFrameElement).contentWindow as any;
+      const pcm = Array.from({ length: n }, (_, i) => (i / n) * 0.8 - 0.4);
+      // A WAV at the module rate, opened through the same path as the Librarian
+      const wav = w.wavBytes(pcm, w.eval('LUMA_REFERENCE_RATE'));
+      return w.LumaMuBridge.importFile(wav, 'small_ramp.wav');
+    }, frames);
+  }
 
-    // Drop the file
-    await page.evaluate(({ buffer, fileName }) => {
-      const data = new Uint8Array(buffer);
-      const file = new File([data], fileName, { type: 'audio/wav' });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      const target = document.querySelector('.editor_waveform');
-      if (!target) throw new Error('Drop target not found');
-      const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
-      target.dispatchEvent(event);
-    }, { buffer: Array.from(wavBuffer), fileName: 'small_ramp.wav' });
+  function editor(page, expr: string) {
+    return page.evaluate((e) => {
+      const w = (document.getElementById('lumamu_editor_frame') as HTMLIFrameElement).contentWindow as any;
+      return w.eval(e);
+    }, expr);
+  }
 
-    // Wait for the file to be loaded
-    await expect.poll(async () => {
-      return await page.evaluate(() => {
-        // @ts-ignore
-        return editorSampleLength;
-      });
-    }).toBe(1000);
+  test('stretches a short selection to fill 16k', async ({ page }) => {
+    // 5000 frames → about −20.5 semitones to fill 16384 (the limit is −24)
+    expect(await openRamp(page, 5000)).toBe(true);
+    expect(await editor(page, 'editorSampleLength')).toBe(5000);
 
-    // Click the stretch button
-    await page.click('#stretch_to_16k');
+    const picker = page.frameLocator('#lumamu_editor_frame').locator('#function_picker');
+    await picker.selectOption('Stretch to 16k');
 
-    // 1. Verify length is stretched to 16384
-    const editorLength = await page.evaluate(() => {
-      // @ts-ignore
-      return editorSampleLength;
-    });
-    expect(editorLength).toBe(16384);
+    expect(await editor(page, 'selectionOutputLength()')).toBe(16384);
+    expect(await editor(page, 'editorPitch')).toBeLessThan(0);
+    // The source is untouched
+    expect(await editor(page, 'editorSampleLength')).toBe(5000);
 
-    // 2. Verify data is not just padded with zeros, but interpolated
-    // Check points along the stretched sample
-    const sampleData = await page.evaluate(() => {
-      // @ts-ignore
-      return Array.from(editorSampleData);
-    });
-
-    // Check that it's not all the same value
-    const uniqueValues = new Set(sampleData);
-    expect(uniqueValues.size).toBeGreaterThan(1);
-
-    // Check last sample is near the end value (converted to u-law and inverted)
-    // The original last sample was 128 + 99 = 227 (approx)
-    // In u-law storage format it will be different, but let's just ensure it's not 0 or silence
-    expect(sampleData[16383]).not.toBe(sampleData[0]);
+    // Adding to a slot renders the stretched sound
+    await page.frameLocator('#lumamu_editor_frame').locator('#copy_selection_mu').click();
+    expect(await editor(page, 'bank[Number(de("slotId_mu").value)].sampleLength')).toBe(16384);
   });
 
-  test('should stretch a small .bin file to 16k', async ({ page }) => {
-    // 1024 bytes of a ramp (0, 1, 2, ... 255 repeating)
-    const binSize = 1024;
-    const binBuffer = Buffer.alloc(binSize);
-    for (let i = 0; i < binSize; i++) {
-      binBuffer[i] = i % 256;
-    }
-
-    // Drop the file
-    await page.evaluate(({ buffer, fileName }) => {
-      const data = new Uint8Array(buffer);
-      const file = new File([data], fileName, { type: 'application/octet-stream' });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      const target = document.querySelector('.editor_waveform');
-      if (!target) throw new Error('Drop target not found');
-      const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
-      target.dispatchEvent(event);
-    }, { buffer: Array.from(binBuffer), fileName: 'small_ramp.bin' });
-
-    // Wait for the file to be loaded
-    await expect.poll(async () => {
-      return await page.evaluate(() => {
-        // @ts-ignore
-        return editorSampleLength;
-      });
-    }).toBe(1024);
-
-    // Click the stretch button
-    await page.click('#stretch_to_16k');
-
-    // 1. Verify length is stretched to 16384
-    const editorLength = await page.evaluate(() => {
-      // @ts-ignore
-      return editorSampleLength;
-    });
-    expect(editorLength).toBe(16384);
-
-    // 2. Verify data check
-    const sampleData = await page.evaluate(() => {
-      // @ts-ignore
-      return Array.from(editorSampleData);
-    });
-    expect(sampleData.length).toBe(16384);
-  });
-
-  test('should NOT stretch automatically and button should be enabled for small samples', async ({ page }) => {
-    const binSize = 1024;
-    const binBuffer = Buffer.alloc(binSize).fill(0x55);
-
-    await page.evaluate(({ buffer, fileName }) => {
-      const data = new Uint8Array(buffer);
-      const file = new File([data], fileName, { type: 'application/octet-stream' });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      const target = document.querySelector('.editor_waveform');
-      if (!target) throw new Error('Drop target not found');
-      const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
-      target.dispatchEvent(event);
-    }, { buffer: Array.from(binBuffer), fileName: 'no_stretch.bin' });
-
-    // Wait for the file to be loaded and editorSampleLength to be updated
-    await expect.poll(async () => {
-      return await page.evaluate(() => {
-        // @ts-ignore
-        return editorSampleLength;
-      });
-    }).toBe(1024);
-
-    const editorLength = await page.evaluate(() => {
-      // @ts-ignore
-      return editorSampleLength;
-    });
-    // Should NOT have stretched yet
-    expect(editorLength).toBe(1024);
-
-    // Button should be enabled
-    const isEnabled = await page.isEnabled('#stretch_to_16k');
-    expect(isEnabled).toBe(true);
-  });
-
-  test('button should be disabled for samples >= 16k', async ({ page }) => {
-    const binSize = 16384;
-    const binBuffer = Buffer.alloc(binSize).fill(0x55);
-
-    await page.evaluate(({ buffer, fileName }) => {
-      const data = new Uint8Array(buffer);
-      const file = new File([data], fileName, { type: 'application/octet-stream' });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      const target = document.querySelector('.editor_waveform');
-      if (!target) throw new Error('Drop target not found');
-      const event = new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
-      target.dispatchEvent(event);
-    }, { buffer: Array.from(binBuffer), fileName: 'large_sample.bin' });
-
-    // Wait for the file to be loaded
-    await expect.poll(async () => {
-      return await page.evaluate(() => {
-        // @ts-ignore
-        return editorSampleLength;
-      });
-    }).toBe(16384);
-
-    const isEnabled = await page.isEnabled('#stretch_to_16k');
-    expect(isEnabled).toBe(false);
+  test('refuses selections too short to stretch', async ({ page }) => {
+    // 1000 frames would need about −48 semitones
+    expect(await openRamp(page, 1000)).toBe(true);
+    const picker = page.frameLocator('#lumamu_editor_frame').locator('#function_picker');
+    await picker.selectOption('Stretch to 16k');
+    expect(await editor(page, 'editorPitch')).toBe(0);
+    await expect(page.frameLocator('#lumamu_editor_frame').locator('#app_status')).toContainText('too short');
   });
 });
-

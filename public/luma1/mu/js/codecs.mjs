@@ -92,12 +92,8 @@ function top_bit(bits) {
 }
 
 
-// Converts an 8-bit ArrayBuffer into a 7-bit SysEx array: groups of up to 7 bytes, each
-// preceded by a byte holding their high bits.
-// toLuma: the Luma-1's decoder (LM_MIDI.ino check_store_byte) takes byte 1's high bit from
-// bit 6, byte 2's from bit 5, ... even in a short final group, so left-align that group's bits.
-// Without it (as the Luma-1's own encoder does) they are right-aligned, which unpack_sysex reads.
-function pack_sysex(src, toLuma = false) {
+// Converts an 8-bit ArrayBuffer into a 7-bit SysEx array.
+function pack_sysex(src) {
   var in_idx = 0;
   var out_idx = 0;
   var b7s;
@@ -124,10 +120,9 @@ function pack_sysex(src, toLuma = false) {
         break;
     }
 
-    const n = (yyy == 8) ? 7 : yyy;   // bytes in this group
-    if (toLuma && n < 7) b7s <<= (7 - n);
     dst[out_idx] = b7s;
-    out_idx += n + 1;                  // high-bits byte + n data bytes (a short last group used to lose its last byte)
+    out_idx += yyy;
+    //out_idx += (yyy == 8) ? 8 : yyy + 1;
 
   } while (in_idx < len);
 

@@ -1,15 +1,16 @@
 // MIDI and Sysex communication functions
 
+// Sends a 32-byte header plus any payload after it (e.g. the 8 KB pattern RAM image).
 function sendSysexToLuma(header) {
   if (!midiOut) return;
 
   // pack into the MIDI message
   // [f0] [69] [ulaw data] ..... [f7]
   var binaryStream = [];
-  for (let i = 0; i < 32; i++) binaryStream.push(header[i]); // 32b header
+  for (let i = 0; i < header.length; i++) binaryStream.push(header[i]); // 32b header + payload
 
   // pack msg into 7bits
-  var ulaw_stream_7bits = pack_sysex(binaryStream);
+  var ulaw_stream_7bits = pack_sysex(binaryStream, true);
 
   // now add the sysex around it 0xf0 0x69 ulaw_stream_7bits 0xf7
   var sysx = [0xf0, 0x69];
@@ -127,7 +128,7 @@ function onMIDIMessageReceived(event) {
         el.innerText = hexy(ram_dump, format);
       }
       // Notify step sequencer
-      if (typeof seqOnRamReceived === 'function') seqOnRamReceived(ram_dump);
+      if (typeof seqOnRamReceived === 'function') seqOnRamReceived(ram_dump, 'read from Luma-1');
     } else {
       console.log("unsupported Luma packet type=" + type);
     }
@@ -252,7 +253,7 @@ function writeSampleToDevice(slotId = 255) {
 
   for (let i = 0; i < ulaw_buffer.length; i++) binaryStream.push(ulaw_buffer[i]);
 
-  var ulaw_stream_7bits = pack_sysex(binaryStream);
+  var ulaw_stream_7bits = pack_sysex(binaryStream, true);
   var sysx = [0xf0, 0x69];
   var sysx2 = sysx.concat(ulaw_stream_7bits);
   sysx2.push(0xf7);
@@ -287,7 +288,7 @@ function writeSampleToDeviceSlotBank(slotId, bankId) {
 
   for (let i = 0; i < ulaw_buffer.length; i++) binaryStream.push(ulaw_buffer[i]);
 
-  var ulaw_stream_7bits = pack_sysex(binaryStream);
+  var ulaw_stream_7bits = pack_sysex(binaryStream, true);
   var sysx = [0xf0, 0x69];
   var sysx2 = sysx.concat(ulaw_stream_7bits);
   sysx2.push(0xf7);
